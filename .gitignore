@@ -1,0 +1,6 @@
+.codegraph/
+.cursor/
+.gemini/
+.kiro/  
+.venv/
+node_modules/
