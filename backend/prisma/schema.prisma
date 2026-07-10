@@ -1,0 +1,60 @@
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector]
+}
+
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+  previewFeatures      = ["postgresqlExtensions"]
+}
+
+model Campaign {
+  id              String      @id @default(uuid())
+  title           String
+  jobDescription  String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  candidates      Candidate[]
+}
+
+model Candidate {
+  id              String      @id @default(uuid())
+  campaignId      String
+  name            String
+  email           String?
+  phone           String?
+  resumePath      String?
+  status          String      @default("pending") // pending, screening, rejected, interviewing, review, complete
+  fitScore        Float?
+  decision        String?     // final decision by recruiter: approve, reject, hold
+  
+  structuredProfile Json?
+  embedding         Unsupported("vector(1536)")?
+  
+  campaign        Campaign    @relation(fields: [campaignId], references: [id])
+  evaluation      Evaluation?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model Evaluation {
+  id                  String    @id @default(uuid())
+  candidateId         String    @unique
+  overallScore        Float
+  technicalScore      Float
+  communicationScore  Float
+  culturalFitScore    Float
+  recommendation      String
+  summary             String
+  strengths           String[]
+  concerns            String[]
+  interviewTranscript Json?
+  
+  candidate           Candidate @relation(fields: [candidateId], references: [id])
+  
+  createdAt           DateTime  @default(now())
+}

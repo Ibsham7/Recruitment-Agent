@@ -13,12 +13,24 @@ from langgraph.checkpoint.memory import MemorySaver
 from importlib import import_module
 from state import RecruitmentState
 from nodes.cv_parser import cv_parser_node
+from nodes.hard_filters import hard_filters_node
+from nodes.embedding_matcher import embedding_matcher_node
 from nodes.jd_matcher import jd_matcher_node
 from nodes.question_generator import question_generator_node
 from nodes.interviewer import interviewer_node
 from nodes.evaluator import evaluator_node
 
 # ── Routing functions ──────────────────────────────────────────────────────
+
+def route_after_hard_filters(state: RecruitmentState) -> str:
+    if state["pipeline_status"] == "rejected":
+        return "rejected"
+    return "embedding_matcher"
+
+def route_after_embedding_matcher(state: RecruitmentState) -> str:
+    if state["pipeline_status"] == "rejected":
+        return "rejected"
+    return "jd_matcher"
 
 def route_after_screening(state: RecruitmentState) -> str:
     """After JD matching: advance to interview or reject immediately."""
@@ -99,6 +111,8 @@ def build_recruitment_graph(use_sqlite: bool = False):
 
     # Register nodes
     builder.add_node("cv_parser", cv_parser_node)
+    builder.add_node("hard_filters", hard_filters_node)
+    builder.add_node("embedding_matcher", embedding_matcher_node)
     builder.add_node("jd_matcher", jd_matcher_node)
     builder.add_node("question_generator", question_generator_node)
     builder.add_node("interviewer", interviewer_node)
@@ -106,9 +120,21 @@ def build_recruitment_graph(use_sqlite: bool = False):
     builder.add_node("human_review", human_review_node)
     builder.add_node("rejected", rejected_node)
 
-    # Sequential edges
+    # Edges
     builder.add_edge(START, "cv_parser")
-    builder.add_edge("cv_parser", "jd_matcher")
+    builder.add_edge("cv_parser", "hard_filters")
+
+    builder.add_conditional_edges(
+        "hard_filters",
+        route_after_hard_filters,
+        {"embedding_matcher": "embedding_matcher", "rejected": "rejected"}
+    )
+
+    builder.add_conditional_edges(
+        "embedding_matcher",
+        route_after_embedding_matcher,
+        {"jd_matcher": "jd_matcher", "rejected": "rejected"}
+    )
 
     # Conditional: screening result decides whether to advance or reject
     builder.add_conditional_edges(

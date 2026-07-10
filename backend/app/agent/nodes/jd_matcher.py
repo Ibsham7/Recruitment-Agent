@@ -40,26 +40,19 @@ def jd_matcher_node(state: RecruitmentState) -> dict:
     print(f"\n[JD Matcher] Scoring: {profile.name}")
 
     jd = state["job_description"]
-
-    prompt  = f"""
-JOB DESCRIPTION:
-{jd}
-
-CANDIDATE PROFILE:
-Name: {profile.name }
-Experience: {profile.total_experience_years} years
-Education: {', '.join(profile.education)}
-Skills: {', '.join(profile.skills)}
-Previous Roles: {', '.join(profile.previous_roles)}
-Achievements: {', '.join(profile.key_achievements)}
-
-Score this candidate against the job description.
-""" 
+    
+    # We put JD in the system prompt for effective prompt caching across candidates
+    system_prompt = JD_MATCHER_SYSTEM + f"\n\nJOB DESCRIPTION:\n{jd}"
 
     model = get_model("fast")    # screening doesn't need the strongest model
+    
+    # Exclude raw CV text to save tokens, only send the structured profile
+    profile_dict = profile.model_dump()
+    profile_dict.pop("raw_cv_text", None)
+    
     response = model.invoke([
-        SystemMessage(content=JD_MATCHER_SYSTEM),
-        HumanMessage(content=prompt)
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=f"CANDIDATE PROFILE (JSON):\n{json.dumps(profile_dict, indent=2)}")
     ])
 
     raw_json = response.content.strip().strip("```json").strip("```").strip() # type: ignore

@@ -56,10 +56,10 @@ Skills: {', '.join(profile.skills)}
 Experience: {profile.total_experience_years} years in roles: {', '.join(profile.previous_roles)}
 Missing requirements identified during screening: {', '.join(screening.missing_requirements)}
 
-Generate 5 targeted interview questions for this specific candidate.
+Generate 3 targeted interview questions for this specific candidate.
 """
 
-    model = get_model("smart")
+    model = get_model("fast")
     response = model.invoke([
         SystemMessage(content=QUESTION_GEN_SYSTEM),
         HumanMessage(content=prompt)

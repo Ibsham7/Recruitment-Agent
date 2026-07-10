@@ -4,3 +4,5 @@
 .kiro/  
 .venv/
 node_modules/
+*.md
+.env*

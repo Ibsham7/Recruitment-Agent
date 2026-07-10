@@ -64,7 +64,7 @@ def run_candidate(
                     break
                 if "log" in (node_output or {}):
                     for log_msg in node_output.get("log", []):
-                        print(f"  ✓ {log_msg}")
+                        print(f"  [OK] {log_msg}")
 
         if interrupt_value is None:
             break  # graph ran to END without interrupting
