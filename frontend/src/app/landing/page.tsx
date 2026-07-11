@@ -91,7 +91,12 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
         </div>
 
         {/* Hero copy */}
-        <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-3xl">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="relative z-10 flex flex-col items-center text-center px-6 max-w-3xl"
+        >
           <div className="text-[11px] font-semibold uppercase tracking-widest mb-6 px-3 py-1.5 rounded-full"
             style={{ color: t.accentBadge, background: hexToRgba(t.accentBadge, 0.10), border: `1px solid ${hexToRgba(t.accentBadge, 0.22)}`, fontFamily: "'DM Mono',monospace" }}>
             AI-Powered Recruiting Platform
@@ -108,7 +113,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
             Get started free →
           </button>
           <p className="text-xs mt-4" style={{ color: t.txtGhost }}>No credit card required · Set up in under 5 minutes</p>
-        </div>
+        </motion.div>
 
         {/* Scroll cue */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5" style={{ color: t.txtGhost }}>
@@ -119,12 +124,18 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
 
       {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
       <section id="ha-process" className="px-8 py-24 max-w-6xl mx-auto">
-        <div className="text-center mb-16">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="text-center mb-16"
+        >
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: t.accentBadge, fontFamily: "'DM Mono',monospace" }}>Process</div>
           <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15 }}>
             From job post to shortlist.<br />No human bottlenecks.
           </h2>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           {steps.map((s, i) => (
@@ -182,34 +193,52 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
       {/* ── STATS ─────────────────────────────────────────────────────────── */}
       <section className="px-8 py-16" style={{ background: hexToRgba(t.bgSurface, t.isDark ? 0.70 : 0.55), borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}`, borderBottom: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}` }}>
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {stats.map((s) => (
-            <div key={s.value}>
+          {stats.map((s, i) => (
+            <motion.div 
+              key={s.value}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}
+            >
               <div style={{ fontFamily: "'Fraunces',serif", fontSize: "clamp(2rem, 4vw, 2.8rem)", fontWeight: 600, color: t.numHero, lineHeight: 1 }}>{s.value}</div>
               <div className="text-xs mt-2 leading-snug" style={{ color: t.txtSecondary, whiteSpace: "pre-line" }}>{s.label}</div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
 
       {/* ── FEATURES ──────────────────────────────────────────────────────── */}
       <section id="ha-features" className="px-8 py-24 max-w-5xl mx-auto">
-        <div className="text-center mb-16">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="text-center mb-16"
+        >
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: t.accentBadge, fontFamily: "'DM Mono',monospace" }}>Features</div>
           <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15 }}>
             Everything a recruiting team needs.<br />Nothing it doesn't.
           </h2>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {features.map((f) => (
-            <div key={f.title} className="cursor-target rounded-2xl p-6 group transition-all"
+          {features.map((f, i) => (
+            <motion.div 
+              key={f.title} 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}
+              className="cursor-target rounded-2xl p-6 group transition-all"
               style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.50), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.80)}`, backdropFilter: "blur(16px)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = hexToRgba(t.bgCard, t.isDark ? 0.20 : 0.72); (e.currentTarget as HTMLDivElement).style.borderColor = hexToRgba(t.accentPrimary, 0.35); }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.50); (e.currentTarget as HTMLDivElement).style.borderColor = hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.80); }}>
               <div className="text-2xl mb-4" style={{ color: t.accentPrimary }}>{f.icon}</div>
               <div className="text-sm font-semibold mb-2" style={{ color: t.txtPrimary }}>{f.title}</div>
               <p className="text-xs leading-relaxed" style={{ color: t.txtSecondary }}>{f.desc}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
@@ -222,7 +251,13 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
         </div>
         <div style={{ position: "absolute", inset: 0, zIndex: 1, background: `radial-gradient(ellipse 80% 70% at 50% 50%, transparent 0%, ${hexToRgba(t.bgPage, 0.65)} 55%, ${t.bgPage} 100%)`, pointerEvents: "none" }} />
 
-        <div className="relative z-10 max-w-2xl">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="relative z-10 max-w-2xl"
+        >
           <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.2, marginBottom: "1rem" }}>
             Ready to hire smarter?
           </h2>
@@ -235,7 +270,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
             Start for free →
           </button>
           <p className="text-xs mt-4" style={{ color: t.txtGhost }}>No credit card · Cancel anytime</p>
-        </div>
+        </motion.div>
 
         {/* Footer */}
         <div className="relative z-10 mt-24 flex items-center gap-6 text-[10px]" style={{ color: t.txtGhost, fontFamily: "'DM Mono',monospace" }}>
