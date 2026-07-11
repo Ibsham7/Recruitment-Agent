@@ -3,6 +3,8 @@ import { Theme } from "../../lib/types";
 import { hexToRgba } from "../../lib/theme";
 import { ShapeGrid } from "../../components/common/ShapeGrid";
 import { PillNav } from "../../components/common/PillNav";
+import { motion } from "motion/react";
+import { FileText, Bot, Video, CheckCircle } from "lucide-react";
 const logoLightImg = "/Screenshot_2026-07-10_121453-removebg-preview.png";
 const logoDarkImg = "/Screenshot_2026-07-10_121508-removebg-preview.png";
 
@@ -11,10 +13,10 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
   const onEnter = () => navigate("/auth");
 
   const steps = [
-    { num: "01", title: "Post a Campaign", body: "Define the role, requirements, and ideal candidate profile. hireagent configures your pipeline automatically." },
-    { num: "02", title: "AI Screens Every CV", body: "Every application is parsed, scored against your job description, and ranked — instantly, at any volume." },
-    { num: "03", title: "Automated Interviews", body: "Top candidates receive an asynchronous AI interview. No scheduling, no bias, consistent evaluation every time." },
-    { num: "04", title: "You Make the Call", body: "Review transcripts, radar scores, and AI recommendations. Your shortlist arrives pre-ranked and ready." },
+    { num: 1, title: "Post a Campaign", body: "Define the role, requirements, and ideal candidate profile. hireagent configures your pipeline automatically.", icon: FileText },
+    { num: 2, title: "AI Screens Every CV", body: "Every application is parsed, scored against your job description, and ranked — instantly, at any volume.", icon: Bot },
+    { num: 3, title: "Automated Interviews", body: "Top candidates receive an asynchronous AI interview. No scheduling, no bias, consistent evaluation every time.", icon: Video },
+    { num: 4, title: "You Make the Call", body: "Review transcripts, radar scores, and AI recommendations. Your shortlist arrives pre-ranked and ready.", icon: CheckCircle },
   ];
 
   const features = [
@@ -111,7 +113,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
       </section>
 
       {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
-      <section id="ha-process" className="px-8 py-24 max-w-5xl mx-auto">
+      <section id="ha-process" className="px-8 py-24 max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: t.accentBadge, fontFamily: "'DM Mono',monospace" }}>Process</div>
           <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15 }}>
@@ -119,20 +121,55 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           {steps.map((s, i) => (
-            <div key={s.num} className="rounded-2xl p-7 relative overflow-hidden"
-              style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.14 : 0.60), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.22 : 0.85)}`, backdropFilter: "blur(20px)" }}>
-              {/* Big step number watermark */}
-              <div style={{ position: "absolute", right: "20px", top: "12px", fontFamily: "'Fraunces',serif", fontSize: "72px", fontWeight: 700, color: hexToRgba(t.numHero, 0.07), lineHeight: 1, userSelect: "none", pointerEvents: "none" }}>{s.num}</div>
-              <div className="text-[10px] font-semibold mb-3" style={{ fontFamily: "'DM Mono',monospace", color: t.accentBadge }}>{s.num}</div>
-              <div className="text-base font-semibold mb-2" style={{ color: t.txtPrimary }}>{s.title}</div>
-              <p className="text-sm leading-relaxed" style={{ color: t.txtSecondary }}>{s.body}</p>
-              {/* Connector line between steps except last column */}
-              {i < steps.length - 1 && (
-                <div style={{ position: "absolute", right: "-12px", top: "50%", width: "24px", height: "1px", background: hexToRgba(t.accentPrimary, 0.25), display: i % 2 === 0 ? "block" : "none" }} />
-              )}
-            </div>
+            <motion.div 
+              key={s.num} 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.6, delay: i * 0.15, ease: "easeOut" }}
+              className="flex flex-col items-center group"
+            >
+              {/* Icon Container */}
+              <div className="mb-6 relative w-full flex justify-center">
+                <motion.div 
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-sm"
+                  style={{ 
+                    background: hexToRgba(t.bgCard, t.isDark ? 0.3 : 1),
+                    border: `1px solid ${hexToRgba(t.txtPrimary, 0.1)}`,
+                    color: t.accentPrimary,
+                  }}
+                >
+                  <s.icon size={28} strokeWidth={1.5} />
+                </motion.div>
+                {/* Connecting line between icons (desktop only) */}
+                {i < steps.length - 1 && (
+                  <div className="hidden lg:block absolute top-1/2 left-[calc(50%+2rem)] w-[calc(100%-4rem)] h-[1px] -translate-y-1/2 border-t border-dashed opacity-40" 
+                    style={{ borderColor: t.txtPrimary }} 
+                  />
+                )}
+              </div>
+
+              {/* Number and Text Content */}
+              <div className="flex items-start text-left gap-4 w-full">
+                <div 
+                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[13px] font-medium border"
+                  style={{ 
+                    borderColor: hexToRgba(t.txtPrimary, 0.2), 
+                    color: t.txtPrimary,
+                    fontFamily: "'DM Mono',monospace"
+                  }}
+                >
+                  {s.num}
+                </div>
+                <div className="flex-1 mt-[2px]">
+                  <h3 className="text-base font-semibold mb-2" style={{ color: t.txtPrimary }}>{s.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: t.txtSecondary }}>{s.body}</p>
+                </div>
+              </div>
+            </motion.div>
           ))}
         </div>
       </section>
