@@ -107,7 +107,7 @@ export function PillNav({
             {items.map((item, i) => (
               <li key={i} role="none">
                 <button role="menuitem"
-                  className={`pill${item.active ? " is-active" : ""}`}
+                  className={`cursor-target pill${item.active ? " is-active" : ""}`}
                   onMouseEnter={() => handleEnter(i)}
                   onMouseLeave={() => handleLeave(i)}
                   onClick={item.onClick}>
@@ -121,7 +121,7 @@ export function PillNav({
             ))}
           </ul>
         </div>
-        <button className="mobile-menu-button" onClick={toggleMobile} aria-label="Toggle menu" ref={hamburgerRef}>
+        <button className="cursor-target mobile-menu-button" onClick={toggleMobile} aria-label="Toggle menu" ref={hamburgerRef}>
           <span className="hamburger-line" /><span className="hamburger-line" />
         </button>
       </nav>
@@ -129,7 +129,7 @@ export function PillNav({
         <ul className="mobile-menu-list">
           {items.map((item, i) => (
             <li key={i}>
-              <button className={`mobile-menu-link${item.active ? " is-active" : ""}`}
+              <button className={`cursor-target mobile-menu-link${item.active ? " is-active" : ""}`}
                 onClick={() => { item.onClick?.(); setMobileOpen(false); }}>
                 {item.label}
               </button>

@@ -5,6 +5,7 @@ import { ShapeGrid } from "../../components/common/ShapeGrid";
 import { PillNav } from "../../components/common/PillNav";
 import { motion } from "motion/react";
 import { FileText, Bot, Video, CheckCircle } from "lucide-react";
+import TargetCursor from "../../components/common/TargetCursor";
 const logoLightImg = "/Screenshot_2026-07-10_121453-removebg-preview.png";
 const logoDarkImg = "/Screenshot_2026-07-10_121508-removebg-preview.png";
 
@@ -41,6 +42,10 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
 
   return (
     <div className="relative w-full overflow-y-auto overflow-x-hidden" style={{ background: t.bgPage, color: t.txtBody, minHeight: "100vh" }}>
+      <TargetCursor 
+        cursorColor="#ffffff" 
+        cursorColorOnTarget={t.accentPrimary} 
+      />
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section className="relative flex flex-col items-center justify-center" style={{ minHeight: "100vh" }}>
         {/* ShapeGrid canvas — full bleed behind everything */}
@@ -61,7 +66,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
 
         {/* Nav bar — 3-col: logo | PillNav | CTA */}
         <div className="absolute top-0 left-0 right-0 z-10" style={{ height: "72px", display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", padding: "0 2.5rem", gap: "1rem" }}>
-          <img src={t.isDark ? logoDarkImg : logoLightImg} alt="hireagent" style={{ width: "148px", height: "48px", objectFit: "contain", objectPosition: "left center" }} />
+          <img src={t.isDark ? logoDarkImg : logoLightImg} alt="hireagent" className="cursor-target" style={{ width: "148px", height: "48px", objectFit: "contain", objectPosition: "left center" }} />
 
           <PillNav
             containerStyle={{ position: "relative", top: "unset" }}
@@ -78,7 +83,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button onClick={onEnter}
-              className="px-5 py-2 rounded-xl text-xs font-semibold"
+              className="cursor-target px-5 py-2 rounded-xl text-xs font-semibold"
               style={{ background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.78)})`, color: t.accentText, boxShadow: `0 2px 12px ${hexToRgba(t.accentPrimary, 0.35)}` }}>
               Get started →
             </button>
@@ -98,7 +103,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
             hireagent automates CV screening, conducts AI interviews, and surfaces your best candidates — so your team spends time on decisions, not admin.
           </p>
           <button onClick={onEnter}
-            className="px-10 py-4 rounded-2xl text-base font-semibold"
+            className="cursor-target px-10 py-4 rounded-2xl text-base font-semibold"
             style={{ background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.78)})`, color: t.accentText, boxShadow: `0 8px 32px ${hexToRgba(t.accentPrimary, 0.38)}`, letterSpacing: "0.01em" }}>
             Get started free →
           </button>
@@ -129,7 +134,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.6, delay: i * 0.15, ease: "easeOut" }}
-              className="flex flex-col items-center group"
+              className="cursor-target flex flex-col items-center group"
             >
               {/* Icon Container */}
               <div className="mb-6 relative w-full flex justify-center">
@@ -197,7 +202,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {features.map((f) => (
-            <div key={f.title} className="rounded-2xl p-6 group transition-all"
+            <div key={f.title} className="cursor-target rounded-2xl p-6 group transition-all"
               style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.50), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.80)}`, backdropFilter: "blur(16px)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = hexToRgba(t.bgCard, t.isDark ? 0.20 : 0.72); (e.currentTarget as HTMLDivElement).style.borderColor = hexToRgba(t.accentPrimary, 0.35); }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.50); (e.currentTarget as HTMLDivElement).style.borderColor = hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.80); }}>
@@ -225,7 +230,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
             Join recruiting teams that have already replaced hours of manual screening with minutes of AI-powered insight.
           </p>
           <button onClick={onEnter}
-            className="px-12 py-4 rounded-2xl text-base font-semibold"
+            className="cursor-target px-12 py-4 rounded-2xl text-base font-semibold"
             style={{ background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.78)})`, color: t.accentText, boxShadow: `0 8px 32px ${hexToRgba(t.accentPrimary, 0.38)}` }}>
             Start for free →
           </button>
