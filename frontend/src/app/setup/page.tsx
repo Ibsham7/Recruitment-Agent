@@ -9,7 +9,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
   const G = getGlass(t);
   
   const [step, setStep] = useState(1);
-  const [jd, setJd] = useState("We are looking for a Senior Frontend Engineer to join our product team. You will architect and build the next generation of our user-facing applications using React, TypeScript, and modern tooling.\n\nKey Requirements:\n• 5+ years of experience with React and modern JavaScript/TypeScript\n• Strong understanding of web performance, accessibility, and testing\n• Experience designing and building design systems\n• Excellent communication skills and a collaborative mindset");
+  const [jd, setJd] = useState("");
   const [files, setFiles] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const [toggles, setToggles] = useState([true, false, true]);
@@ -42,10 +42,10 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
             <p className="text-sm" style={{ color: t.txtSecondary }}>Tell the AI what you are looking for.</p>
           </div>
           <div className="space-y-4">
-            <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Job Title</label><input defaultValue="Senior Frontend Engineer" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
+            <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Job Title</label><input placeholder="e.g. Senior Frontend Engineer" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
             <div className="grid grid-cols-2 gap-4">
-               <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Department</label><input defaultValue="Engineering" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
-               <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Location</label><input defaultValue="Remote · London" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
+               <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Department</label><input placeholder="e.g. Engineering" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
+               <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Location</label><input placeholder="e.g. Remote" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
             </div>
             <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Job Description</label><textarea value={jd} onChange={(e) => setJd(e.target.value)} rows={7} className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none resize-none leading-relaxed" style={fieldStyle} /></div>
             <div className="rounded-2xl p-5 space-y-4" style={G.card}>
