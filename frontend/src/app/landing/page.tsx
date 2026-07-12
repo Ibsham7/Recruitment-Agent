@@ -6,6 +6,7 @@ import { PillNav } from "../../components/common/PillNav";
 import { motion } from "motion/react";
 import { FileText, Bot, Video, CheckCircle } from "lucide-react";
 import TargetCursor from "../../components/common/TargetCursor";
+import TextType from "../../components/common/TextType";
 const logoLightImg = "/Screenshot_2026-07-10_121453-removebg-preview.png";
 const logoDarkImg = "/Screenshot_2026-07-10_121508-removebg-preview.png";
 
@@ -102,7 +103,18 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
             AI-Powered Recruiting Platform
           </div>
           <h1 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(2.6rem, 6vw, 4.5rem)", fontWeight: 600, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: "1.5rem" }}>
-            Hire the right people,<br />faster than ever before.
+            Hire the right people,<br />
+            <TextType 
+              text={[
+                "faster than ever.", 
+                "with zero hassle.", 
+                "without bias."
+              ]}
+              typingSpeed={50}
+              pauseDuration={1500}
+              showCursor={true}
+              cursorCharacter="|"
+            />
           </h1>
           <p className="text-base leading-relaxed mb-10 max-w-xl" style={{ color: t.txtSecondary }}>
             hireagent automates CV screening, conducts AI interviews, and surfaces your best candidates — so your team spends time on decisions, not admin.
@@ -127,7 +139,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: false, amount: 0.1 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
           className="text-center mb-16"
         >
@@ -137,14 +149,27 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
           </h2>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+        <motion.div 
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: false, amount: 0.1 }}
+          variants={{
+            hidden: {
+              transition: { staggerChildren: 0.1, staggerDirection: -1 }
+            },
+            show: {
+              transition: { staggerChildren: 0.2, staggerDirection: 1 }
+            }
+          }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12"
+        >
           {steps.map((s, i) => (
             <motion.div 
               key={s.num} 
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.6, delay: i * 0.15, ease: "easeOut" }}
+              variants={{
+                hidden: { opacity: 0, y: 30, transition: { duration: 0.4, ease: "easeIn" } },
+                show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+              }}
               className="cursor-target flex flex-col items-center group"
             >
               {/* Icon Container */}
@@ -187,25 +212,34 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
               </div>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
       {/* ── STATS ─────────────────────────────────────────────────────────── */}
       <section className="px-8 py-16" style={{ background: hexToRgba(t.bgSurface, t.isDark ? 0.70 : 0.55), borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}`, borderBottom: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}` }}>
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        <motion.div 
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: false, amount: 0.1 }}
+          variants={{
+            hidden: { transition: { staggerChildren: 0.1, staggerDirection: -1 } },
+            show: { transition: { staggerChildren: 0.1, staggerDirection: 1 } }
+          }}
+          className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
+        >
           {stats.map((s, i) => (
             <motion.div 
               key={s.value}
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}
+              variants={{
+                hidden: { opacity: 0, scale: 0.9, transition: { duration: 0.4, ease: "easeIn" } },
+                show: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: "easeOut" } }
+              }}
             >
               <div style={{ fontFamily: "'Fraunces',serif", fontSize: "clamp(2rem, 4vw, 2.8rem)", fontWeight: 600, color: t.numHero, lineHeight: 1 }}>{s.value}</div>
               <div className="text-xs mt-2 leading-snug" style={{ color: t.txtSecondary, whiteSpace: "pre-line" }}>{s.label}</div>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
       {/* ── FEATURES ──────────────────────────────────────────────────────── */}
@@ -213,7 +247,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: false, amount: 0.1 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
           className="text-center mb-16"
         >
@@ -223,14 +257,23 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
           </h2>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <motion.div 
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: false, amount: 0.1 }}
+          variants={{
+            hidden: { transition: { staggerChildren: 0.1, staggerDirection: -1 } },
+            show: { transition: { staggerChildren: 0.1, staggerDirection: 1 } }
+          }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        >
           {features.map((f, i) => (
             <motion.div 
               key={f.title} 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}
+              variants={{
+                hidden: { opacity: 0, y: 20, transition: { duration: 0.4, ease: "easeIn" } },
+                show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+              }}
               className="cursor-target rounded-2xl p-6 group transition-all"
               style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.50), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.80)}`, backdropFilter: "blur(16px)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = hexToRgba(t.bgCard, t.isDark ? 0.20 : 0.72); (e.currentTarget as HTMLDivElement).style.borderColor = hexToRgba(t.accentPrimary, 0.35); }}
@@ -240,7 +283,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
               <p className="text-xs leading-relaxed" style={{ color: t.txtSecondary }}>{f.desc}</p>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
       {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
@@ -254,7 +297,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: false, amount: 0.1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="relative z-10 max-w-2xl"
         >
