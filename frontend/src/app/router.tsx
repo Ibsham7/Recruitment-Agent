@@ -12,6 +12,7 @@ import DashboardPage from "./dashboard/page";
 import SetupPage from "./setup/page";
 import PipelinePage from "./pipeline/page";
 import CandidatePage from "./candidate/page";
+import InterviewPage from "./interview/page";
 import NotFoundPage from "./not-found";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -42,7 +43,12 @@ export function AppRouter() {
       element: <AuthPage theme={theme} />,
     },
     {
+      path: "/interview/:id",
+      element: <InterviewPage theme={theme} />,
+    },
+    {
       path: "/",
+
       element: (
         <ProtectedRoute>
           <Layout theme={theme} setTheme={setTheme} />

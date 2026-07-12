@@ -1,4 +1,7 @@
 import json
+import os
+import tempfile
+import urllib.request
 from pypdf import PdfReader
 from config import get_model
 from schemas import CandidateProfile
@@ -8,9 +11,22 @@ import asyncio
 from prisma import Prisma
 
 def extract_pdf_text(filepath: str) -> str:
-    reader = PdfReader(filepath)
-    pages = [page.extract_text() or "" for page in reader.pages]
-    return "\n".join(pages)
+    temp_path = None
+    if filepath.startswith("http://") or filepath.startswith("https://"):
+        fd, temp_path = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        urllib.request.urlretrieve(filepath, temp_path)
+        pdf_path = temp_path
+    else:
+        pdf_path = filepath
+
+    try:
+        reader = PdfReader(pdf_path)
+        pages = [page.extract_text() or "" for page in reader.pages]
+        return "\n".join(pages)
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
 
 #todo : can save token by adding raw cv text manually instead of sending to LLM
 CV_PARSER_SYSTEM = """

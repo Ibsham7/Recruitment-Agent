@@ -1,23 +1,91 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router";
-import { Check, Upload, FileText, CheckCircle } from "lucide-react";
+import { Check, Upload, FileText, CheckCircle, Loader2 } from "lucide-react";
 import { Theme } from "../../lib/types";
 import { hexToRgba, getGlass } from "../../lib/theme";
 
 export default function SetupPage({ theme: t }: { theme: Theme }) {
   const navigate = useNavigate();
   const G = getGlass(t);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [step, setStep] = useState(1);
+  const [title, setTitle] = useState("");
   const [jd, setJd] = useState("");
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [toggles, setToggles] = useState([true, false, true]);
-  const mockFiles = ["AriaC_Resume.pdf","MarcusW_CV.pdf","PriyaS_Resume.pdf","JordanB_CV.pdf","SamT_Resume.pdf","NinaK_CV.pdf"];
+  const [uploading, setUploading] = useState(false);
+  
   const fieldStyle: React.CSSProperties = { color: t.txtBody, background: hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.55), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.80)}`, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" };
 
-  const onComplete = () => {
-    navigate("/dashboard");
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+    }
+  };
+
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
+    
+    if (!cloudName || !uploadPreset) {
+      console.warn("Cloudinary env vars missing. Returning mock URL.");
+      return `https://mock.cloudinary.com/resumes/${file.name}`;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
+      method: "POST",
+      body: formData,
+    });
+    
+    if (!res.ok) throw new Error("Upload failed");
+    const data = await res.json();
+    return data.secure_url;
+  };
+
+  const onComplete = async () => {
+    if (!title || !jd || files.length === 0) return;
+    setUploading(true);
+    
+    try {
+      // 1. Upload all files to Cloudinary
+      const uploadPromises = files.map(uploadToCloudinary);
+      const fileUrls = await Promise.all(uploadPromises);
+
+      // 2. Send payload to backend
+      const res = await fetch("http://localhost:8000/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          jobDescription: jd,
+          resumes: fileUrls
+        })
+      });
+
+      if (!res.ok) throw new Error("Failed to create campaign");
+      
+      const data = await res.json();
+      navigate("/dashboard");
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred during upload or campaign creation.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -42,7 +110,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
             <p className="text-sm" style={{ color: t.txtSecondary }}>Tell the AI what you are looking for.</p>
           </div>
           <div className="space-y-4">
-            <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Job Title</label><input placeholder="e.g. Senior Frontend Engineer" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
+            <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Job Title</label><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Senior Frontend Engineer" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
             <div className="grid grid-cols-2 gap-4">
                <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Department</label><input placeholder="e.g. Engineering" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
                <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Location</label><input placeholder="e.g. Remote" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
@@ -61,7 +129,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               ))}
             </div>
           </div>
-          <button onClick={() => setStep(2)} className="w-full py-3 rounded-xl text-sm font-semibold"
+          <button onClick={() => setStep(2)} disabled={!title || !jd} className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-50"
             style={{ background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.72)})`, color: t.accentText, boxShadow: `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` }}>
             Continue to Upload CVs
           </button>
@@ -74,22 +142,27 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
             <h2 className="text-2xl font-semibold mb-1" style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary }}>Upload candidate CVs</h2>
             <p className="text-sm" style={{ color: t.txtSecondary }}>Upload PDFs — the AI will begin screening immediately.</p>
           </div>
-          <div onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); setFiles(mockFiles); }} onClick={() => setFiles(mockFiles)}
+          
+          <input type="file" multiple accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileSelect} />
+          
+          <div onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={handleFileDrop} onClick={() => fileInputRef.current?.click()}
             className="rounded-2xl p-12 text-center cursor-pointer transition-all border-2 border-dashed"
             style={{ borderColor: dragging ? hexToRgba(t.accentPrimary, 0.55) : hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.30), background: dragging ? hexToRgba(t.accentPrimary, 0.07) : hexToRgba(t.bgCard, t.isDark ? 0.06 : 0.22) }}>
             <Upload size={26} className="mx-auto mb-3" style={{ color: t.txtGhost }} />
             <div className="text-sm font-medium" style={{ color: t.txtPrimary }}>Drop PDF files here</div>
             <div className="text-xs mt-0.5" style={{ color: t.txtMuted }}>or click to browse — up to 100 files</div>
           </div>
-          {files.length > 0 && <div className="space-y-2">
+          
+          {files.length > 0 && <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
             <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>{files.length} Files Queued</div>
-            {files.map((f) => (<div key={f} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ ...G.card }}><FileText size={13} style={{ color: t.accentBadge }} /><span className="text-xs flex-1" style={{ color: t.txtBody }}>{f}</span><CheckCircle size={12} style={{ color: t.numPos }} /></div>))}
+            {files.map((f, i) => (<div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ ...G.card }}><FileText size={13} style={{ color: t.accentBadge }} /><span className="text-xs flex-1 truncate" style={{ color: t.txtBody }}>{f.name}</span><CheckCircle size={12} style={{ color: t.numPos }} /></div>))}
           </div>}
+          
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl text-sm font-medium" style={{ ...G.card, color: t.txtSecondary }}>Back</button>
-            <button onClick={onComplete} disabled={files.length === 0} className="flex-1 py-3 rounded-xl text-sm font-semibold"
-              style={{ background: files.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.72)})` : hexToRgba(t.bgCard, 0.15), color: files.length > 0 ? t.accentText : t.txtGhost, boxShadow: files.length > 0 ? `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` : "none", cursor: files.length > 0 ? "pointer" : "not-allowed" }}>
-              Launch Campaign
+            <button onClick={() => setStep(1)} disabled={uploading} className="flex-1 py-3 rounded-xl text-sm font-medium disabled:opacity-50" style={{ ...G.card, color: t.txtSecondary }}>Back</button>
+            <button onClick={onComplete} disabled={files.length === 0 || uploading} className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+              style={{ background: files.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.72)})` : hexToRgba(t.bgCard, 0.15), color: files.length > 0 ? t.accentText : t.txtGhost, boxShadow: files.length > 0 ? `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` : "none", cursor: files.length > 0 && !uploading ? "pointer" : "not-allowed" }}>
+              {uploading ? <><Loader2 size={16} className="animate-spin" /> Uploading...</> : "Launch Campaign"}
             </button>
           </div>
         </div>

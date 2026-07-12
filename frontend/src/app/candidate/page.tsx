@@ -208,15 +208,36 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           {campaign && <span style={{ color: t.txtMuted }}> · {campaign.title}</span>}
         </div>
         <div className="flex items-center gap-2.5">
-          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium" style={{ ...G.card, color: t.txtSecondary }}><Pause size={11} /> Hold</button>
-          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all"
+          <button 
+            onClick={async () => {
+              try {
+                await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "hold" }) });
+                setCandidate({ ...candidate, recommendation: "hold", status: "complete" });
+              } catch (e) { alert("Failed to submit"); }
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium" style={{ ...G.card, color: t.txtSecondary }}><Pause size={11} /> Hold</button>
+          <button 
+            onClick={async () => {
+              try {
+                await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "reject" }) });
+                setCandidate({ ...candidate, recommendation: "reject", status: "complete" });
+              } catch (e) { alert("Failed to submit"); }
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all"
             style={{ background: hexToRgba(t.numNeg, 0.12), border: `1px solid ${hexToRgba(t.numNeg, 0.28)}`, color: t.numNeg }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hexToRgba(t.numNeg, 0.22); }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = hexToRgba(t.numNeg, 0.12); }}>
             <XCircle size={11} /> Reject Candidate
           </button>
-          <button className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-semibold transition-all"
-            style={{ background: `linear-gradient(135deg, t.accentPrimary, ${hexToRgba(t.accentPrimary, 0.72)})`, color: t.accentText, boxShadow: `0 4px 16px ${hexToRgba(t.accentPrimary, 0.40)}` }}
+          <button 
+            onClick={async () => {
+              try {
+                await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve" }) });
+                setCandidate({ ...candidate, recommendation: "approve", status: "complete" });
+              } catch (e) { alert("Failed to submit"); }
+            }}
+            className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-semibold transition-all"
+            style={{ background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.72)})`, color: t.accentText, boxShadow: `0 4px 16px ${hexToRgba(t.accentPrimary, 0.40)}` }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = `0 6px 24px ${hexToRgba(t.accentPrimary, 0.55)}`; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 16px ${hexToRgba(t.accentPrimary, 0.40)}`; }}>
             <CheckCircle size={11} /> Approve Candidate

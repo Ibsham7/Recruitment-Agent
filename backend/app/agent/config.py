@@ -10,14 +10,13 @@ OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
 
 def get_model(tier: str = "smart") -> ChatOpenAI:
     """
-    smart  → claude-sonnet-4-6   Best tool calling + instruction following.
-                                  Use for CV parsing, interview conducting, evaluation.
-    fast   → google/gemini-2.5-flash-preview-05-20
-                                  Faster + cheaper. Use for JD matching/scoring.
+    smart  → nvidia/nemotron-3-ultra-550b-a55b:free     Best tool calling + instruction following available for free.
+                                                Use for CV parsing, interview conducting, evaluation.
+    fast   → nvidia/nemotron-3-nano-30b-a3b:free        Faster + cheaper (free). Use for JD matching/scoring.
     """
     models = {
-        "smart": "anthropic/claude-sonnet-4-6",
-        "fast": "google/gemini-3.1-flash-lite",
+        "smart": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "fast": "nvidia/nemotron-3-nano-30b-a3b:free",
     }
     return ChatOpenAI(
         model=models[tier],
