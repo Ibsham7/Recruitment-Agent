@@ -1,10 +1,10 @@
-from state import RecruitmentState
+from app.agent.state import RecruitmentState
 import os
 import json
 import asyncio
 import numpy as np
 from prisma import Prisma
-from config import get_model
+from app.agent.config import get_model
 from langchain_core.messages import SystemMessage, HumanMessage
 
 # Lazy load embeddings to avoid heavy import on startup if not needed
@@ -30,23 +30,21 @@ def cosine_similarity(v1: list[float], v2: list[float]) -> float:
         return 0.0
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
-def _get_or_create_embedding_sync(cv_filepath: str, text_to_embed: str) -> list[float]:
-    async def _async_task():
-        prisma = Prisma()
-        await prisma.connect()
-        try:
-            candidate = await prisma.candidate.find_first(
-                where={"resumePath": cv_filepath}
-            )
-            # Prisma Python doesn't officially decode Unsupported("vector") nicely in all versions.
-            # For this MVP, we'll embed on the fly and optionally store if we had raw SQL.
-            # Since vector isn't fully supported in Prisma Client Py read, we generate it.
-            return get_embedding(text_to_embed)
-        finally:
-            await prisma.disconnect()
-    return asyncio.run(_async_task())
+async def _get_or_create_embedding_async(cv_filepath: str, text_to_embed: str) -> list[float]:
+    prisma = Prisma()
+    await prisma.connect()
+    try:
+        candidate = await prisma.candidate.find_first(
+            where={"resumePath": cv_filepath}
+        )
+        # Prisma Python doesn't officially decode Unsupported("vector") nicely in all versions.
+        # For this MVP, we'll embed on the fly and optionally store if we had raw SQL.
+        # Since vector isn't fully supported in Prisma Client Py read, we generate it.
+        return get_embedding(text_to_embed)
+    finally:
+        await prisma.disconnect()
 
-def embedding_matcher_node(state: RecruitmentState) -> dict:
+async def embedding_matcher_node(state: RecruitmentState) -> dict:
     """
     Filters candidates based on vector similarity between structured CV and JD.
     Option A: Threshold-based. Option B: Batch Top-N% (implemented outside this node in batch_run.py).
@@ -62,7 +60,7 @@ def embedding_matcher_node(state: RecruitmentState) -> dict:
     # Text representation of CV
     cv_summary = f"Skills: {', '.join(profile.skills)}. Experience: {profile.total_experience_years} years. Roles: {', '.join(profile.previous_roles)}."
     
-    cv_vector = _get_or_create_embedding_sync(state["cv_filepath"], cv_summary)
+    cv_vector = await _get_or_create_embedding_async(state["cv_filepath"], cv_summary)
     jd_vector = get_embedding(jd)
     
     similarity = cosine_similarity(cv_vector, jd_vector)

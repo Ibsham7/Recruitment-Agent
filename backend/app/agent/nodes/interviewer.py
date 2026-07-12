@@ -1,9 +1,9 @@
 # nodes/interviewer.py
 from langgraph.types import interrupt
-from schemas import InterviewTranscript, InterviewQuestion
-from state import RecruitmentState
+from app.agent.schemas import InterviewTranscript, InterviewQuestion
+from app.agent.state import RecruitmentState
 
-def interviewer_node(state: RecruitmentState) -> dict:
+async def interviewer_node(state: RecruitmentState) -> dict:
     """
     Conduct the interview one question at a time using LangGraph interrupt.
     

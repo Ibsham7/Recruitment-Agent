@@ -15,7 +15,10 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [toggles, setToggles] = useState([true, false, true]);
+  const [hardFilters, setHardFilters] = useState<{type: string, value: string, penalty: string}[]>([]);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [dbWakingUp, setDbWakingUp] = useState(false);
   
   const fieldStyle: React.CSSProperties = { color: t.txtBody, background: hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.55), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.80)}`, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" };
 
@@ -61,6 +64,31 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
     setUploading(true);
     
     try {
+      // 0. Ensure database is awake (handle Supabase cold start)
+      let isAwake = false;
+      let firstTry = true;
+      while (!isAwake) {
+        try {
+          const healthRes = await fetch("http://localhost:8000/api/health/db");
+          if (healthRes.ok) {
+            isAwake = true;
+          } else {
+            if (firstTry) {
+              setDbWakingUp(true);
+              firstTry = false;
+            }
+            await new Promise(r => setTimeout(r, 3000));
+          }
+        } catch (e) {
+          if (firstTry) {
+            setDbWakingUp(true);
+            firstTry = false;
+          }
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      }
+      setDbWakingUp(false);
+
       // 1. Upload all files to Cloudinary
       const uploadPromises = files.map(uploadToCloudinary);
       const fileUrls = await Promise.all(uploadPromises);
@@ -72,7 +100,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
         body: JSON.stringify({
           title,
           jobDescription: jd,
-          resumes: fileUrls
+          resumes: fileUrls,
+          hardFiltersConfig: hardFilters
         })
       });
 
@@ -128,6 +157,30 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
                 </div>
               ))}
             </div>
+
+            <div className="rounded-2xl p-5 space-y-4" style={G.card}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>Hard Filters & Penalties</div>
+                  <div className="text-xs mt-1" style={{ color: t.txtSecondary }}>
+                    {hardFilters.length === 0 ? "No hard filters applied" : `${hardFilters.length} filter${hardFilters.length === 1 ? '' : 's'} applied`}
+                  </div>
+                </div>
+                <button onClick={() => setShowFiltersModal(true)} className="text-[10px] font-semibold px-3 py-2 rounded-lg transition-colors" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}>Configure Filters</button>
+              </div>
+              {hardFilters.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {hardFilters.map((hf, i) => (
+                    <div key={i} className="text-[10px] font-medium px-2 py-1 rounded-md" style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.8), border: `1px solid ${hexToRgba(t.txtGhost, 0.2)}`, color: t.txtPrimary }}>
+                      {hf.type === "skill" ? `Skill: ${hf.value}` : `Exp: ${hf.value}yrs`} 
+                      <span style={{ color: hf.penalty === "reject" ? "#ef4444" : "#eab308", marginLeft: 4 }}>
+                        ({hf.penalty === "reject" ? "Reject" : hf.penalty.replace("_", " ")})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <button onClick={() => setStep(2)} disabled={!title || !jd} className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-50"
             style={{ background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.72)})`, color: t.accentText, boxShadow: `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` }}>
@@ -162,8 +215,56 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
             <button onClick={() => setStep(1)} disabled={uploading} className="flex-1 py-3 rounded-xl text-sm font-medium disabled:opacity-50" style={{ ...G.card, color: t.txtSecondary }}>Back</button>
             <button onClick={onComplete} disabled={files.length === 0 || uploading} className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
               style={{ background: files.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.72)})` : hexToRgba(t.bgCard, 0.15), color: files.length > 0 ? t.accentText : t.txtGhost, boxShadow: files.length > 0 ? `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` : "none", cursor: files.length > 0 && !uploading ? "pointer" : "not-allowed" }}>
-              {uploading ? <><Loader2 size={16} className="animate-spin" /> Uploading...</> : "Launch Campaign"}
+              {uploading ? (
+                dbWakingUp ? (
+                  <><Loader2 size={16} className="animate-spin" /> Waking up database (takes ~30s)...</>
+                ) : (
+                  <><Loader2 size={16} className="animate-spin" /> Uploading...</>
+                )
+              ) : "Launch Campaign"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {showFiltersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: hexToRgba("#000", 0.5), backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}>
+          <div className="rounded-2xl max-w-md w-full p-6 shadow-2xl relative" style={{ background: t.bgWindow, border: `1px solid ${hexToRgba(t.txtGhost, 0.2)}` }}>
+            <button onClick={() => setShowFiltersModal(false)} className="absolute top-4 right-4 text-xl hover:opacity-70 transition-opacity" style={{ color: t.txtGhost }}>✕</button>
+            <h3 className="text-lg font-semibold mb-1" style={{ color: t.txtPrimary }}>Hard Filters & Penalties</h3>
+            <p className="text-xs mb-6" style={{ color: t.txtSecondary }}>Define strict requirements and their consequences.</p>
+            
+            <div className="space-y-3 mb-6 max-h-[60vh] overflow-y-auto pr-1">
+              {hardFilters.length === 0 ? (
+                <div className="text-sm text-center py-6" style={{ color: t.txtMuted }}>No filters added yet.</div>
+              ) : (
+                hardFilters.map((hf, i) => (
+                  <div key={i} className="flex flex-col gap-2 p-3 rounded-xl" style={{ background: hexToRgba(t.bgCard, 0.5), border: `1px solid ${hexToRgba(t.txtGhost, 0.1)}` }}>
+                    <div className="flex gap-2">
+                      <select value={hf.type} onChange={e => { const newHf = [...hardFilters]; newHf[i].type = e.target.value; setHardFilters(newHf); }} className="rounded-lg px-2 py-2 text-xs focus:outline-none" style={{...fieldStyle, flex: 1}}>
+                        <option value="skill">Mandatory Skill</option>
+                        <option value="experience">Min Experience (Years)</option>
+                      </select>
+                      <button onClick={() => { const newHf = [...hardFilters]; newHf.splice(i, 1); setHardFilters(newHf); }} className="text-xs px-2 py-1 hover:opacity-70 transition-opacity ml-auto rounded" style={{color: t.txtGhost, background: hexToRgba(t.txtGhost, 0.1)}}>Remove</button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input value={hf.value} onChange={e => { const newHf = [...hardFilters]; newHf[i].value = e.target.value; setHardFilters(newHf); }} placeholder={hf.type === "experience" ? "e.g. 3" : "e.g. Python, React"} className="rounded-lg px-2 py-2 text-xs focus:outline-none" style={{...fieldStyle, flex: 1}} />
+                      <select value={hf.penalty} onChange={e => { const newHf = [...hardFilters]; newHf[i].penalty = e.target.value; setHardFilters(newHf); }} className="rounded-lg px-2 py-2 text-xs focus:outline-none" style={{...fieldStyle, flex: 1.5}}>
+                        <option value="reject">Completely Reject</option>
+                        <option value="hard_penalize">Hard Penalize (-30)</option>
+                        <option value="intermediate_penalize">Intermediate Penalize (-20)</option>
+                        <option value="slight_penalize">Slight Penalize (-10)</option>
+                      </select>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div className="flex gap-3">
+              <button onClick={() => setHardFilters([...hardFilters, {type: "skill", value: "", penalty: "reject"}])} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}>+ Add Filter</button>
+              <button onClick={() => setShowFiltersModal(false)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors" style={{ background: t.accentPrimary, color: t.accentText }}>Done</button>
+            </div>
           </div>
         </div>
       )}

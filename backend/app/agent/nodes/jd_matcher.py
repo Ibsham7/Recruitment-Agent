@@ -1,7 +1,8 @@
 import json
-from config import get_model
-from schemas import ScreeningResult
-from state import RecruitmentState
+from app.agent.config import get_model
+from app.agent.schemas import ScreeningResult
+from app.agent.state import RecruitmentState
+from app.agent.utils import extract_json
 from langchain_core.messages import HumanMessage, SystemMessage
 
 JD_MATCHER_SYSTEM = """
@@ -31,7 +32,7 @@ Be strict. A candidate who is 70% qualified but missing a critical mandatory req
 should score low on that requirement. Do not inflate scores.
 """
 
-def jd_matcher_node(state: RecruitmentState) -> dict:
+async def jd_matcher_node(state: RecruitmentState) -> dict:
     """Score the candidate against the job description."""
     profile = state.get("candidate_profile")
     if profile is None:
@@ -50,13 +51,34 @@ def jd_matcher_node(state: RecruitmentState) -> dict:
     profile_dict = profile.model_dump()
     profile_dict.pop("raw_cv_text", None)
     
-    response = model.invoke([
+    response = await model.ainvoke([
         SystemMessage(content=system_prompt),
         HumanMessage(content=f"CANDIDATE PROFILE (JSON):\n{json.dumps(profile_dict, indent=2)}")
     ])
 
-    raw_json = response.content.strip().strip("```json").strip("```").strip() # type: ignore
+    raw_json = extract_json(response.content)
     result = ScreeningResult(**json.loads(raw_json))
+    
+    # Apply penalties from hard_filters
+    penalties = state.get("penalties", [])
+    deduction = 0
+    penalty_reasons = []
+    for p in penalties:
+        sev = p.get("severity")
+        if sev == "slight_penalize":
+            deduction += 10
+        elif sev == "intermediate_penalize":
+            deduction += 20
+        elif sev == "hard_penalize":
+            deduction += 30
+        penalty_reasons.append(p.get("reason"))
+        
+    if deduction > 0:
+        result.fit_score = max(0, result.fit_score - deduction)
+        result.reasoning += f" [Penalty applied: -{deduction} pts for: {', '.join(penalty_reasons)}]"
+        # Re-evaluate decision based on new score
+        if result.fit_score < 60:
+            result.decision = "reject"
 
     if result.decision == "reject":
         return {

@@ -43,7 +43,9 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               leadership: evalData.culturalFitScore || 0, // Fallback if missing
               domain: evalData.technicalScore || 0 // Fallback if missing
             },
-            summary: evalData.summary || "No summary available.",
+            summary: candidateData.rejectionReason 
+              ? (evalData.summary ? `Rejection Reason: ${candidateData.rejectionReason}\n\n${evalData.summary}` : candidateData.rejectionReason)
+              : (evalData.summary || "No summary available."),
             strengths: evalData.strengths || [],
             concerns: evalData.concerns || [],
             transcript: evalData.interviewTranscript || []
@@ -154,7 +156,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               <Zap size={12} style={{ color: t.accentBadge }} />
               <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>AI Summary</span>
             </div>
-            <p className="text-sm leading-relaxed" style={{ color: t.txtBody }}>{candidate.summary}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: t.txtBody }}>{candidate.summary}</p>
           </div>
 
           {/* Strengths & Concerns */}
@@ -211,7 +213,8 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           <button 
             onClick={async () => {
               try {
-                await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "hold" }) });
+                const res = await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "hold" }) });
+                if (!res.ok) throw new Error("Failed to submit");
                 setCandidate({ ...candidate, recommendation: "hold", status: "complete" });
               } catch (e) { alert("Failed to submit"); }
             }}
@@ -219,7 +222,8 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           <button 
             onClick={async () => {
               try {
-                await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "reject" }) });
+                const res = await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "reject" }) });
+                if (!res.ok) throw new Error("Failed to submit");
                 setCandidate({ ...candidate, recommendation: "reject", status: "complete" });
               } catch (e) { alert("Failed to submit"); }
             }}
@@ -232,7 +236,8 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           <button 
             onClick={async () => {
               try {
-                await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve" }) });
+                const res = await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve" }) });
+                if (!res.ok) throw new Error("Failed to submit");
                 setCandidate({ ...candidate, recommendation: "approve", status: "complete" });
               } catch (e) { alert("Failed to submit"); }
             }}

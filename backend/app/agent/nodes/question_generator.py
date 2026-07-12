@@ -1,8 +1,9 @@
 # nodes/question_generator.py
 import json
-from config import get_model
-from schemas import InterviewQuestion
-from state import RecruitmentState
+from app.agent.config import get_model
+from app.agent.schemas import InterviewQuestion
+from app.agent.state import RecruitmentState
+from app.agent.utils import extract_json
 from langchain_core.messages import HumanMessage, SystemMessage
 
 QUESTION_GEN_SYSTEM = """
@@ -31,7 +32,7 @@ Rules:
 - Questions should be specific to THIS candidate's profile and THIS job
 """
 
-def question_generator_node(state: RecruitmentState) -> dict:
+async def question_generator_node(state: RecruitmentState) -> dict:
     """Generate tailored interview questions."""
 
     profile = state.get("candidate_profile")
@@ -60,12 +61,12 @@ Generate 3 targeted interview questions for this specific candidate.
 """
 
     model = get_model("fast")
-    response = model.invoke([
+    response = await model.ainvoke([
         SystemMessage(content=QUESTION_GEN_SYSTEM),
         HumanMessage(content=prompt)
     ])
 
-    raw_json = response.content.strip().strip("```json").strip("```").strip() # type: ignore
+    raw_json = extract_json(response.content)
     questions_data = json.loads(raw_json)
     questions = [InterviewQuestion(**q) for q in questions_data]
 

@@ -9,15 +9,17 @@ generator client {
   provider             = "prisma-client-py"
   recursive_type_depth = 5
   previewFeatures      = ["postgresqlExtensions"]
+  output               = "../../.venv/Lib/site-packages/prisma"
 }
 
 model Campaign {
-  id              String      @id @default(uuid())
-  title           String
-  jobDescription  String
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  candidates      Candidate[]
+  id                String      @id @default(uuid())
+  title             String
+  jobDescription    String
+  hardFiltersConfig Json?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  candidates        Candidate[]
 }
 
 model Candidate {
@@ -30,6 +32,10 @@ model Candidate {
   status          String      @default("pending") // pending, screening, rejected, interviewing, review, complete
   fitScore        Float?
   decision        String?     // final decision by recruiter: approve, reject, hold
+  rejectionReason String?
+  skills          String[]
+  education       String[]
+  rawCvText       String?
   
   structuredProfile Json?
   embedding         Unsupported("vector(1536)")?

@@ -5,3 +5,8 @@ python-dotenv
 fastapi
 uvicorn
 prisma
+pypdf
+numpy
+langgraph-checkpoint-postgres
+psycopg
+psycopg-pool

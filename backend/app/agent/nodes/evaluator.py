@@ -1,7 +1,8 @@
 import json
-from config import get_model
-from schemas import EvaluationReport
-from state import RecruitmentState
+from app.agent.config import get_model
+from app.agent.schemas import EvaluationReport
+from app.agent.state import RecruitmentState
+from app.agent.utils import extract_json
 from langchain_core.messages import HumanMessage, SystemMessage
 
 EVALUATOR_SYSTEM = """
@@ -29,7 +30,7 @@ Be honest. A candidate who gave vague non-answers should score low
 on communication even if their CV is strong. Judge the interview, not the CV.
 """
 
-def evaluator_node(state: RecruitmentState) -> dict:
+async def evaluator_node(state: RecruitmentState) -> dict:
     """Score the interview transcript and write the evaluation report."""
 
     profile = state.get("candidate_profile")
@@ -73,16 +74,16 @@ Evaluate this candidate's interview performance.
 """
 
     model = get_model("smart")
-    response = model.invoke([
+    response = await model.ainvoke([
         SystemMessage(content=EVALUATOR_SYSTEM),
         HumanMessage(content=prompt)
     ])
 
-    raw_json = response.content.strip().strip("```json").strip("```").strip() # type: ignore
+    raw_json = extract_json(response.content)
     report = EvaluationReport(**json.loads(raw_json))
 
     return {
         "evaluation_report": report,
-        "pipeline_status": "awaiting_human",   # signal human review gate
+        "pipeline_status": "review",   # signal ready for human review
         "log": [f"Evaluated: {report.recommendation.upper()} (score={report.overall_score})"]
     }
