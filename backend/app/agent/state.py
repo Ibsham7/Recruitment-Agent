@@ -20,6 +20,7 @@ class RecruitmentState(TypedDict):
     # ── Control flow ─────────────────────────────────────────────────────
     pipeline_status: str    # "running" | "awaiting_human" | "complete" | "rejected"
     rejection_reason: Optional[str]
+    filter_rejections: Annotated[list[str], add] # collects parallel rejections
 
     # ── Log — accumulates messages across nodes ───────────────────────────
     log: Annotated[list[str], add]

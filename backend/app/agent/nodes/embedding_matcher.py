@@ -55,7 +55,7 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     jd = state.get("job_description", "")
     
     if not profile:
-        return {"pipeline_status": "rejected", "rejection_reason": "No profile parsed."}
+        return {"filter_rejections": ["No profile parsed."]}
     
     # Text representation of CV
     cv_summary = f"Skills: {', '.join(profile.skills)}. Experience: {profile.total_experience_years} years. Roles: {', '.join(profile.previous_roles)}."
@@ -75,13 +75,11 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
             reason = f"Candidate semantic similarity ({similarity:.2f}) is below threshold ({threshold})."
             print(f"  [FAIL] Rejected: {reason}")
             return {
-                "pipeline_status": "rejected",
-                "rejection_reason": reason,
+                "filter_rejections": [reason],
                 "log": [f"Embedding rejected: {reason}"]
             }
         print("  [OK] Passed embedding threshold.")
         return {
-            "pipeline_status": "running",
             "log": [f"Passed embedding threshold with score {similarity:.2f}"]
         }
     else:
@@ -89,6 +87,5 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
         # batch_run.py will later filter the top N%.
         print("  ℹ Batch mode active. Score recorded.")
         return {
-            "pipeline_status": "running",
             "log": [f"Embedding calculated (score {similarity:.2f}). Waiting for batch filter."]
         }

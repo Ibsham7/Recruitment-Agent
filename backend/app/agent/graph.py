@@ -15,6 +15,7 @@ from app.agent.state import RecruitmentState
 from app.agent.nodes.cv_parser import cv_parser_node
 from app.agent.nodes.hard_filters import hard_filters_node
 from app.agent.nodes.embedding_matcher import embedding_matcher_node
+from app.agent.nodes.join_filters import join_filters_node
 from app.agent.nodes.jd_matcher import jd_matcher_node
 from app.agent.nodes.question_generator import question_generator_node
 from app.agent.nodes.interviewer import interviewer_node
@@ -22,12 +23,7 @@ from app.agent.nodes.evaluator import evaluator_node
 
 # ── Routing functions ──────────────────────────────────────────────────────
 
-def route_after_hard_filters(state: RecruitmentState) -> str:
-    if state["pipeline_status"] == "rejected":
-        return "rejected"
-    return "embedding_matcher"
-
-def route_after_embedding_matcher(state: RecruitmentState) -> str:
+def route_after_join_filters(state: RecruitmentState) -> str:
     if state["pipeline_status"] == "rejected":
         return "rejected"
     return "jd_matcher"
@@ -74,6 +70,7 @@ def build_recruitment_graph(checkpointer=None):
     builder.add_node("cv_parser", cv_parser_node)
     builder.add_node("hard_filters", hard_filters_node)
     builder.add_node("embedding_matcher", embedding_matcher_node)
+    builder.add_node("join_filters", join_filters_node)
     builder.add_node("jd_matcher", jd_matcher_node)
     builder.add_node("question_generator", question_generator_node)
     builder.add_node("interviewer", interviewer_node)
@@ -82,17 +79,17 @@ def build_recruitment_graph(checkpointer=None):
 
     # Edges
     builder.add_edge(START, "cv_parser")
+    # Fan-out: run hard_filters and embedding_matcher in parallel
     builder.add_edge("cv_parser", "hard_filters")
+    builder.add_edge("cv_parser", "embedding_matcher")
+
+    # Fan-in: join the results of both parallel filters
+    builder.add_edge("hard_filters", "join_filters")
+    builder.add_edge("embedding_matcher", "join_filters")
 
     builder.add_conditional_edges(
-        "hard_filters",
-        route_after_hard_filters,
-        {"embedding_matcher": "embedding_matcher", "rejected": "rejected"}
-    )
-
-    builder.add_conditional_edges(
-        "embedding_matcher",
-        route_after_embedding_matcher,
+        "join_filters",
+        route_after_join_filters,
         {"jd_matcher": "jd_matcher", "rejected": "rejected"}
     )
 
