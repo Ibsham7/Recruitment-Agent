@@ -4,6 +4,8 @@ import { User, Mail, Lock, EyeOff, Eye, AlertCircle } from "lucide-react";
 import { Theme } from "../../lib/types";
 import { hexToRgba, getGlass } from "../../lib/theme";
 import { PillNav } from "../../components/common/PillNav";
+import { supabase } from "../../lib/supabase";
+
 const logoLightImg = "/Screenshot_2026-07-10_121453-removebg-preview.png";
 const logoDarkImg = "/Screenshot_2026-07-10_121508-removebg-preview.png";
 
@@ -23,16 +25,47 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
 
   const isLogin = mode === "login";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!isLogin && password !== confirm) { setError("Passwords do not match."); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    
+    if (!isLogin && password !== confirm) { 
+      setError("Passwords do not match."); 
+      return; 
+    }
+    if (password.length < 6) { 
+      setError("Password must be at least 6 characters."); 
+      return; 
+    }
+    
     setLoading(true);
-    setTimeout(() => {
+    
+    try {
+      if (isLogin) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+        navigate("/dashboard");
+      } else {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: name }
+          }
+        });
+        if (signUpError) throw signUpError;
+        // Depending on settings, email confirmation might be required
+        setError("Account created successfully. You can now sign in.");
+        setMode("login");
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred during authentication.");
+    } finally {
       setLoading(false);
-      navigate("/dashboard");
-    }, 800);
+    }
   };
 
   const onSwitch = (m: "login" | "signup") => setMode(m);

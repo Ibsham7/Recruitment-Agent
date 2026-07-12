@@ -6,43 +6,62 @@ export type Recommendation = "shortlist" | "reject" | "pending";
 export interface Campaign {
   id: string;
   title: string;
-  department: string;
-  location: string;
-  status: CampaignStatus;
-  total: number;
-  processed: number;
-  shortlisted: number;
-  created: string;
+  jobDescription: string;
+  createdAt: string;
+  updatedAt: string;
+  
+  // UI computed/fallback fields
+  department?: string;
+  location?: string;
+  status?: CampaignStatus;
+  total?: number;
+  processed?: number;
+  shortlisted?: number;
+  created?: string;
 }
 
-export interface TranscriptEntry {
-  role: "ai" | "candidate";
-  message: string;
-  time: string;
+export interface Evaluation {
+  id: string;
+  candidateId: string;
+  overallScore: number;
+  technicalScore: number;
+  communicationScore: number;
+  culturalFitScore: number;
+  recommendation: string;
+  summary: string;
+  strengths: string[];
+  concerns: string[];
+  interviewTranscript: any;
+  createdAt: string;
 }
 
 export interface Candidate {
   id: string;
   campaignId: string;
   name: string;
-  email: string;
-  currentRole: string;
-  experience: string;
-  score: number;
-  stage: CandidateStage;
-  recommendation: Recommendation;
-  scores: {
-    technical: number;
-    communication: number;
-    culturalFit: number;
-    problemSolving: number;
-    leadership: number;
-    domain: number;
-  };
-  summary: string;
-  strengths: string[];
-  concerns: string[];
-  transcript: TranscriptEntry[];
+  email: string | null;
+  phone: string | null;
+  resumePath: string | null;
+  status: CandidateStage;
+  fitScore: number | null;
+  decision: string | null;
+  structuredProfile: any;
+  createdAt: string;
+  updatedAt: string;
+  
+  // UI fallbacks (often derived from structuredProfile or Evaluation)
+  currentRole?: string;
+  experience?: string;
+  score?: number;
+  stage?: CandidateStage;
+  recommendation?: Recommendation;
+  scores?: any;
+  summary?: string;
+  strengths?: string[];
+  concerns?: string[];
+  transcript?: any[];
+  
+  evaluation?: Evaluation;
 }
 
 export interface Theme {

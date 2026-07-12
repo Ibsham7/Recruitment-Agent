@@ -1,11 +1,24 @@
 import { useParams, useNavigate } from "react-router";
+import { useState, useEffect } from "react";
 import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
+import { supabase } from "../../lib/supabase";
 import { hexToRgba, getGlass, scoreColor } from "../../lib/theme";
-import { CAMPAIGNS, CANDIDATES, STAGE_CONFIG } from "../../lib/mock-data";
+
+const STAGE_CONFIG: Record<CandidateStage, { label: string; color: string }> = {
+  pending:      { label: "Pending Screening", color: "#808090" },
+  screening:    { label: "Screening",         color: "#C09040" },
+  rejected:     { label: "Rejected",          color: "#C04040" },
+  interviewing: { label: "Interviewing",      color: "#4088C0" },
+  shortlisted:  { label: "AI Shortlisted",    color: "#40A060" },
+};
+
 
 function KanbanCard({ candidate, theme: t, G, onClick }: { candidate: Candidate; theme: Theme; G: ReturnType<typeof getGlass>; onClick: () => void }) {
   const recMap = { shortlist: { text: t.numPos, label: "✓ Shortlist" }, reject: { text: t.numNeg, label: "✗ Reject" }, pending: { text: t.numMid, label: "⋯ Pending" } };
-  const rec = recMap[candidate.recommendation];
+  const recommendation = candidate.recommendation || "pending";
+  const rec = recMap[recommendation as keyof typeof recMap];
+  const score = candidate.score || candidate.fitScore || 0;
+  
   return (
     <button onClick={onClick} className="w-full rounded-2xl p-4 text-left transition-all" style={{ ...G.card }}
       onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.border = `1px solid ${hexToRgba(t.accentPrimary, 0.40)}`; el.style.boxShadow = t.isDark ? "0 8px 32px rgba(0,0,0,0.50)" : "0 8px 32px rgba(0,0,0,0.12)"; }}
@@ -13,12 +26,12 @@ function KanbanCard({ candidate, theme: t, G, onClick }: { candidate: Candidate;
       <div className="flex items-start justify-between mb-2.5">
         <div className="flex-1 min-w-0">
           <div className="text-xs font-semibold truncate" style={{ color: t.txtPrimary }}>{candidate.name}</div>
-          <div className="text-[10px] mt-0.5 truncate" style={{ color: t.txtMuted }}>{candidate.currentRole}</div>
+          <div className="text-[10px] mt-0.5 truncate" style={{ color: t.txtMuted }}>{candidate.currentRole || "Candidate"}</div>
         </div>
-        <div className="text-xl font-semibold leading-none ml-2 flex-shrink-0" style={{ fontFamily: "'Fraunces',serif", color: scoreColor(candidate.score, t) }}>{candidate.score}</div>
+        <div className="text-xl font-semibold leading-none ml-2 flex-shrink-0" style={{ fontFamily: "'Fraunces',serif", color: scoreColor(score, t) }}>{score}</div>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-[10px]" style={{ color: t.txtGhost }}>{candidate.experience}</span>
+        <span className="text-[10px]" style={{ color: t.txtGhost }}>{candidate.experience || ""}</span>
         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ color: rec.text, background: hexToRgba(rec.text, 0.15), border: `1px solid ${hexToRgba(rec.text, 0.25)}` }}>{rec.label}</span>
       </div>
     </button>
@@ -30,14 +43,75 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
   const navigate = useNavigate();
   const G = getGlass(t);
   
-  const campaign = CAMPAIGNS.find((c) => c.id === id);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      if (!id) return;
+      try {
+        const { data: campaignData, error: campaignError } = await supabase
+          .from('Campaign')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (campaignError) throw campaignError;
+        
+        const { data: candidatesData, error: candidatesError } = await supabase
+          .from('Candidate')
+          .select('*, evaluation:Evaluation(*)')
+          .eq('campaignId', id);
+          
+        if (candidatesError) throw candidatesError;
+
+        if (campaignData) {
+          const cands = candidatesData || [];
+          const total = cands.length;
+          const processed = cands.filter((c: any) => c.status !== 'pending').length;
+          const shortlisted = cands.filter((c: any) => c.status === 'shortlisted').length;
+          
+          setCampaign({
+            ...campaignData,
+            total,
+            processed,
+            shortlisted,
+            status: campaignData.status || 'active',
+            location: campaignData.location || 'Remote'
+          });
+          
+          const mappedCands = cands.map((c: any) => ({
+            ...c,
+            score: c.fitScore || c.evaluation?.overallScore || 0,
+            recommendation: c.decision || c.evaluation?.recommendation || 'pending',
+            stage: c.status,
+            currentRole: c.structuredProfile?.currentRole || "",
+            experience: c.structuredProfile?.experience || ""
+          }));
+          
+          setCandidates(mappedCands);
+        }
+      } catch (err) {
+        console.error("Error fetching pipeline data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchData();
+  }, [id]);
+
+  if (loading) {
+    return <div className="p-8 text-center" style={{ color: t.txtMuted }}>Loading campaign...</div>;
+  }
+
   if (!campaign) {
     return <div className="p-8 text-center" style={{ color: t.txtMuted }}>Campaign not found.</div>;
   }
-  const candidates = CANDIDATES.filter((c) => c.campaignId === id);
 
   const stages: CandidateStage[] = ["pending","screening","rejected","interviewing","shortlisted"];
-  const progress = Math.round((campaign.processed / campaign.total) * 100);
+  const progress = campaign.total && campaign.total > 0 ? Math.round(((campaign.processed || 0) / campaign.total) * 100) : 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -46,7 +120,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
           <div>
             <div className="flex items-center gap-2.5 mb-1">
               <span className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: t.numPos }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: t.numPos, boxShadow: `0 0 5px ${hexToRgba(t.numPos, 0.6)}` }} />Active
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: t.numPos, boxShadow: `0 0 5px ${hexToRgba(t.numPos, 0.6)}` }} />{campaign.status}
               </span>
               <span className="text-[11px]" style={{ color: t.txtMuted }}>{campaign.location}</span>
             </div>
@@ -71,7 +145,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
       <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-6">
         <div className="flex gap-4 h-full" style={{ minWidth: "900px" }}>
           {stages.map((stage) => {
-            const config = STAGE_CONFIG[stage];
+            const config = STAGE_CONFIG[stage] || { label: stage, color: t.txtMuted };
             const stageCandidates = candidates.filter((c) => c.stage === stage);
             return (
               <div key={stage} className="flex flex-col w-52 flex-shrink-0">

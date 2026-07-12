@@ -227,7 +227,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
           }}
           className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
         >
-          {stats.map((s, i) => (
+          {stats.map((s) => (
             <motion.div 
               key={s.value}
               variants={{
@@ -267,7 +267,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
           }}
           className="grid grid-cols-1 md:grid-cols-3 gap-4"
         >
-          {features.map((f, i) => (
+          {features.map((f) => (
             <motion.div 
               key={f.title} 
               variants={{

@@ -1,31 +1,91 @@
 import { useParams } from "react-router";
+import { useState, useEffect } from "react";
 import { CheckCircle, XCircle, Clock, Zap, AlertCircle, MessageSquare, Pause } from "lucide-react";
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from "recharts";
 import { Theme, Campaign, Candidate } from "../../lib/types";
 import { hexToRgba, getGlass, scoreColor } from "../../lib/theme";
-import { CANDIDATES, CAMPAIGNS } from "../../lib/mock-data";
+import { supabase } from "../../lib/supabase";
 
 export default function CandidatePage({ theme: t }: { theme: Theme }) {
   const { id } = useParams<{ id: string }>();
   const G = getGlass(t);
   
-  const candidate = CANDIDATES.find(c => c.id === id);
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCandidate() {
+      if (!id) return;
+      try {
+        const { data: candidateData, error: candidateError } = await supabase
+          .from('Candidate')
+          .select('*, evaluation:Evaluation(*), campaign:Campaign(*)')
+          .eq('id', id)
+          .single();
+          
+        if (candidateError) throw candidateError;
+        
+        if (candidateData) {
+          const evalData = candidateData.evaluation || {};
+          const mappedCand = {
+            ...candidateData,
+            score: candidateData.fitScore || evalData.overallScore || 0,
+            recommendation: candidateData.decision || evalData.recommendation || 'pending',
+            stage: candidateData.status,
+            currentRole: candidateData.structuredProfile?.currentRole || "Candidate",
+            experience: candidateData.structuredProfile?.experience || "",
+            scores: {
+              technical: evalData.technicalScore || 0,
+              communication: evalData.communicationScore || 0,
+              culturalFit: evalData.culturalFitScore || 0,
+              problemSolving: evalData.technicalScore || 0, // Fallback if missing
+              leadership: evalData.culturalFitScore || 0, // Fallback if missing
+              domain: evalData.technicalScore || 0 // Fallback if missing
+            },
+            summary: evalData.summary || "No summary available.",
+            strengths: evalData.strengths || [],
+            concerns: evalData.concerns || [],
+            transcript: evalData.interviewTranscript || []
+          };
+          
+          setCandidate(mappedCand);
+          if (candidateData.campaign) {
+            setCampaign(candidateData.campaign);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching candidate:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchCandidate();
+  }, [id]);
+
+  if (loading) {
+    return <div className="p-8 text-center" style={{ color: t.txtMuted }}>Loading candidate...</div>;
+  }
+
   if (!candidate) {
     return <div className="p-8 text-center" style={{ color: t.txtMuted }}>Candidate not found.</div>;
   }
-  const campaign = CAMPAIGNS.find(c => c.id === candidate.campaignId);
 
   const radarData = [
     { subject: "Technical", score: candidate.scores.technical }, { subject: "Comms", score: candidate.scores.communication },
     { subject: "Culture", score: candidate.scores.culturalFit }, { subject: "Problems", score: candidate.scores.problemSolving },
     { subject: "Leadership", score: candidate.scores.leadership }, { subject: "Domain", score: candidate.scores.domain },
   ];
+  
+  const recommendation = candidate.recommendation || "pending";
   const recCfg = {
     shortlist: { label: "Highly Recommended", color: t.numPos, icon: <CheckCircle size={13} /> },
     reject:    { label: "Not Recommended",     color: t.numNeg, icon: <XCircle size={13} /> },
     pending:   { label: "Evaluation Pending",  color: t.numMid, icon: <Clock size={13} /> },
   };
-  const rec = recCfg[candidate.recommendation];
+  const rec = recCfg[recommendation as keyof typeof recCfg] || recCfg.pending;
+  
   const scoreMetrics = [
     { label: "Technical",       value: candidate.scores.technical },
     { label: "Communication",   value: candidate.scores.communication },
@@ -50,7 +110,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
                 style={{ color: rec.color, background: hexToRgba(rec.color, 0.14), border: `1px solid ${hexToRgba(rec.color, 0.28)}` }}>{rec.icon}{rec.label}</span>
             </div>
             <div className="text-sm" style={{ color: t.txtSecondary }}>{candidate.currentRole} · {candidate.experience}</div>
-            <div className="text-[11px] mt-0.5" style={{ fontFamily: "'DM Mono',monospace", color: t.txtGhost }}>{candidate.email}</div>
+            <div className="text-[11px] mt-0.5" style={{ fontFamily: "'DM Mono',monospace", color: t.txtGhost }}>{candidate.email || "No email provided"}</div>
           </div>
           <div className="text-right">
             <div className="text-5xl font-semibold leading-none" style={{ fontFamily: "'Fraunces',serif", color: t.numHero, textShadow: `0 0 30px ${hexToRgba(t.numHero, 0.40)}` }}>{candidate.score}</div>
@@ -99,8 +159,8 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
 
           {/* Strengths & Concerns */}
           <div className="grid grid-cols-2 gap-4">
-            {[{ title: "Strengths", icon: <CheckCircle size={12} />, color: t.numPos, items: candidate.strengths },
-              { title: "Concerns",  icon: <AlertCircle size={12} />, color: t.numMid,  items: candidate.concerns }].map((col) => (
+            {[{ title: "Strengths", icon: <CheckCircle size={12} />, color: t.numPos, items: candidate.strengths || [] },
+              { title: "Concerns",  icon: <AlertCircle size={12} />, color: t.numMid,  items: candidate.concerns || [] }].map((col) => (
               <div key={col.title} className="rounded-2xl p-5" style={G.card}>
                 <div className="flex items-center gap-2 mb-3"><span style={{ color: col.color }}>{col.icon}</span><span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>{col.title}</span></div>
                 <ul className="space-y-2">{col.items.map((item) => (<li key={item} className="flex items-start gap-2 text-[11px] leading-relaxed" style={{ color: t.txtBody }}><span className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: col.color, boxShadow: `0 0 4px ${hexToRgba(col.color, 0.6)}` }} />{item}</li>))}</ul>
@@ -115,10 +175,10 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
             <div className="flex items-center gap-2"><MessageSquare size={12} style={{ color: t.txtGhost }} /><span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtGhost }}>Interview Transcript</span></div>
           </div>
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
-            {candidate.transcript.length === 0 ? (
+            {!candidate.transcript || candidate.transcript.length === 0 ? (
               <div className="text-center py-16"><MessageSquare size={28} className="mx-auto mb-3" style={{ color: t.txtGhost }} /><div className="text-xs" style={{ color: t.txtGhost }}>No transcript available yet.</div></div>
             ) : (
-              candidate.transcript.map((entry, i) => (
+              candidate.transcript.map((entry: any, i: number) => (
                 <div key={i} className={entry.role === "candidate" ? "flex justify-end" : "flex justify-start"}>
                   <div className="max-w-[88%] px-4 py-3" style={{
                     background: hexToRgba(entry.role === "ai" ? t.bgCard : t.accentPrimary, entry.role === "ai" ? (t.isDark ? 0.10 : 0.55) : 0.14),

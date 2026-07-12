@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { useState, useEffect } from "react";
+import { createBrowserRouter, RouterProvider, useNavigate } from "react-router";
 import { Theme } from "../lib/types";
 import { PRESETS } from "../lib/theme";
+import { AuthProvider, useAuth } from "../lib/AuthContext";
 
 // Pages
 import Layout from "./layout";
@@ -12,6 +13,21 @@ import SetupPage from "./setup/page";
 import PipelinePage from "./pipeline/page";
 import CandidatePage from "./candidate/page";
 import NotFoundPage from "./not-found";
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { session, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && !session) {
+      navigate("/auth", { replace: true });
+    }
+  }, [session, isLoading, navigate]);
+
+  if (isLoading) return null; // Or a loading spinner
+
+  return session ? <>{children}</> : null;
+}
 
 export function AppRouter() {
   const [theme, setTheme] = useState<Theme>(PRESETS[4]);
@@ -27,7 +43,11 @@ export function AppRouter() {
     },
     {
       path: "/",
-      element: <Layout theme={theme} setTheme={setTheme} />,
+      element: (
+        <ProtectedRoute>
+          <Layout theme={theme} setTheme={setTheme} />
+        </ProtectedRoute>
+      ),
       children: [
         {
           path: "dashboard",
@@ -57,5 +77,9 @@ export function AppRouter() {
     },
   ]);
 
-  return <RouterProvider router={router} />;
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  );
 }
