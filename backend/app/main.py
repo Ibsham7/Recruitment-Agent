@@ -33,12 +33,12 @@ class CampaignCreate(BaseModel):
 
 @app.post("/api/campaigns")
 async def create_campaign(campaign: CampaignCreate, background_tasks: BackgroundTasks):
-    import json
+    from prisma import Json
     new_campaign = await prisma.campaign.create(
         data={
             "title": campaign.title,
             "jobDescription": campaign.jobDescription,
-            "hardFiltersConfig": json.dumps(campaign.hardFiltersConfig) if campaign.hardFiltersConfig else None
+            "hardFiltersConfig": Json(campaign.hardFiltersConfig) if campaign.hardFiltersConfig is not None else None
         }
     )
     

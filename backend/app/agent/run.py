@@ -59,12 +59,15 @@ def run_candidate(
         interrupt_value = None
         for event in events:
             for node_name, node_output in event.items():
+                if isinstance(node_output, dict) and "log" in node_output:
+                    with open("log.txt", "a", encoding="utf-8") as f:
+                        for log_msg in node_output.get("log", []):
+                            f.write(f"[{candidate_id}] [{node_name}] {log_msg}\n")
+                            print(f"  [OK] {log_msg}")
+
                 if node_name == "__interrupt__":
                     interrupt_value = node_output[0].value
                     break
-                if "log" in (node_output or {}):
-                    for log_msg in node_output.get("log", []):
-                        print(f"  [OK] {log_msg}")
 
         if interrupt_value is None:
             break  # graph ran to END without interrupting

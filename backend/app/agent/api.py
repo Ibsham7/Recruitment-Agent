@@ -63,6 +63,10 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
             events = graph.astream(cast(Any, input_state), config=config, stream_mode="updates")
             async for event in events:
                 for node_name, node_output in event.items():
+                    if isinstance(node_output, dict) and "log" in node_output:
+                        with open("log.txt", "a", encoding="utf-8") as f:
+                            for log_msg in node_output.get("log", []):
+                                f.write(f"[{candidate_id}] [{node_name}] {log_msg}\n")
                     if node_name == "__interrupt__":
                         interrupt_value = node_output[0].value
             
@@ -157,6 +161,10 @@ async def resume_pipeline(candidate_id: str, resume_data: Any):
             events = graph.astream(Command(resume=resume_data), config=config, stream_mode="updates")
             async for event in events:
                 for node_name, node_output in event.items():
+                    if isinstance(node_output, dict) and "log" in node_output:
+                        with open("log.txt", "a", encoding="utf-8") as f:
+                            for log_msg in node_output.get("log", []):
+                                f.write(f"[{candidate_id}] [{node_name}] {log_msg}\n")
                     if node_name == "__interrupt__":
                         interrupt_value = node_output[0].value
                         

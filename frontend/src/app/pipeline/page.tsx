@@ -10,6 +10,8 @@ const STAGE_CONFIG: Record<CandidateStage, { label: string; color: string }> = {
   rejected:     { label: "Rejected",          color: "#C04040" },
   interviewing: { label: "Interviewing",      color: "#4088C0" },
   shortlisted:  { label: "AI Shortlisted",    color: "#40A060" },
+  review:       { label: "In Review",         color: "#9040C0" },
+  complete:     { label: "Complete",          color: "#40C080" },
 };
 
 
@@ -110,7 +112,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
     return <div className="p-8 text-center" style={{ color: t.txtMuted }}>Campaign not found.</div>;
   }
 
-  const stages: CandidateStage[] = ["pending","screening","rejected","interviewing","shortlisted"];
+  const stages: CandidateStage[] = ["pending","screening","interviewing","shortlisted","review","complete","rejected"];
   const progress = campaign.total && campaign.total > 0 ? Math.round(((campaign.processed || 0) / campaign.total) * 100) : 0;
 
   return (

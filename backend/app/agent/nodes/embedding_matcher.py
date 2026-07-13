@@ -112,7 +112,8 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
             reason = f"Candidate semantic similarity ({similarity:.2f}) is below threshold ({threshold})."
             print(f"  [FAIL] Rejected: {reason}")
             return {
-                "filter_rejections": [reason],
+                "pipeline_status": "rejected",
+                "rejection_reason": reason,
                 "log": [f"Embedding rejected: {reason}"]
             }
         print("  [OK] Passed embedding threshold.")

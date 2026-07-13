@@ -1,7 +1,7 @@
 export type View = "landing" | "login" | "signup" | "dashboard" | "setup" | "pipeline" | "candidate" | "notfound";
 export type CampaignStatus = "active" | "completed" | "paused";
-export type CandidateStage = "pending" | "screening" | "rejected" | "interviewing" | "shortlisted";
-export type Recommendation = "shortlist" | "reject" | "pending";
+export type CandidateStage = "pending" | "screening" | "rejected" | "interviewing" | "shortlisted" | "review" | "complete";
+export type Recommendation = "shortlist" | "reject" | "pending" | "hold" | "approve";
 
 export interface Campaign {
   id: string;

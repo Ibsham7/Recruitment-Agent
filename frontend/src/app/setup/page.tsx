@@ -10,8 +10,24 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [step, setStep] = useState(1);
-  const [title, setTitle] = useState("");
-  const [jd, setJd] = useState("");
+  const [title, setTitle] = useState("AI Engineer (Applied ML & Agentic Systems)");
+  const [jd, setJd] = useState(`We are looking for an AI Developer to design, build, and deploy intelligent applications and machine learning infrastructure. In this role, you will bridge the gap between advanced deep learning models and production-ready software. You will focus heavily on large language model (LLM) orchestration, multi-agent frameworks, and building the robust backend architecture required to support scalable AI features.
+Key Responsibilities
+Agentic Workflow Development: Design and implement autonomous multi-agent execution loops and orchestration pipelines for complex problem-solving.
+Backend & API Engineering: Build production-grade, scalable backend services and APIs to serve ML models and manage data flow between shared stores.
+Model Integration & Optimization: Integrate various cloud-hosted multi-model platforms and manage API connectivity, rate limits, and contextual token scaling.
+Advanced AI Architectures: Implement and maintain Retrieval-Augmented Generation (RAG) systems and apply parameter-efficient fine-tuning techniques to adapt open-weights models.
+Infrastructure & Tooling: Establish reliable machine learning production pipelines and utilize open-source connectivity standards to allow models to interact with external tools and databases.
+Required Qualifications
+Programming Languages: Strong proficiency in Python and TypeScript/Node.js.
+AI & LLM Frameworks: Hands-on experience with orchestration and agent frameworks such as LangChain, LangGraph, CrewAI, AutoGen, or the Model Context Protocol (MCP).
+Backend Technologies: Experience with modern backend web architectures (e.g., NestJS, Express) and relational databases (PostgreSQL) using ORMs like Prisma or Drizzle.
+Applied Machine Learning: Solid understanding of deep learning optimization strategies, post-training alignment, and architectures like LoRA (Low-Rank Adaptation) and GRPO.
+Cloud & Model Ops: Experience utilizing platforms like OpenRouter to manage API keys, track billing structures, and test diverse production-grade model architectures.
+Preferred Qualifications
+A strong portfolio of independent, agent-based proof-of-concept projects demonstrating practical AI engineering skills.
+An understanding of low-level hardware optimizations, compute thermal management, and cache organization mechanics for local model deployments.
+A strong mathematical foundation in vector calculus and linear algebra.`);
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [toggles, setToggles] = useState([true, false, true]);
@@ -69,7 +85,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
       let firstTry = true;
       while (!isAwake) {
         try {
-          const healthRes = await fetch("http://localhost:8000/api/health/db");
+          const healthRes = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/health/db`);
           if (healthRes.ok) {
             isAwake = true;
           } else {
@@ -94,7 +110,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
       const fileUrls = await Promise.all(uploadPromises);
 
       // 2. Send payload to backend
-      const res = await fetch("http://localhost:8000/api/campaigns", {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -229,7 +245,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
       {showFiltersModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: hexToRgba("#000", 0.5), backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}>
-          <div className="rounded-2xl max-w-md w-full p-6 shadow-2xl relative" style={{ background: t.bgWindow, border: `1px solid ${hexToRgba(t.txtGhost, 0.2)}` }}>
+          <div className="rounded-2xl max-w-md w-full p-6 shadow-2xl relative" style={{ background: t.bgCard, border: `1px solid ${hexToRgba(t.txtGhost, 0.2)}` }}>
             <button onClick={() => setShowFiltersModal(false)} className="absolute top-4 right-4 text-xl hover:opacity-70 transition-opacity" style={{ color: t.txtGhost }}>✕</button>
             <h3 className="text-lg font-semibold mb-1" style={{ color: t.txtPrimary }}>Hard Filters & Penalties</h3>
             <p className="text-xs mb-6" style={{ color: t.txtSecondary }}>Define strict requirements and their consequences.</p>

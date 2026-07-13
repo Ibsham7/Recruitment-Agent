@@ -54,7 +54,7 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     setError("");
     
     try {
-      const res = await fetch(`http://localhost:8000/api/candidates/${id}/interview/answer`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}/interview/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answer })

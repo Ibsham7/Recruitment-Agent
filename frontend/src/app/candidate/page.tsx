@@ -83,8 +83,10 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
   const recommendation = candidate.recommendation || "pending";
   const recCfg = {
     shortlist: { label: "Highly Recommended", color: t.numPos, icon: <CheckCircle size={13} /> },
+    approve:   { label: "Approved",            color: t.numPos, icon: <CheckCircle size={13} /> },
     reject:    { label: "Not Recommended",     color: t.numNeg, icon: <XCircle size={13} /> },
     pending:   { label: "Evaluation Pending",  color: t.numMid, icon: <Clock size={13} /> },
+    hold:      { label: "On Hold",             color: t.numMid, icon: <Pause size={13} /> },
   };
   const rec = recCfg[recommendation as keyof typeof recCfg] || recCfg.pending;
   
@@ -213,7 +215,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           <button 
             onClick={async () => {
               try {
-                const res = await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "hold" }) });
+                const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "hold" }) });
                 if (!res.ok) throw new Error("Failed to submit");
                 setCandidate({ ...candidate, recommendation: "hold", status: "complete" });
               } catch (e) { alert("Failed to submit"); }
@@ -222,7 +224,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           <button 
             onClick={async () => {
               try {
-                const res = await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "reject" }) });
+                const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "reject" }) });
                 if (!res.ok) throw new Error("Failed to submit");
                 setCandidate({ ...candidate, recommendation: "reject", status: "complete" });
               } catch (e) { alert("Failed to submit"); }
@@ -236,7 +238,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           <button 
             onClick={async () => {
               try {
-                const res = await fetch(`http://localhost:8000/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve" }) });
+                const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve" }) });
                 if (!res.ok) throw new Error("Failed to submit");
                 setCandidate({ ...candidate, recommendation: "approve", status: "complete" });
               } catch (e) { alert("Failed to submit"); }

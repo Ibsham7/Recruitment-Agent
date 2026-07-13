@@ -47,7 +47,8 @@ async def hard_filters_node(state: RecruitmentState) -> dict:
                 if penalty == "reject" or penalty == "completely_reject":
                     print(f"  [FAIL] Rejected: {reason}")
                     return {
-                        "filter_rejections": [reason],
+                        "pipeline_status": "rejected",
+                        "rejection_reason": reason,
                         "log": [f"Hard filter rejected: {reason}"]
                     }
                 else:
@@ -61,7 +62,8 @@ async def hard_filters_node(state: RecruitmentState) -> dict:
             reason = f"Candidate has {profile.total_experience_years} years exp, but {min_exp} is required."
             print(f"  [FAIL] Rejected: {reason}")
             return {
-                "filter_rejections": [reason],
+                "pipeline_status": "rejected",
+                "rejection_reason": reason,
                 "log": [f"Hard filter rejected: {reason}"]
             }
             
