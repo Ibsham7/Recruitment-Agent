@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import urllib.request
+import hashlib
 from pypdf import PdfReader
 from app.agent.config import get_model
 from app.agent.schemas import CandidateProfile
@@ -66,22 +67,71 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         }
 
     raw_text = extract_pdf_text(state["cv_filepath"])
+    file_hash = hashlib.sha256(raw_text.encode('utf-8')).hexdigest()
     
-    # Parse via LLM
-    model = get_model("fast")
-    response = await model.ainvoke([
-        SystemMessage(content=CV_PARSER_SYSTEM),
-        HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
-    ])
-    
-    raw_json = extract_json(response.content)
-    profile_data = json.loads(raw_json)
-    profile_data["raw_cv_text"] = raw_text
-    
-    candidate_profile = CandidateProfile(**profile_data)
+    prisma = Prisma()
+    await prisma.connect()
+    try:
+        # Check global Resume cache by hash
+        resume = await prisma.resume.find_unique(where={"fileHash": file_hash})
+        if resume and resume.structuredProfile:
+            print("  [OK] Found global resume cache via hash.")
+            profile_data = json.loads(resume.structuredProfile) if isinstance(resume.structuredProfile, str) else resume.structuredProfile
+            candidate_profile = CandidateProfile(**profile_data)
+            
+            # Link candidate to existing resume
+            if "candidate_id" in state and not state["candidate_id"].startswith("candidate_"):
+                # Only update if it's a real database UUID (not local dummy string)
+                try:
+                    await prisma.candidate.update(
+                        where={"id": state["candidate_id"]},
+                        data={"resumeId": resume.id}
+                    )
+                except Exception as e:
+                    print(f"  [Warning] Could not link resume to candidate: {e}")
+                    
+            return {
+                "candidate_profile": candidate_profile,
+                "pipeline_status": "running",
+                "log": ["CV parsed from global hash cache"]
+            }
 
-    return {
-        "candidate_profile": candidate_profile,
-        "pipeline_status": "running",
-        "log": [f"CV parsed: {candidate_profile.name}, {candidate_profile.total_experience_years} yrs exp"]
-    }
+        # Not found, parse via LLM
+        model = get_model("fast")
+        response = await model.ainvoke([
+            SystemMessage(content=CV_PARSER_SYSTEM),
+            HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
+        ])
+        
+        raw_json = extract_json(response.content)
+        profile_data = json.loads(raw_json)
+        profile_data["raw_cv_text"] = raw_text
+        
+        candidate_profile = CandidateProfile(**profile_data)
+
+        # Create new global Resume record
+        new_resume = await prisma.resume.create(
+            data={
+                "fileHash": file_hash,
+                "rawCvText": raw_text,
+                "structuredProfile": json.dumps(profile_data)
+            }
+        )
+        
+        # Link candidate
+        if "candidate_id" in state and not state["candidate_id"].startswith("candidate_"):
+            try:
+                await prisma.candidate.update(
+                    where={"id": state["candidate_id"]},
+                    data={"resumeId": new_resume.id}
+                )
+            except Exception as e:
+                print(f"  [Warning] Could not link new resume to candidate: {e}")
+
+        return {
+            "candidate_profile": candidate_profile,
+            "pipeline_status": "running",
+            "log": [f"CV parsed: {candidate_profile.name}, {candidate_profile.total_experience_years} yrs exp"]
+        }
+    finally:
+        await prisma.disconnect()

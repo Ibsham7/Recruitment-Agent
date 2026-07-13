@@ -7,21 +7,37 @@ from prisma import Prisma
 from app.agent.config import get_model
 from langchain_core.messages import SystemMessage, HumanMessage
 
+import requests
+import httpx
+import hashlib
+
 # Lazy load embeddings to avoid heavy import on startup if not needed
-def get_embedding(text: str) -> list[float]:
-    """Get embedding using a fast open-source model via OpenRouter or fallback."""
-    # Note: OpenRouter doesn't have a standard embedding API, so for this prototype,
-    # we could use a cheap LLM to generate a comma-separated array, OR we use
-    # a local SentenceTransformer. Here we'll mock it if sentence-transformers isn't installed.
-    try:
-        from sentence_transformers import SentenceTransformer
-        # Use a tiny local model
-        model = SentenceTransformer("all-MiniLM-L6-v2")
-        return model.encode(text).tolist()
-    except ImportError:
-        # Fallback dummy embedding for testing
-        print("Warning: sentence-transformers not installed. Using dummy embedding.")
-        return [0.1] * 384
+async def get_embedding_async(text: str) -> list[float]:
+    """Get embedding using text-embedding-3-small via OpenRouter asynchronously."""
+    api_key = os.getenv("OPENROUTER_API_KEY_PAID")
+    if not api_key:
+        print("Warning: OPENROUTER_API_KEY_PAID not set. Using dummy embedding.")
+        return [0.1] * 1536
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "text-embedding-3-small",
+        "input": text
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://openrouter.ai/api/v1/embeddings",
+            headers=headers,
+            json=data
+        )
+        if response.status_code != 200:
+            print(f"Warning: Failed to get embedding ({response.status_code}): {response.text}")
+            return [0.1] * 1536
+        
+        return response.json()["data"][0]["embedding"]
 
 def cosine_similarity(v1: list[float], v2: list[float]) -> float:
     a = np.array(v1)
@@ -30,17 +46,34 @@ def cosine_similarity(v1: list[float], v2: list[float]) -> float:
         return 0.0
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
-async def _get_or_create_embedding_async(cv_filepath: str, text_to_embed: str) -> list[float]:
+async def _get_or_create_embedding_async(file_hash: str, text_to_embed: str) -> list[float]:
     prisma = Prisma()
     await prisma.connect()
     try:
-        candidate = await prisma.candidate.find_first(
-            where={"resumePath": cv_filepath}
-        )
-        # Prisma Python doesn't officially decode Unsupported("vector") nicely in all versions.
-        # For this MVP, we'll embed on the fly and optionally store if we had raw SQL.
-        # Since vector isn't fully supported in Prisma Client Py read, we generate it.
-        return get_embedding(text_to_embed)
+        # Check if we already have an embedding stored for this CV hash
+        result = await prisma.query_raw('''
+            SELECT embedding::text 
+            FROM "Resume" 
+            WHERE "fileHash" = $1 AND embedding IS NOT NULL
+            LIMIT 1
+        ''', file_hash)
+        
+        if result and result[0].get('embedding'):
+            # The database returns it as a string e.g. "[0.1, 0.2, ...]"
+            embedding_str = result[0]['embedding']
+            return json.loads(embedding_str)
+            
+        # Generate the embedding asynchronously
+        embedding = await get_embedding_async(text_to_embed)
+        
+        # Store it for the global Resume record
+        await prisma.execute_raw('''
+            UPDATE "Resume"
+            SET embedding = $1::vector
+            WHERE "fileHash" = $2
+        ''', str(embedding), file_hash)
+        
+        return embedding
     finally:
         await prisma.disconnect()
 
@@ -60,8 +93,12 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     # Text representation of CV
     cv_summary = f"Skills: {', '.join(profile.skills)}. Experience: {profile.total_experience_years} years. Roles: {', '.join(profile.previous_roles)}."
     
-    cv_vector = await _get_or_create_embedding_async(state["cv_filepath"], cv_summary)
-    jd_vector = get_embedding(jd)
+    # Use hash of the raw CV text for deterministic deduplication
+    raw_text = profile.raw_cv_text or cv_summary
+    file_hash = hashlib.sha256(raw_text.encode('utf-8')).hexdigest()
+    
+    cv_vector = await _get_or_create_embedding_async(file_hash, cv_summary)
+    jd_vector = await get_embedding_async(jd)
     
     similarity = cosine_similarity(cv_vector, jd_vector)
     print(f"  Similarity Score: {similarity:.2f}")
