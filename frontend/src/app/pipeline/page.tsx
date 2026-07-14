@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
-import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
 import { hexToRgba, getGlass, scoreColor } from "../../lib/theme";
 
 const STAGE_CONFIG: Record<CandidateStage, { label: string; color: string }> = {
@@ -48,6 +47,26 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+
+  const handleRetryFailed = async () => {
+    if (!id) return;
+    setRetrying(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${id}/retry-failed`, {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error("Failed to retry candidates");
+      const data = await res.json();
+      alert(`Successfully queued ${data.count} candidates for retry.`);
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert("Error retrying candidates.");
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -125,6 +144,14 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
             </div>
           </div>
           <div className="flex items-center gap-8">
+            <button 
+              onClick={handleRetryFailed} 
+              disabled={retrying}
+              className="px-4 py-2 text-xs font-semibold rounded-lg transition-all hover:opacity-80"
+              style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentText || t.accentPrimary, border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}` }}
+            >
+              {retrying ? "Retrying..." : "Retry Failed"}
+            </button>
             {[{ v: campaign.total, l: "Candidates", c: t.numHero }, { v: campaign.processed, l: "Processed", c: t.numHero }, { v: campaign.shortlisted, l: "Shortlisted", c: t.numPos }].map((s) => (
               <div key={s.l} className="text-center">
                 <div className="text-3xl font-semibold leading-none mb-0.5" style={{ fontFamily: "'Fraunces',serif", color: s.c }}>{s.v}</div>

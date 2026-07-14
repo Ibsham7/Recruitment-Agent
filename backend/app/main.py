@@ -63,7 +63,8 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
             data={
                 "campaign": {"connect": {"id": new_campaign.id}},
                 "name": name.replace("%20", " "),
-                "status": "pending"
+                "status": "pending",
+                "cvUrl": resume_url
             }
         )
         
@@ -75,6 +76,37 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
         )
         
     return {"status": "success", "campaignId": new_campaign.id}
+
+@app.post("/api/campaigns/{id}/retry-failed")
+async def retry_failed_candidates(id: str, request: Request):
+    campaign = await prisma.campaign.find_unique(where={"id": id})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+        
+    # Find all candidates that are pending or rejected but have a cvUrl
+    failed_candidates = await prisma.candidate.find_many(
+        where={
+            "campaignId": id,
+            "status": {"in": ["pending", "screening", "rejected"]},
+            "cvUrl": {"not": None}
+        }
+    )
+    
+    retried_count = 0
+    for cand in failed_candidates:
+        if cand.status == "rejected" and cand.rejectionReason != "System Error: Pipeline failed":
+            # Don't retry candidates rejected for actual reasons like low score
+            continue
+            
+        await request.app.state.redis.enqueue_job(
+            'process_cv_task',
+            cand.id,
+            cand.cvUrl,
+            campaign.jobDescription
+        )
+        retried_count += 1
+        
+    return {"status": "success", "message": f"Queued {retried_count} candidates for retry", "count": retried_count}
 
 @app.get("/")
 async def root():
