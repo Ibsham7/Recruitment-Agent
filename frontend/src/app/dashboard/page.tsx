@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { Filter, Plus, ChevronRight, Calendar } from "lucide-react";
 import { Theme, Campaign } from "../../lib/types";
 import { hexToRgb, hexToRgba, getGlass } from "../../lib/theme";
-import { supabase } from "../../lib/supabase";
+
 import { ParticleCard, GlobalSpotlight } from "../../components/common/MagicBento";
 
 function CampaignCard({ campaign, theme: t, G, glowColor, onClick }: { campaign: Campaign; theme: Theme; G: ReturnType<typeof getGlass>; glowColor: string; onClick: () => void }) {
@@ -69,16 +69,10 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
   useEffect(() => {
     async function fetchCampaigns() {
       try {
-        // Fetch campaigns and their candidates count
-        const { data: campaignsData, error } = await supabase
-          .from('Campaign')
-          .select(`
-            *,
-            candidates:Candidate(id, status)
-          `)
-          .order('createdAt', { ascending: false });
-          
-        if (error) throw error;
+        // Fetch campaigns and their candidates count from backend
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`);
+        if (!res.ok) throw new Error("Failed to fetch campaigns");
+        const campaignsData = await res.json();
         
         // Process aggregate counts from related candidates
         if (campaignsData) {

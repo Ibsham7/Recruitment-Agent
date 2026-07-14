@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
-import { supabase } from "../../lib/supabase";
+import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
 import { hexToRgba, getGlass, scoreColor } from "../../lib/theme";
 
 const STAGE_CONFIG: Record<CandidateStage, { label: string; color: string }> = {
@@ -53,20 +53,10 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
     async function fetchData() {
       if (!id) return;
       try {
-        const { data: campaignData, error: campaignError } = await supabase
-          .from('Campaign')
-          .select('*')
-          .eq('id', id)
-          .single();
-          
-        if (campaignError) throw campaignError;
-        
-        const { data: candidatesData, error: candidatesError } = await supabase
-          .from('Candidate')
-          .select('*, evaluation:Evaluation(*)')
-          .eq('campaignId', id);
-          
-        if (candidatesError) throw candidatesError;
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${id}`);
+        if (!res.ok) throw new Error("Failed to fetch campaign data");
+        const campaignData = await res.json();
+        const candidatesData = campaignData.candidates || [];
 
         if (campaignData) {
           const cands = candidatesData || [];

@@ -4,7 +4,7 @@ import { CheckCircle, XCircle, Clock, Zap, AlertCircle, MessageSquare, Pause } f
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from "recharts";
 import { Theme, Campaign, Candidate } from "../../lib/types";
 import { hexToRgba, getGlass, scoreColor } from "../../lib/theme";
-import { supabase } from "../../lib/supabase";
+
 
 export default function CandidatePage({ theme: t }: { theme: Theme }) {
   const { id } = useParams<{ id: string }>();
@@ -18,13 +18,9 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
     async function fetchCandidate() {
       if (!id) return;
       try {
-        const { data: candidateData, error: candidateError } = await supabase
-          .from('Candidate')
-          .select('*, evaluation:Evaluation(*), campaign:Campaign(*)')
-          .eq('id', id)
-          .single();
-          
-        if (candidateError) throw candidateError;
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}`);
+        if (!res.ok) throw new Error("Failed to fetch candidate");
+        const candidateData = await res.json();
         
         if (candidateData) {
           const evalData = candidateData.evaluation || {};

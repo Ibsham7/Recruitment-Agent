@@ -3,7 +3,7 @@ import os
 import json
 import asyncio
 import numpy as np
-from prisma import Prisma
+from app.database import prisma
 from app.agent.config import get_model
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -16,8 +16,7 @@ async def get_embedding_async(text: str) -> list[float]:
     """Get embedding using text-embedding-3-small via OpenRouter asynchronously."""
     api_key = os.getenv("OPENROUTER_API_KEY_PAID")
     if not api_key:
-        print("Warning: OPENROUTER_API_KEY_PAID not set. Using dummy embedding.")
-        return [0.1] * 1536
+        raise ValueError("OPENROUTER_API_KEY_PAID not set. Cannot get embeddings.")
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -34,8 +33,7 @@ async def get_embedding_async(text: str) -> list[float]:
             json=data
         )
         if response.status_code != 200:
-            print(f"Warning: Failed to get embedding ({response.status_code}): {response.text}")
-            return [0.1] * 1536
+            raise RuntimeError(f"Failed to get embedding ({response.status_code}): {response.text}")
         
         return response.json()["data"][0]["embedding"]
 
@@ -47,35 +45,30 @@ def cosine_similarity(v1: list[float], v2: list[float]) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
 async def _get_or_create_embedding_async(file_hash: str, text_to_embed: str) -> list[float]:
-    prisma = Prisma()
-    await prisma.connect()
-    try:
-        # Check if we already have an embedding stored for this CV hash
-        result = await prisma.query_raw('''
-            SELECT embedding::text 
-            FROM "Resume" 
-            WHERE "fileHash" = $1 AND embedding IS NOT NULL
-            LIMIT 1
-        ''', file_hash)
+    # Check if we already have an embedding stored for this CV hash
+    result = await prisma.query_raw('''
+        SELECT embedding::text 
+        FROM "Resume" 
+        WHERE "fileHash" = $1 AND embedding IS NOT NULL
+        LIMIT 1
+    ''', file_hash)
+    
+    if result and result[0].get('embedding'):
+        # The database returns it as a string e.g. "[0.1, 0.2, ...]"
+        embedding_str = result[0]['embedding']
+        return json.loads(embedding_str)
         
-        if result and result[0].get('embedding'):
-            # The database returns it as a string e.g. "[0.1, 0.2, ...]"
-            embedding_str = result[0]['embedding']
-            return json.loads(embedding_str)
-            
-        # Generate the embedding asynchronously
-        embedding = await get_embedding_async(text_to_embed)
-        
-        # Store it for the global Resume record
-        await prisma.execute_raw('''
-            UPDATE "Resume"
-            SET embedding = $1::vector
-            WHERE "fileHash" = $2
-        ''', str(embedding), file_hash)
-        
-        return embedding
-    finally:
-        await prisma.disconnect()
+    # Generate the embedding asynchronously
+    embedding = await get_embedding_async(text_to_embed)
+    
+    # Store it for the global Resume record
+    await prisma.execute_raw('''
+        UPDATE "Resume"
+        SET embedding = $1::vector
+        WHERE "fileHash" = $2
+    ''', str(embedding), file_hash)
+    
+    return embedding
 
 async def embedding_matcher_node(state: RecruitmentState) -> dict:
     """

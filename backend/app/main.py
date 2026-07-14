@@ -142,5 +142,53 @@ async def submit_human_review(id: str, review_data: HumanReview):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/campaigns/{id}")
+async def get_campaign(id: str):
+    campaign = await prisma.campaign.find_unique(
+        where={"id": id},
+        include={
+            "candidates": {
+                "include": {
+                    "evaluation": True,
+                    "resume": True
+                }
+            }
+        }
+    )
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    c_dict = campaign.model_dump() if hasattr(campaign, "model_dump") else campaign.dict()
+    for cand in c_dict.get("candidates", []):
+        if cand.get("resume"):
+            cand["structuredProfile"] = cand["resume"].get("structuredProfile")
+            cand["rawCvText"] = cand["resume"].get("rawCvText")
+        else:
+            cand["structuredProfile"] = None
+            cand["rawCvText"] = None
+    return c_dict
+
+@app.get("/api/candidates/{id}")
+async def get_candidate(id: str):
+    candidate = await prisma.candidate.find_unique(
+        where={"id": id},
+        include={
+            "campaign": True,
+            "resume": True,
+            "evaluation": True
+        }
+    )
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    cand_dict = candidate.model_dump() if hasattr(candidate, "model_dump") else candidate.dict()
+    if cand_dict.get("resume"):
+        cand_dict["structuredProfile"] = cand_dict["resume"].get("structuredProfile")
+        cand_dict["rawCvText"] = cand_dict["resume"].get("rawCvText")
+    else:
+        cand_dict["structuredProfile"] = None
+        cand_dict["rawCvText"] = None
+    return cand_dict
+
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

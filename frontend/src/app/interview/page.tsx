@@ -19,13 +19,9 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     async function fetchCandidate() {
       if (!id) return;
       try {
-        const { data, error } = await supabase
-          .from("Candidate")
-          .select("*, campaign:Campaign(title)")
-          .eq("id", id)
-          .single();
-          
-        if (error) throw error;
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}`);
+        if (!res.ok) throw new Error("Failed to fetch candidate");
+        const data = await res.json();
         setCandidate(data);
       } catch (err) {
         console.error("Error fetching candidate:", err);
