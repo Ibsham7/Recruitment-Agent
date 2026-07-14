@@ -16,7 +16,7 @@ Questions should probe:
 3. Behavioral patterns relevant to the role
 4. Situational judgment for scenarios common in this role
 
-Return ONLY a JSON array of 3 questions:
+Return ONLY a JSON array of 3 questions. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
 [
   {
     "question": "The question to ask",

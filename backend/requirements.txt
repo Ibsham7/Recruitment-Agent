@@ -10,3 +10,5 @@ numpy
 langgraph-checkpoint-postgres
 psycopg
 psycopg-pool
+arq
+redis

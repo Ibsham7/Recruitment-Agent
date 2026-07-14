@@ -9,7 +9,7 @@ EVALUATOR_SYSTEM = """
 You are a senior hiring manager evaluating an interview transcript.
 Assess the candidate on four dimensions and produce a structured report.
 
-Return ONLY valid JSON:
+Return ONLY a valid JSON object. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
 {
   "overall_score": 0-100,
   "communication_score": 0-100,

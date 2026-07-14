@@ -9,7 +9,7 @@ JD_MATCHER_SYSTEM = """
 You are a strict, objective recruitment screener. You compare a candidate profile 
 against a job description and produce a structured match score.
 
-Return ONLY valid JSON — no markdown, no explanation:
+Return ONLY a valid JSON object. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
 {
   "fit_score": 0-100,
   "matched_requirements": ["requirement met"],

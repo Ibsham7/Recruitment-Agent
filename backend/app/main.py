@@ -1,18 +1,30 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from typing import List, Optional
 import uvicorn
 import asyncio
+import os
 from app.agent.api import start_candidate_pipeline, resume_pipeline
 from app.database import prisma
+from arq import create_pool
+from arq.connections import RedisSettings
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
 async def lifespan(app: FastAPI):
-    # Startup: Connect to the database
+    # Startup: Connect to the database and Redis Queue
     await prisma.connect()
+    app.state.redis = await create_pool(RedisSettings.from_dsn(REDIS_URL))
     yield
-    # Shutdown: Disconnect from the database
+    # Shutdown: Disconnect from the database and Redis Queue
     await prisma.disconnect()
+    app.state.redis.close()
+    await app.state.redis.wait_closed()
 
 app = FastAPI(title="Recruitment Agent API", lifespan=lifespan)
 
@@ -32,7 +44,7 @@ class CampaignCreate(BaseModel):
     hardFiltersConfig: Optional[List[dict]] = None
 
 @app.post("/api/campaigns")
-async def create_campaign(campaign: CampaignCreate, background_tasks: BackgroundTasks):
+async def create_campaign(campaign: CampaignCreate, request: Request, background_tasks: BackgroundTasks):
     from prisma import Json
     new_campaign = await prisma.campaign.create(
         data={
@@ -49,18 +61,17 @@ async def create_campaign(campaign: CampaignCreate, background_tasks: Background
         
         candidate = await prisma.candidate.create(
             data={
-                "campaignId": new_campaign.id,
+                "campaign": {"connect": {"id": new_campaign.id}},
                 "name": name.replace("%20", " "),
-                "resumePath": resume_url,
                 "status": "pending"
             }
         )
         
-        background_tasks.add_task(
-            start_candidate_pipeline,
-            candidate_id=candidate.id,
-            cv_url=resume_url,
-            jd_text=campaign.jobDescription
+        await request.app.state.redis.enqueue_job(
+            'process_cv_task',
+            candidate.id,
+            resume_url,
+            campaign.jobDescription
         )
         
     return {"status": "success", "campaignId": new_campaign.id}
@@ -86,19 +97,32 @@ async def get_campaigns():
         include={
             "candidates": {
                 "include": {
-                    "evaluation": True
+                    "evaluation": True,
+                    "resume": True
                 }
             }
         }
     )
-    return campaigns
+    
+    result = []
+    for c in campaigns:
+        c_dict = c.model_dump() if hasattr(c, "model_dump") else c.dict()
+        for cand in c_dict.get("candidates", []):
+            if cand.get("resume"):
+                cand["structuredProfile"] = cand["resume"].get("structuredProfile")
+                cand["rawCvText"] = cand["resume"].get("rawCvText")
+            else:
+                cand["structuredProfile"] = None
+                cand["rawCvText"] = None
+        result.append(c_dict)
+    return result
 
 class InterviewAnswer(BaseModel):
     answer: str
 
 @app.post("/api/candidates/{id}/interview/answer")
-async def submit_interview_answer(id: str, answer_data: InterviewAnswer, background_tasks: BackgroundTasks):
-    background_tasks.add_task(resume_pipeline, candidate_id=id, resume_data=answer_data.answer)
+async def submit_interview_answer(id: str, answer_data: InterviewAnswer, request: Request):
+    await request.app.state.redis.enqueue_job('resume_pipeline_task', id, answer_data.answer)
     return {"status": "success", "message": "Answer submitted"}
 
 class HumanReview(BaseModel):

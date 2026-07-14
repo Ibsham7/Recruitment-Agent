@@ -34,7 +34,7 @@ def extract_pdf_text(filepath: str) -> str:
 CV_PARSER_SYSTEM = """
 You are a CV parsing expert. Extract structured information from the CV text provided.
 
-Return ONLY valid JSON matching this exact schema — no markdown, no explanation:
+Return ONLY a valid JSON object matching this exact schema. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
 {
   "name": "Full Name",
   "email": "email or null",
@@ -43,15 +43,13 @@ Return ONLY valid JSON matching this exact schema — no markdown, no explanatio
   "education": ["Degree, Institution, Year"],
   "skills": ["skill1", "skill2"],
   "previous_roles": ["Job Title at Company (dates)"],
-  "key_achievements": ["achievement1"],
-  "raw_cv_text": "FULL TEXT HERE"
+  "key_achievements": ["achievement1"]
 }
 
 Rules:
 - total_experience_years: calculate from dates if possible, estimate otherwise
 - skills: include both technical (Python, SQL) and soft (leadership, communication)
 - Do not invent information. If something is not in the CV, omit it or use null.
-- raw_cv_text: include the complete extracted text exactly as provided.
 """
 
 async def cv_parser_node(state: RecruitmentState) -> dict:
@@ -105,6 +103,10 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         
         raw_json = extract_json(response.content)
         profile_data = json.loads(raw_json)
+        
+        if not profile_data.get("name"):
+            profile_data["name"] = "Unknown Candidate"
+            
         profile_data["raw_cv_text"] = raw_text
         
         candidate_profile = CandidateProfile(**profile_data)

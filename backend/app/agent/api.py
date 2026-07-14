@@ -2,17 +2,18 @@ import asyncio
 from typing import Any, cast
 from app.database import prisma
 from .graph import build_recruitment_graph
+from app.dev_logger import log_event, log_error
 
 async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str):
     # Load existing profile if it's cached
-    candidate = await prisma.candidate.find_unique(where={"id": candidate_id}, include={"campaign": True})
+    candidate = await prisma.candidate.find_unique(where={"id": candidate_id}, include={"campaign": True, "resume": True})
     candidate_profile = None
     hard_filters_config = []
     if candidate:
-        if candidate.structuredProfile:
+        if candidate.resume and candidate.resume.structuredProfile:
             import json
             from app.agent.schemas import CandidateProfile
-            profile_data = candidate.structuredProfile
+            profile_data = candidate.resume.structuredProfile
             if isinstance(profile_data, str):
                 profile_data = json.loads(profile_data)
             candidate_profile = CandidateProfile(**profile_data)
@@ -64,16 +65,22 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
             async for event in events:
                 for node_name, node_output in event.items():
                     if isinstance(node_output, dict) and "log" in node_output:
-                        with open("log.txt", "a", encoding="utf-8") as f:
-                            for log_msg in node_output.get("log", []):
-                                f.write(f"[{candidate_id}] [{node_name}] {log_msg}\n")
+                        for log_msg in node_output.get("log", []):
+                            log_event(candidate_id, node_name, log_msg)
                     if node_name == "__interrupt__":
                         interrupt_value = node_output[0].value
             
             final_state_res = await graph.aget_state(config)
             final_state = final_state_res.values
         except Exception as e:
-            print(f"Error: {e}")
+            log_error(candidate_id, "start_candidate_pipeline", e)
+            await prisma.candidate.update(
+                where={"id": candidate_id},
+                data={
+                    "status": "rejected",
+                    "rejectionReason": "System Error: Pipeline failed"
+                }
+            )
             
     if interrupt_value:
         await prisma.candidate.update(
@@ -99,12 +106,10 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
             import json
             update_data.update({
                 "name": profile_dict.get("name"),
-                "structuredProfile": json.dumps(profile_dict),
                 "email": profile_dict.get("email"),
                 "phone": profile_dict.get("phone"),
                 "skills": profile_dict.get("skills", []),
-                "education": profile_dict.get("education", []),
-                "rawCvText": profile_dict.get("raw_cv_text")
+                "education": profile_dict.get("education", [])
             })
         await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
         
@@ -162,16 +167,22 @@ async def resume_pipeline(candidate_id: str, resume_data: Any):
             async for event in events:
                 for node_name, node_output in event.items():
                     if isinstance(node_output, dict) and "log" in node_output:
-                        with open("log.txt", "a", encoding="utf-8") as f:
-                            for log_msg in node_output.get("log", []):
-                                f.write(f"[{candidate_id}] [{node_name}] {log_msg}\n")
+                        for log_msg in node_output.get("log", []):
+                            log_event(candidate_id, node_name, log_msg)
                     if node_name == "__interrupt__":
                         interrupt_value = node_output[0].value
                         
             final_state_res = await graph.aget_state(config)
             final_state = final_state_res.values
         except Exception as e:
-            print(f"Error resuming graph: {e}")
+            log_error(candidate_id, "resume_pipeline", e)
+            await prisma.candidate.update(
+                where={"id": candidate_id},
+                data={
+                    "status": "rejected",
+                    "rejectionReason": "System Error: Pipeline failed"
+                }
+            )
     
     if interrupt_value:
         await prisma.candidate.update(
@@ -197,12 +208,10 @@ async def resume_pipeline(candidate_id: str, resume_data: Any):
             import json
             update_data.update({
                 "name": profile_dict.get("name"),
-                "structuredProfile": json.dumps(profile_dict),
                 "email": profile_dict.get("email"),
                 "phone": profile_dict.get("phone"),
                 "skills": profile_dict.get("skills", []),
-                "education": profile_dict.get("education", []),
-                "rawCvText": profile_dict.get("raw_cv_text")
+                "education": profile_dict.get("education", [])
             })
         await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
         
