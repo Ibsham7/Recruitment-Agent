@@ -3,6 +3,8 @@ import { Outlet, useNavigate, useLocation } from "react-router";
 import { ChevronLeft, Briefcase, BarChart2, Users, Settings, LogOut, ArrowLeft, SlidersHorizontal, Bell, Plus } from "lucide-react";
 import { Theme } from "../lib/types";
 import { getGlass, hexToRgba } from "../lib/theme";
+import { useAuth } from "../lib/AuthContext";
+import { supabase } from "../lib/supabase";
 const logoLightImg = "/Screenshot_2026-07-10_121453-removebg-preview.png";
 const logoDarkImg = "/Screenshot_2026-07-10_121508-removebg-preview.png";
 import { ThemeEditor } from "../components/common/ThemeEditor";
@@ -12,6 +14,7 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
   const [editorOpen, setEditorOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   const G = getGlass(theme);
 
@@ -89,15 +92,20 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
         <div className="px-2 py-3 flex-shrink-0" style={{ borderTop: `1px solid ${hexToRgba(theme.bgCard, theme.isDark ? 0.10 : 0.50)}` }}>
           <div className="flex items-center py-2 px-1 rounded-xl"
             style={{ gap: collapsed ? 0 : "10px", justifyContent: collapsed ? "center" : "flex-start" }}>
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-              style={{ background: hexToRgba(theme.accentBadge, 0.18), color: theme.accentBadge, border: `1px solid ${hexToRgba(theme.accentBadge, 0.28)}` }}>SM</div>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 uppercase"
+              style={{ background: hexToRgba(theme.accentBadge, 0.18), color: theme.accentBadge, border: `1px solid ${hexToRgba(theme.accentBadge, 0.28)}` }}>
+              {user?.email ? user.email.substring(0, 2) : "US"}
+            </div>
             <div style={{ overflow: "hidden", maxWidth: collapsed ? 0 : "120px", opacity: collapsed ? 0 : 1, transition: "max-width 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.12s ease", minWidth: 0 }}>
-              <div className="text-xs font-medium truncate" style={{ color: theme.txtPrimary }}>Sarah Mitchell</div>
-              <div className="text-[10px] truncate" style={{ color: theme.txtMuted }}>Head of Talent</div>
+              <div className="text-xs font-medium truncate" style={{ color: theme.txtPrimary }}>{user?.user_metadata?.full_name || user?.email?.split('@')[0] || "User"}</div>
+              <div className="text-[10px] truncate" style={{ color: theme.txtMuted }}>{user?.email || "No email"}</div>
             </div>
           </div>
           <button
-            onClick={() => navigate("/")}
+            onClick={async () => {
+              await supabase.auth.signOut();
+              navigate("/");
+            }}
             title="Sign out"
             className="w-full flex items-center py-1.5 px-1 rounded-xl text-xs font-medium transition-all mt-1"
             style={{ gap: collapsed ? 0 : "8px", justifyContent: collapsed ? "center" : "flex-start", color: theme.txtMuted, background: "transparent" }}
