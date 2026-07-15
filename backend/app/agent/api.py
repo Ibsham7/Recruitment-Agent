@@ -9,6 +9,8 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
     candidate = await prisma.candidate.find_unique(where={"id": candidate_id}, include={"campaign": True, "resume": True})
     candidate_profile = None
     hard_filters_config = []
+    enable_interviews = True
+    interview_config = None
     if candidate:
         if candidate.resume and candidate.resume.structuredProfile:
             import json
@@ -18,12 +20,17 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
                 profile_data = json.loads(profile_data)
             candidate_profile = CandidateProfile(**profile_data)
             
-        if candidate.campaign and candidate.campaign.hardFiltersConfig:
-            import json
-            config_data = candidate.campaign.hardFiltersConfig
-            if isinstance(config_data, str):
-                config_data = json.loads(config_data)
-            hard_filters_config = config_data
+        if candidate.campaign:
+            if candidate.campaign.hardFiltersConfig:
+                import json
+                config_data = candidate.campaign.hardFiltersConfig
+                if isinstance(config_data, str):
+                    config_data = json.loads(config_data)
+                hard_filters_config = config_data
+            if hasattr(candidate.campaign, "enableInterviews"):
+                enable_interviews = candidate.campaign.enableInterviews
+            if hasattr(candidate.campaign, "interviewConfig"):
+                interview_config = candidate.campaign.interviewConfig
             
     import os
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -44,6 +51,8 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
             "candidate_profile": candidate_profile,
             "hard_filters_config": hard_filters_config,
             "penalties": [],
+            "enable_interviews": enable_interviews,
+            "interview_config": interview_config,
             "screening_result": None,
             "interview_questions": [],
             "interview_transcript": None,

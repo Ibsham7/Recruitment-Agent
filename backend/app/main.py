@@ -42,6 +42,8 @@ class CampaignCreate(BaseModel):
     jobDescription: str
     resumes: List[str]
     hardFiltersConfig: Optional[List[dict]] = None
+    enableInterviews: bool = True
+    interviewConfig: Optional[str] = None
 
 @app.post("/api/campaigns")
 async def create_campaign(campaign: CampaignCreate, request: Request, background_tasks: BackgroundTasks):
@@ -50,7 +52,9 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
         data={
             "title": campaign.title,
             "jobDescription": campaign.jobDescription,
-            "hardFiltersConfig": Json(campaign.hardFiltersConfig) if campaign.hardFiltersConfig is not None else None
+            "hardFiltersConfig": Json(campaign.hardFiltersConfig) if campaign.hardFiltersConfig is not None else None,
+            "enableInterviews": campaign.enableInterviews,
+            "interviewConfig": campaign.interviewConfig
         }
     )
     

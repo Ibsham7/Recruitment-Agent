@@ -56,9 +56,13 @@ Name: {profile.name}
 Skills: {', '.join(profile.skills)}
 Experience: {profile.total_experience_years} years in roles: {', '.join(profile.previous_roles)}
 Missing requirements identified during screening: {', '.join(screening.missing_requirements)}
-
-Generate 3 targeted interview questions for this specific candidate.
 """
+
+    custom_config = state.get("interview_config")
+    if custom_config and custom_config.strip():
+        prompt += f"\nTHE RECRUITER HAS PROVIDED THE FOLLOWING CUSTOM FOCUS AREAS / QUESTIONS:\n{custom_config.strip()}\n\nPlease ensure your generated questions prioritize addressing these focus areas while still adhering to the JSON format.\n"
+
+    prompt += "\nGenerate 3 targeted interview questions for this specific candidate.\n"
 
     model = get_model("fast")
     response = await model.ainvoke([

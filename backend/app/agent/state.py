@@ -9,6 +9,8 @@ class RecruitmentState(TypedDict):
     candidate_id: str                        # unique ID for this run
     hard_filters_config: list[dict]          # explicit hard filter rules
     penalties: list[dict]                    # accrued penalties
+    enable_interviews: bool                  # whether to conduct an interview
+    interview_config: Optional[str]          # custom interview questions or focus
 
     # ── Node outputs (each node fills one of these) ──────────────────────
     candidate_profile: Optional[CandidateProfile]     # filled by cv_parser

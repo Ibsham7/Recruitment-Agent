@@ -44,7 +44,8 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
   }, [uploadTasks]);
 
   const [dragging, setDragging] = useState(false);
-  const [toggles, setToggles] = useState([true, false, true]);
+  const [enableInterviews, setEnableInterviews] = useState(true);
+  const [interviewConfig, setInterviewConfig] = useState("");
   const [hardFilters, setHardFilters] = useState<{type: string, value: string, penalty: string}[]>([]);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -202,13 +203,14 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
           title,
           jobDescription: jd,
           resumes: fileUrls,
-          hardFiltersConfig: hardFilters
+          hardFiltersConfig: hardFilters,
+          enableInterviews,
+          interviewConfig
         })
       });
 
       if (!res.ok) throw new Error("Failed to create campaign");
       
-      const data = await res.json();
       navigate("/dashboard");
     } catch (err) {
       console.error(err);
@@ -240,22 +242,26 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
           </div>
           <div className="space-y-4">
             <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Job Title</label><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Senior Frontend Engineer" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
-            <div className="grid grid-cols-2 gap-4">
-               <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Department</label><input placeholder="e.g. Engineering" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
-               <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Location</label><input placeholder="e.g. Remote" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
-            </div>
             <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Job Description</label><textarea value={jd} onChange={(e) => setJd(e.target.value)} rows={7} className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none resize-none leading-relaxed" style={fieldStyle} /></div>
+            
             <div className="rounded-2xl p-5 space-y-4" style={G.card}>
-              <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>AI Configuration</div>
-              {[{ label: "Require Technical Assessment", sub: "AI assigns a coding challenge before interview" }, { label: "Strict Cultural Fit Scoring", sub: "Weight culture fit at 30% of total score" }, { label: "Auto-reject below 40% match", sub: "Skip to rejection for very low JD match" }].map((item, i) => (
-                <div key={item.label} className="flex items-center justify-between">
-                  <div><div className="text-xs font-medium" style={{ color: t.txtPrimary }}>{item.label}</div><div className="text-[11px]" style={{ color: t.txtMuted }}>{item.sub}</div></div>
-                  <button onClick={() => { const n = [...toggles]; n[i] = !n[i]; setToggles(n); }} className="w-9 h-5 rounded-full relative flex-shrink-0 transition-all"
-                    style={{ background: toggles[i] ? hexToRgba(t.progressFill, 0.65) : hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.30), border: `1px solid ${hexToRgba(t.bgCard, 0.20)}`, boxShadow: toggles[i] ? `0 0 10px ${hexToRgba(t.progressFill, 0.35)}` : "none" }}>
-                    <span className="w-3.5 h-3.5 rounded-full absolute top-[2px] transition-all shadow-sm" style={{ left: toggles[i] ? "19px" : "2px", backgroundColor: toggles[i] ? "#fff" : t.txtGhost }} />
-                  </button>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>AI Interviews</div>
+                  <div className="text-xs mt-1" style={{ color: t.txtSecondary }}>Enable to automatically conduct chat-based interviews after screening</div>
                 </div>
-              ))}
+                <button onClick={() => setEnableInterviews(!enableInterviews)} className="w-9 h-5 rounded-full relative flex-shrink-0 transition-all"
+                  style={{ background: enableInterviews ? hexToRgba(t.progressFill, 0.65) : hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.30), border: `1px solid ${hexToRgba(t.bgCard, 0.20)}`, boxShadow: enableInterviews ? `0 0 10px ${hexToRgba(t.progressFill, 0.35)}` : "none" }}>
+                  <span className="w-3.5 h-3.5 rounded-full absolute top-[2px] transition-all shadow-sm" style={{ left: enableInterviews ? "19px" : "2px", backgroundColor: enableInterviews ? "#fff" : t.txtGhost }} />
+                </button>
+              </div>
+              
+              {enableInterviews && (
+                <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Interview Focus & Custom Questions (Optional)</label>
+                  <textarea value={interviewConfig} onChange={(e) => setInterviewConfig(e.target.value)} rows={3} placeholder="e.g. Ask the candidate to explain their most complex React project. Focus heavily on system design and cultural fit..." className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none resize-none leading-relaxed" style={fieldStyle} />
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl p-5 space-y-4" style={G.card}>

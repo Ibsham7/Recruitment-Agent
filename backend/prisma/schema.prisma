@@ -17,6 +17,8 @@ model Campaign {
   title             String
   jobDescription    String
   hardFiltersConfig Json?
+  enableInterviews  Boolean     @default(true)
+  interviewConfig   String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   candidates        Candidate[]
