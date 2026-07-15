@@ -1,4 +1,10 @@
 import os
+import sys
+import asyncio
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from arq.connections import RedisSettings
 from dotenv import load_dotenv
 

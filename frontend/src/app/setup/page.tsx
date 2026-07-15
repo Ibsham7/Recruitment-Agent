@@ -1,8 +1,16 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Check, Upload, FileText, CheckCircle, Loader2 } from "lucide-react";
+import { Check, Upload, FileText, CheckCircle, Loader2, XCircle, RefreshCw } from "lucide-react";
 import { Theme } from "../../lib/types";
 import { hexToRgba, getGlass } from "../../lib/theme";
+
+interface UploadTask {
+  id: string;
+  file: File;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  progress: number;
+  url?: string;
+}
 
 export default function SetupPage({ theme: t }: { theme: Theme }) {
   const navigate = useNavigate();
@@ -28,7 +36,13 @@ Preferred Qualifications
 A strong portfolio of independent, agent-based proof-of-concept projects demonstrating practical AI engineering skills.
 An understanding of low-level hardware optimizations, compute thermal management, and cache organization mechanics for local model deployments.
 A strong mathematical foundation in vector calculus and linear algebra.`);
-  const [files, setFiles] = useState<File[]>([]);
+  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
+  const uploadTasksRef = useRef<UploadTask[]>([]);
+
+  useEffect(() => {
+    uploadTasksRef.current = uploadTasks;
+  }, [uploadTasks]);
+
   const [dragging, setDragging] = useState(false);
   const [toggles, setToggles] = useState([true, false, true]);
   const [hardFilters, setHardFilters] = useState<{type: string, value: string, penalty: string}[]>([]);
@@ -42,41 +56,93 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
     e.preventDefault();
     setDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
+      const newTasks: UploadTask[] = Array.from(e.dataTransfer.files).map(f => ({
+        id: Math.random().toString(36).substring(2, 9),
+        file: f,
+        status: 'pending',
+        progress: 0
+      }));
+      setUploadTasks((prev) => [...prev, ...newTasks]);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+      const newTasks: UploadTask[] = Array.from(e.target.files).map(f => ({
+        id: Math.random().toString(36).substring(2, 9),
+        file: f,
+        status: 'pending',
+        progress: 0
+      }));
+      setUploadTasks((prev) => [...prev, ...newTasks]);
     }
   };
 
-  const uploadToCloudinary = async (file: File): Promise<string> => {
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
-    
-    if (!cloudName || !uploadPreset) {
-      console.warn("Cloudinary env vars missing. Returning mock URL.");
-      return `https://mock.cloudinary.com/resumes/${file.name}`;
-    }
+  const uploadToCloudinaryWithProgress = (taskId: string, file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
+      
+      if (!cloudName || !uploadPreset) {
+        console.warn("Cloudinary env vars missing. Returning mock URL.");
+        let p = 0;
+        const interval = setInterval(() => {
+          p += 20;
+          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploading', progress: p } : t));
+          if (p >= 100) {
+            clearInterval(interval);
+            setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'success', progress: 100, url: `https://mock.cloudinary.com/resumes/${file.name}` } : t));
+            resolve(`https://mock.cloudinary.com/resumes/${file.name}`);
+          }
+        }, 300);
+        return;
+      }
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
+      setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploading', progress: 0 } : t));
 
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
-      method: "POST",
-      body: formData,
+      const xhr = new XMLHttpRequest();
+      const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
+      
+      xhr.open("POST", url, true);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress: percentComplete } : t));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'success', progress: 100, url: response.secure_url } : t));
+            resolve(response.secure_url);
+          } catch (err) {
+            setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
+            reject(new Error("Failed to parse Cloudinary response"));
+          }
+        } else {
+          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
+          reject(new Error("Upload failed"));
+        }
+      };
+
+      xhr.onerror = () => {
+        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
+        reject(new Error("Network error during upload"));
+      };
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
+
+      xhr.send(formData);
     });
-    
-    if (!res.ok) throw new Error("Upload failed");
-    const data = await res.json();
-    return data.secure_url;
   };
 
   const onComplete = async () => {
-    if (!title || !jd || files.length === 0) return;
+    if (!title || !jd || uploadTasks.length === 0) return;
     setUploading(true);
     
     try {
@@ -105,11 +171,30 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
       }
       setDbWakingUp(false);
 
-      // 1. Upload all files to Cloudinary
-      const uploadPromises = files.map(uploadToCloudinary);
-      const fileUrls = await Promise.all(uploadPromises);
+      // 1. Upload pending/error files
+      const tasksToUpload = uploadTasksRef.current.filter(t => t.status === 'pending' || t.status === 'error');
+      
+      if (tasksToUpload.length > 0) {
+        const uploadPromises = tasksToUpload.map(t => uploadToCloudinaryWithProgress(t.id, t.file));
+        const uploadResults = await Promise.allSettled(uploadPromises);
+        
+        const hasErrors = uploadResults.some(r => r.status === 'rejected');
+        if (hasErrors) {
+          setUploading(false);
+          return; // UI will show error states, allow user to retry
+        }
+      }
 
-      // 2. Send payload to backend
+      // 2. Double check all tasks are successful
+      const allTasks = uploadTasksRef.current;
+      if (allTasks.some(t => t.status !== 'success')) {
+        setUploading(false);
+        return;
+      }
+
+      const fileUrls = allTasks.map(t => t.url!);
+
+      // 3. Send payload to backend
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -128,7 +213,6 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
     } catch (err) {
       console.error(err);
       alert("An error occurred during upload or campaign creation.");
-    } finally {
       setUploading(false);
     }
   };
@@ -222,22 +306,64 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
             <div className="text-xs mt-0.5" style={{ color: t.txtMuted }}>or click to browse — up to 100 files</div>
           </div>
           
-          {files.length > 0 && <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-            <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>{files.length} Files Queued</div>
-            {files.map((f, i) => (<div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ ...G.card }}><FileText size={13} style={{ color: t.accentBadge }} /><span className="text-xs flex-1 truncate" style={{ color: t.txtBody }}>{f.name}</span><CheckCircle size={12} style={{ color: t.numPos }} /></div>))}
+          {uploadTasks.length > 0 && <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+            <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>{uploadTasks.length} Files Queued</div>
+            {uploadTasks.map((task) => (
+              <div key={task.id} className="relative overflow-hidden flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ ...G.card, border: task.status === 'error' ? `1px solid ${hexToRgba('#ef4444', 0.5)}` : G.card.border }}>
+                {(task.status === 'uploading' || task.status === 'success') && (
+                  <div 
+                    className="absolute top-0 left-0 h-full transition-all duration-300 ease-out" 
+                    style={{ 
+                      width: `${task.progress}%`, 
+                      background: hexToRgba(task.status === 'success' ? t.numPos : t.accentPrimary, 0.15),
+                      zIndex: 0
+                    }} 
+                  />
+                )}
+                
+                <div className="relative z-10 flex items-center w-full gap-3">
+                  <FileText size={13} style={{ color: t.accentBadge }} />
+                  <span className="text-xs flex-1 truncate" style={{ color: t.txtBody }}>{task.file.name}</span>
+                  
+                  {task.status === 'pending' && <span className="text-[10px]" style={{ color: t.txtMuted }}>Pending</span>}
+                  {task.status === 'uploading' && <span className="text-[10px] font-medium" style={{ color: t.accentPrimary }}>{task.progress}%</span>}
+                  {task.status === 'success' && <CheckCircle size={14} style={{ color: t.numPos }} />}
+                  {task.status === 'error' && (
+                     <div className="flex items-center gap-2">
+                        <XCircle size={14} className="text-red-500" />
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); uploadToCloudinaryWithProgress(task.id, task.file).catch(() => {}); }} 
+                          className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded transition-colors"
+                          style={{ border: `1px solid ${hexToRgba('#ef4444', 0.3)}`, color: '#ef4444', background: hexToRgba('#ef4444', 0.1) }}>
+                          <RefreshCw size={10} /> Retry
+                        </button>
+                     </div>
+                  )}
+                  {task.status !== 'uploading' && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setUploadTasks(prev => prev.filter(t => t.id !== task.id)); }} 
+                      className="text-[10px] ml-1 hover:opacity-70 transition-opacity" style={{ color: t.txtGhost }}>
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>}
           
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} disabled={uploading} className="flex-1 py-3 rounded-xl text-sm font-medium disabled:opacity-50" style={{ ...G.card, color: t.txtSecondary }}>Back</button>
-            <button onClick={onComplete} disabled={files.length === 0 || uploading} className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
-              style={{ background: files.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.72)})` : hexToRgba(t.bgCard, 0.15), color: files.length > 0 ? t.accentText : t.txtGhost, boxShadow: files.length > 0 ? `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` : "none", cursor: files.length > 0 && !uploading ? "pointer" : "not-allowed" }}>
+            <button onClick={onComplete} disabled={uploadTasks.length === 0 || uploading} className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+              style={{ background: uploadTasks.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.72)})` : hexToRgba(t.bgCard, 0.15), color: uploadTasks.length > 0 ? t.accentText : t.txtGhost, boxShadow: uploadTasks.length > 0 ? `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` : "none", cursor: uploadTasks.length > 0 && !uploading ? "pointer" : "not-allowed" }}>
               {uploading ? (
                 dbWakingUp ? (
                   <><Loader2 size={16} className="animate-spin" /> Waking up database (takes ~30s)...</>
-                ) : (
+                ) : uploadTasks.some(t => t.status !== 'success') ? (
                   <><Loader2 size={16} className="animate-spin" /> Uploading...</>
+                ) : (
+                  <><Loader2 size={16} className="animate-spin" /> Creating Campaign...</>
                 )
-              ) : "Launch Campaign"}
+              ) : uploadTasks.some(t => t.status === 'error') ? "Retry Failed Uploads" : "Launch Campaign"}
             </button>
           </div>
         </div>

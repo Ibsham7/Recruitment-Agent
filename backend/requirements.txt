@@ -8,7 +8,7 @@ prisma
 pypdf
 numpy
 langgraph-checkpoint-postgres
-psycopg
+psycopg[binary]
 psycopg-pool
 arq
 redis

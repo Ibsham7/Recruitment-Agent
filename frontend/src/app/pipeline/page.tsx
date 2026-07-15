@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
 import { hexToRgba, getGlass, scoreColor } from "../../lib/theme";
+import { supabase } from "../../lib/supabase";
 
 const STAGE_CONFIG: Record<CandidateStage, { label: string; color: string }> = {
   pending:      { label: "Pending Screening", color: "#808090" },
@@ -69,6 +70,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
   };
 
   useEffect(() => {
+    let isMounted = true;
     async function fetchData() {
       if (!id) return;
       try {
@@ -77,7 +79,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
         const campaignData = await res.json();
         const candidatesData = campaignData.candidates || [];
 
-        if (campaignData) {
+        if (campaignData && isMounted) {
           const cands = candidatesData || [];
           const total = cands.length;
           const processed = cands.filter((c: any) => c.status !== 'pending').length;
@@ -106,11 +108,43 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
       } catch (err) {
         console.error("Error fetching pipeline data:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
     
     fetchData();
+
+    // Set up Supabase Realtime subscription
+    const channel = supabase
+      .channel(`campaign-${id}-updates`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Candidate',
+        },
+        (payload) => {
+          console.log('Realtime Candidate update:', payload);
+          // If we receive an event, we need to check if it belongs to our campaign.
+          // For INSERT/DELETE or if REPLICA IDENTITY FULL is enabled, we might have campaignId
+          if (payload.new && 'campaignId' in payload.new) {
+             if (payload.new.campaignId === id) fetchData();
+          } 
+          // If it's an UPDATE without campaignId, we can't be sure, so we refetch to be safe.
+          // A more optimized way would be to check if payload.new.id is in our current candidates array,
+          // but refetching ensures we get the latest state anyway.
+          else {
+             fetchData(); 
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
   }, [id]);
 
   if (loading) {
