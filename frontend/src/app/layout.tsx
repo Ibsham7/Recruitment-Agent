@@ -20,9 +20,9 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
 
   // In a real app, this would be dynamic
   const title = location.pathname.includes("/dashboard") ? "Campaigns" :
-                location.pathname.includes("/setup") ? "New Campaign" :
-                location.pathname.includes("/candidate") ? "Candidate Review" :
-                location.pathname.includes("/pipeline") ? "Pipeline" : "Hireagent";
+    location.pathname.includes("/setup") ? "New Campaign" :
+      location.pathname.includes("/candidate") ? "Candidate Review" :
+        location.pathname.includes("/pipeline") ? "Pipeline" : "Hireagent";
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: theme.bgPage, position: "relative" }}>
@@ -64,10 +64,10 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
         {/* Nav */}
         <nav className="flex-1 px-2 py-3 space-y-0.5">
           {[
-            { icon: <Briefcase size={15} />, label: "Campaigns",  active: location.pathname.includes("/dashboard") || location.pathname.includes("/pipeline") || location.pathname.includes("/candidate") || location.pathname.includes("/setup"), fn: () => navigate("/dashboard") },
-            { icon: <BarChart2 size={15} />, label: "Analytics",  active: location.pathname.includes("/analytics"), fn: () => navigate("/notfound") },
-            { icon: <Users size={15} />,     label: "Candidates", active: location.pathname.includes("/candidates"), fn: () => navigate("/notfound") },
-            { icon: <Settings size={15} />,  label: "Settings",   active: location.pathname.includes("/settings"), fn: () => navigate("/notfound") },
+            { icon: <Briefcase size={15} />, label: "Campaigns", active: location.pathname.includes("/dashboard") || location.pathname.includes("/pipeline") || location.pathname.includes("/candidate") || location.pathname.includes("/setup"), fn: () => navigate("/dashboard") },
+            { icon: <BarChart2 size={15} />, label: "Analytics", active: location.pathname.includes("/analytics"), fn: () => navigate("/notfound") },
+            { icon: <Users size={15} />, label: "Candidates", active: location.pathname.includes("/candidates"), fn: () => navigate("/notfound") },
+            { icon: <Settings size={15} />, label: "Settings", active: location.pathname.includes("/settings"), fn: () => navigate("/notfound") },
           ].map(({ icon, label, active, fn }) => (
             <button key={label} onClick={fn} title={collapsed ? label : undefined}
               className="w-full flex items-center py-2 rounded-xl text-xs font-medium transition-all"

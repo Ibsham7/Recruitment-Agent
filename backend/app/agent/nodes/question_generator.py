@@ -65,14 +65,34 @@ Missing requirements identified during screening: {', '.join(screening.missing_r
     prompt += "\nGenerate 3 targeted interview questions for this specific candidate.\n"
 
     model = get_model("fast")
-    response = await model.ainvoke([
-        SystemMessage(content=QUESTION_GEN_SYSTEM),
-        HumanMessage(content=prompt)
-    ])
-
-    raw_json = extract_json(response.content)
-    questions_data = json.loads(raw_json)
-    questions = [InterviewQuestion(**q) for q in questions_data]
+    max_retries = 3
+    questions = []
+    for attempt in range(max_retries):
+        try:
+            response = await model.ainvoke([
+                SystemMessage(content=QUESTION_GEN_SYSTEM),
+                HumanMessage(content=prompt)
+            ])
+            raw_json = extract_json(response.content)
+            questions_data = json.loads(raw_json)
+            questions = [InterviewQuestion(**q) for q in questions_data]
+            break
+        except Exception as e:
+            print(f"  [Question Gen] Attempt {attempt+1} failed: {e}. Raw response: {getattr(response, 'content', 'None') if 'response' in locals() else 'None'}")
+            if attempt == max_retries - 1:
+                print(f"  [Question Gen] All {max_retries} attempts failed. Falling back to default questions.")
+                questions = [
+                    InterviewQuestion(
+                        question="Could you tell us more about your background and experience?",
+                        expected_aspects=["Clear communication", "Relevance to JD"],
+                        purpose="General fallback question due to LLM error"
+                    ),
+                    InterviewQuestion(
+                        question="What do you consider your greatest professional achievement?",
+                        expected_aspects=["Impact", "Problem solving"],
+                        purpose="General fallback question due to LLM error"
+                    )
+                ]
 
     return {
         "interview_questions": questions,

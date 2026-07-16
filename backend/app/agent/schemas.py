@@ -12,6 +12,8 @@ class CandidateProfile(BaseModel):
     skills: list[str] = Field(default_factory=list, description="Technical and soft skills")
     previous_roles: list[str] = Field(default_factory=list, description="Job titles held")
     key_achievements: list[str] = Field(default_factory=list, description="Notable accomplishments")
+    projects: list[str] = Field(default_factory=list, description="Notable projects")
+    other_info: str = Field(default="", description="Any other relevant info from the CV")
     raw_cv_text: str = Field(description="Full extracted text, kept for later nodes")
 
 class ScreeningResult(BaseModel):
@@ -20,7 +22,8 @@ class ScreeningResult(BaseModel):
     matched_requirements: list[str] = Field(description="JD requirements the candidate meets")
     missing_requirements: list[str] = Field(description="JD requirements the candidate lacks")
     reasoning: str = Field(description="2–3 sentence explanation of the score")
-    decision: str = Field(pattern="^(advance|reject)$", description="advance or reject")
+    cv_summary: str = Field(description="A short summary covering everything not in the extracted portion (achievements, projects, etc)")
+    decision: str = Field(pattern="^(advance|reject|hold)$", description="advance, reject, or hold")
 
 class InterviewQuestion(BaseModel):
     question: str

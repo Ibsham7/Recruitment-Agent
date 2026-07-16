@@ -6,23 +6,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
-OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY_PAID")
 
 def get_model(tier: str = "smart") -> ChatOpenAI:
     """
-    smart  → nvidia/nemotron-3-ultra-550b-a55b:free     Best tool calling + instruction following available for free.
-                                                Use for CV parsing, interview conducting, evaluation.
-    fast   → nvidia/nemotron-3-nano-30b-a3b:free        Faster + cheaper (free). Use for JD matching/scoring.
+    smart  → google/gemini-2.5-flash: Highly reliable and intelligent model with 1M context for complex JSON parsing.
+    fast   → google/gemini-2.5-flash: Using the same model for fast tasks due to its speed, low cost, and extreme reliability.
     """
     models = {
-        "smart": "nvidia/nemotron-3-ultra-550b-a55b:free",
-        "fast": "nvidia/nemotron-3-nano-30b-a3b:free",
+        "smart": "google/gemini-2.5-flash",
+        "fast": "google/gemini-2.5-flash",
     }
     return ChatOpenAI(
         model=models[tier],
         openai_api_base=OPENROUTER_BASE,  # type: ignore
         openai_api_key=OPENROUTER_KEY,    # type: ignore
         temperature=0,        # deterministic — you want consistent scoring
+        max_retries=5,        # Automatically retry on 429 RateLimitError upstream
     )
 
 # Verify before proceeding — run this once

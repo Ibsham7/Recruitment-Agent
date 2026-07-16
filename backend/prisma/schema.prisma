@@ -30,7 +30,7 @@ model Candidate {
   name            String
   email           String?
   phone           String?
-  status          String      @default("pending") // pending, screening, rejected, interviewing, review, complete
+  status          String      @default("pending") // pending, rejected, interviewing, review, finalized
   fitScore        Float?
   decision        String?     // final decision by recruiter: approve, reject, hold
   rejectionReason String?
@@ -72,6 +72,7 @@ model Evaluation {
   strengths           String[]
   concerns            String[]
   interviewTranscript Json?
+  interviewQuestions  Json?
   
   candidate           Candidate @relation(fields: [candidateId], references: [id])
   

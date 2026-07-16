@@ -13,6 +13,8 @@ load_dotenv()
 
 from app.agent.api import start_candidate_pipeline, resume_pipeline
 from app.database import prisma
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg_pool import AsyncConnectionPool
 
 async def startup(ctx):
     """
@@ -20,24 +22,44 @@ async def startup(ctx):
     when the worker process starts.
     """
     await prisma.connect()
+    
+    db_url = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
+    if db_url:
+        db_url = db_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
+        
+    pool = AsyncConnectionPool(
+        conninfo=db_url,
+        max_size=20,
+        kwargs={
+            "autocommit": True,
+            "prepare_threshold": 0,
+        },
+    )
+    await pool.wait()
+    ctx['pool'] = pool
+    checkpointer = AsyncPostgresSaver(pool)
+    await checkpointer.setup()
+    ctx['checkpointer'] = checkpointer
 
 async def shutdown(ctx):
     """
     Clean up resources when the worker process stops.
     """
     await prisma.disconnect()
+    if 'pool' in ctx:
+        await ctx['pool'].close()
 
 async def process_cv_task(ctx, candidate_id: str, cv_url: str, jd_text: str):
     """
     Background job to process a candidate's CV.
     """
-    await start_candidate_pipeline(candidate_id, cv_url, jd_text)
+    await start_candidate_pipeline(candidate_id, cv_url, jd_text, checkpointer=ctx.get('checkpointer'))
     
 async def resume_pipeline_task(ctx, candidate_id: str, resume_data: str):
     """
     Background job to resume a pipeline for an interview answer.
     """
-    await resume_pipeline(candidate_id, resume_data)
+    await resume_pipeline(candidate_id, resume_data, checkpointer=ctx.get('checkpointer'))
 
 # Setup Redis Connection
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")

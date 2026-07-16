@@ -20,6 +20,25 @@ from app.agent.nodes.question_generator import question_generator_node
 from app.agent.nodes.interviewer import interviewer_node
 from app.agent.nodes.evaluator import evaluator_node
 
+async def human_override_node(state: RecruitmentState) -> dict:
+    decision = interrupt("hold_for_review")
+    if decision == "override":
+        if not state.get("enable_interviews", True):
+            return {
+                "pipeline_status": "shortlisted",
+                "log": ["Human override: Candidate auto-shortlisted (Interviews disabled)"]
+            }
+        return {
+            "pipeline_status": "running",
+            "log": ["Human override: Candidate advanced to interview"]
+        }
+    else:
+        return {
+            "pipeline_status": "rejected",
+            "rejection_reason": "Human override: Rejected from hold queue",
+            "log": ["Human override: Candidate rejected"]
+        }
+
 # ── Routing functions ──────────────────────────────────────────────────────
 
 def route_after_hard_filters(state: RecruitmentState) -> str:
@@ -33,11 +52,13 @@ def route_after_embedding_matcher(state: RecruitmentState) -> str:
     return "jd_matcher"
 
 def route_after_screening(state: RecruitmentState) -> str:
-    """After JD matching: advance to interview or reject immediately. If interviews are disabled, skip straight to evaluator."""
+    """After JD matching: advance to interview, hold, or reject immediately. If interviews are disabled, skip straight to evaluator."""
     if state["pipeline_status"] == "rejected":
         return "rejected"
+    if state["pipeline_status"] == "awaiting_human":
+        return "human_override"
     if not state.get("enable_interviews", True):
-        return "evaluator"
+        return END
     return "question_generator"
 
 def route_after_interview_turn(state: RecruitmentState) -> str:
@@ -80,6 +101,7 @@ def build_recruitment_graph(checkpointer=None):
     builder.add_node("question_generator", question_generator_node)
     builder.add_node("interviewer", interviewer_node)
     builder.add_node("evaluator", evaluator_node)
+    builder.add_node("human_override", human_override_node)
     builder.add_node("rejected", rejected_node)
 
     # Edges
@@ -102,7 +124,14 @@ def build_recruitment_graph(checkpointer=None):
     builder.add_conditional_edges(
         "jd_matcher",
         route_after_screening,
-        {"question_generator": "question_generator", "rejected": "rejected"}
+        {"question_generator": "question_generator", "rejected": "rejected", "evaluator": "evaluator", "human_override": "human_override", END: END}
+    )
+    
+    # Conditional: after human override
+    builder.add_conditional_edges(
+        "human_override",
+        lambda state: "rejected" if state["pipeline_status"] == "rejected" else ("question_generator" if state.get("enable_interviews", True) else END),
+        {"rejected": "rejected", "question_generator": "question_generator", "evaluator": "evaluator", END: END}
     )
 
     builder.add_edge("question_generator", "interviewer")

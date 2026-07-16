@@ -12,20 +12,33 @@ import asyncio
 from app.database import prisma
 from app.agent.utils import extract_json
 
-def extract_pdf_text(filepath: str) -> str:
+import httpx
+
+async def extract_pdf_text(filepath: str) -> str:
     temp_path = None
     if filepath.startswith("http://") or filepath.startswith("https://"):
         fd, temp_path = tempfile.mkstemp(suffix=".pdf")
         os.close(fd)
-        urllib.request.urlretrieve(filepath, temp_path)
-        pdf_path = temp_path
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(filepath, timeout=30.0, follow_redirects=True)
+                response.raise_for_status()
+                with open(temp_path, "wb") as f:
+                    f.write(response.content)
+            pdf_path = temp_path
+        except Exception as e:
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise e
     else:
         pdf_path = filepath
 
     try:
-        reader = PdfReader(pdf_path)
-        pages = [page.extract_text() or "" for page in reader.pages]
-        return "\n".join(pages)
+        def read_pdf():
+            reader = PdfReader(pdf_path)
+            return "\n".join([page.extract_text() or "" for page in reader.pages])
+        
+        return await asyncio.to_thread(read_pdf)
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
@@ -43,12 +56,16 @@ Return ONLY a valid JSON object matching this exact schema. Do NOT wrap it in ``
   "education": ["Degree, Institution, Year"],
   "skills": ["skill1", "skill2"],
   "previous_roles": ["Job Title at Company (dates)"],
-  "key_achievements": ["achievement1"]
+  "key_achievements": ["achievement1"],
+  "projects": ["Project Name: Description"],
+  "other_info": "Any other relevant info from the CV or null"
 }
 
 Rules:
 - total_experience_years: calculate from dates if possible, estimate otherwise
 - skills: include both technical (Python, SQL) and soft (leadership, communication)
+- projects: include notable academic, personal or professional projects
+- other_info: include anything else that is relevant like certifications, awards, etc.
 - Do not invent information. If something is not in the CV, omit it or use null.
 """
 
@@ -64,7 +81,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             "log": ["CV parsed from cache"]
         }
 
-    raw_text = extract_pdf_text(state["cv_filepath"])
+    raw_text = await extract_pdf_text(state["cv_filepath"])
     file_hash = hashlib.sha256(raw_text.encode('utf-8')).hexdigest()
     
     # Check global Resume cache by hash
@@ -93,13 +110,30 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
 
     # Not found, parse via LLM
     model = get_model("fast")
-    response = await model.ainvoke([
-        SystemMessage(content=CV_PARSER_SYSTEM),
-        HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
-    ])
-    
-    raw_json = extract_json(response.content)
-    profile_data = json.loads(raw_json)
+    max_retries = 3
+    profile_data = None
+    for attempt in range(max_retries):
+        try:
+            response = await model.ainvoke([
+                SystemMessage(content=CV_PARSER_SYSTEM),
+                HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
+            ])
+            raw_json = extract_json(response.content)
+            profile_data = json.loads(raw_json)
+            break
+        except Exception as e:
+            print(f"  [CV Parser] Attempt {attempt+1} failed: {e}. Raw response: {getattr(response, 'content', 'None') if 'response' in locals() else 'None'}")
+            if attempt == max_retries - 1:
+                print(f"  [CV Parser] All {max_retries} attempts failed. Falling back to unknown candidate.")
+                profile_data = {
+                    "name": "Unknown Candidate (Parse Failed)",
+                    "skills": [],
+                    "total_experience_years": 0.0,
+                    "previous_roles": [],
+                    "education": [],
+                    "projects": [],
+                    "other_info": f"Failed to parse CV after {max_retries} attempts due to LLM degradation. Raw CV length: {len(raw_text)} chars"
+                }
     
     if not profile_data.get("name"):
         profile_data["name"] = "Unknown Candidate"

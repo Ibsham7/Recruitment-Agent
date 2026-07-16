@@ -14,13 +14,14 @@ class RecruitmentState(TypedDict):
 
     # ── Node outputs (each node fills one of these) ──────────────────────
     candidate_profile: Optional[CandidateProfile]     # filled by cv_parser
+    semantic_score: Optional[float]                    # filled by embedding_matcher
     screening_result: Optional[ScreeningResult]        # filled by jd_matcher
     interview_questions: list[InterviewQuestion]       # filled by question_generator
     interview_transcript: Optional[InterviewTranscript] # filled by interviewer
     evaluation_report: Optional[EvaluationReport]     # filled by evaluator
 
     # ── Control flow ─────────────────────────────────────────────────────
-    pipeline_status: str    # "running" | "awaiting_human" | "complete" | "rejected"
+    pipeline_status: str    # "running" | "awaiting_human" | "review" | "finalized" | "rejected"
     rejection_reason: Optional[str]
     filter_rejections: Annotated[list[str], add] # collects parallel rejections
 

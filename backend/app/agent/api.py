@@ -1,10 +1,11 @@
 import asyncio
 from typing import Any, cast
 from app.database import prisma
+from prisma import Json
 from .graph import build_recruitment_graph
 from app.dev_logger import log_event, log_error
 
-async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str):
+async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str, checkpointer=None):
     # Load existing profile if it's cached
     candidate = await prisma.candidate.find_unique(where={"id": candidate_id}, include={"campaign": True, "resume": True})
     candidate_profile = None
@@ -34,14 +35,22 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
             
     import os
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+    import contextlib
     
-    db_url = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
-    if db_url:
-        db_url = db_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
+    @contextlib.asynccontextmanager
+    async def get_checkpointer(cp=None):
+        if cp:
+            yield cp
+        else:
+            db_url = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
+            if db_url:
+                db_url = db_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
+            async with AsyncPostgresSaver.from_conn_string(db_url) as new_cp:
+                await new_cp.setup()
+                yield new_cp
     
-    async with AsyncPostgresSaver.from_conn_string(db_url) as checkpointer:
-        await checkpointer.setup()
-        graph = build_recruitment_graph(checkpointer=checkpointer)
+    async with get_checkpointer(checkpointer) as active_checkpointer:
+        graph = build_recruitment_graph(checkpointer=active_checkpointer)
         config = {"configurable": {"thread_id": candidate_id}}
         
         initial_state = {
@@ -86,18 +95,18 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
             await prisma.candidate.update(
                 where={"id": candidate_id},
                 data={
-                    "status": "rejected",
-                    "rejectionReason": "System Error: Pipeline failed"
+                    "status": "screening",
+                    "rejectionReason": None
                 }
             )
             
-    if interrupt_value:
-        await prisma.candidate.update(
-            where={"id": candidate_id},
-            data={"status": "interviewing"}
-        )
-    elif final_state:
-        status = final_state.get("pipeline_status", "complete")
+    if final_state:
+        if interrupt_value == "hold_for_review":
+            status = "review"
+        elif interrupt_value:
+            status = "interviewing"
+        else:
+            status = final_state.get("pipeline_status", "review")
         
         update_data = {"status": status}
             
@@ -105,14 +114,18 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
             update_data["rejectionReason"] = final_state["rejection_reason"]
             
         if final_state.get("screening_result"):
-            update_data["fitScore"] = final_state["screening_result"].fit_score
+            base_score = final_state["screening_result"].fit_score
+            semantic_bonus = final_state.get("semantic_score", 0.0)
+            update_data["fitScore"] = base_score + semantic_bonus
+        elif final_state.get("semantic_score") is not None:
+            update_data["fitScore"] = final_state.get("semantic_score")
+            
         if final_state.get("candidate_profile"):
             profile = final_state["candidate_profile"]
             if hasattr(profile, "model_dump"):
                 profile_dict = profile.model_dump()
             else:
                 profile_dict = profile
-            import json
             update_data.update({
                 "name": profile_dict.get("name"),
                 "email": profile_dict.get("email"),
@@ -120,6 +133,7 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
                 "skills": profile_dict.get("skills", []),
                 "education": profile_dict.get("education", [])
             })
+            
         await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
         
         # Save evaluation report if available
@@ -138,6 +152,19 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
                 recommendation="reject",
                 summary=final_state["rejection_reason"]
             )
+        elif not evaluation_report and final_state.get("screening_result"):
+            from app.agent.schemas import EvaluationReport
+            res = final_state["screening_result"]
+            evaluation_report = EvaluationReport(
+                overall_score=res.fit_score,
+                communication_score=0.0,
+                technical_score=0.0,
+                cultural_fit_score=0.0,
+                strengths=res.matched_requirements,
+                concerns=res.missing_requirements,
+                recommendation="shortlist" if res.decision == "advance" else res.decision,
+                summary=res.reasoning
+            )
             
         if evaluation_report:
             existing_eval = await prisma.evaluation.find_unique(where={"candidateId": candidate_id})
@@ -151,23 +178,39 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str)
                 "summary": evaluation_report.summary,
                 "strengths": evaluation_report.strengths,
                 "concerns": evaluation_report.concerns,
+                "interviewQuestions": Json([q.dict() for q in final_state.get("interview_questions", [])]) if final_state.get("interview_questions") else None,
             }
             if not existing_eval:
                 await prisma.evaluation.create(data=eval_data)
             else:
                 await prisma.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)
-async def resume_pipeline(candidate_id: str, resume_data: Any):
+    elif interrupt_value:
+        # Fallback if no final_state but interrupted
+        fallback_status = "review" if interrupt_value == "hold_for_review" else "interviewing"
+        await prisma.candidate.update(
+            where={"id": candidate_id},
+            data={"status": fallback_status}
+        )
+async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None):
     from langgraph.types import Command
     import os
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+    import contextlib
     
-    db_url = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
-    if db_url:
-        db_url = db_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
+    @contextlib.asynccontextmanager
+    async def get_checkpointer(cp=None):
+        if cp:
+            yield cp
+        else:
+            db_url = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
+            if db_url:
+                db_url = db_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
+            async with AsyncPostgresSaver.from_conn_string(db_url) as new_cp:
+                await new_cp.setup()
+                yield new_cp
     
-    async with AsyncPostgresSaver.from_conn_string(db_url) as checkpointer:
-        await checkpointer.setup()
-        graph = build_recruitment_graph(checkpointer=checkpointer)
+    async with get_checkpointer(checkpointer) as active_checkpointer:
+        graph = build_recruitment_graph(checkpointer=active_checkpointer)
         config = {"configurable": {"thread_id": candidate_id}}
         interrupt_value = None
         final_state = None
@@ -188,18 +231,18 @@ async def resume_pipeline(candidate_id: str, resume_data: Any):
             await prisma.candidate.update(
                 where={"id": candidate_id},
                 data={
-                    "status": "rejected",
-                    "rejectionReason": "System Error: Pipeline failed"
+                    "status": "screening",
+                    "rejectionReason": None
                 }
             )
     
-    if interrupt_value:
-        await prisma.candidate.update(
-            where={"id": candidate_id},
-            data={"status": "interviewing"}
-        )
-    elif final_state:
-        status = final_state.get("pipeline_status", "complete")
+    if final_state:
+        if interrupt_value == "hold_for_review":
+            status = "review"
+        elif interrupt_value:
+            status = "interviewing"
+        else:
+            status = final_state.get("pipeline_status", "review")
         
         update_data = {"status": status}
             
@@ -207,14 +250,18 @@ async def resume_pipeline(candidate_id: str, resume_data: Any):
             update_data["rejectionReason"] = final_state["rejection_reason"]
             
         if final_state.get("screening_result"):
-            update_data["fitScore"] = final_state["screening_result"].fit_score
+            base_score = final_state["screening_result"].fit_score
+            semantic_bonus = final_state.get("semantic_score", 0.0)
+            update_data["fitScore"] = base_score + semantic_bonus
+        elif final_state.get("semantic_score") is not None:
+            update_data["fitScore"] = final_state.get("semantic_score")
+            
         if final_state.get("candidate_profile"):
             profile = final_state["candidate_profile"]
             if hasattr(profile, "model_dump"):
                 profile_dict = profile.model_dump()
             else:
                 profile_dict = profile
-            import json
             update_data.update({
                 "name": profile_dict.get("name"),
                 "email": profile_dict.get("email"),
@@ -222,6 +269,7 @@ async def resume_pipeline(candidate_id: str, resume_data: Any):
                 "skills": profile_dict.get("skills", []),
                 "education": profile_dict.get("education", [])
             })
+            
         await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
         
         # Save evaluation report if available
@@ -240,6 +288,19 @@ async def resume_pipeline(candidate_id: str, resume_data: Any):
                 recommendation="reject",
                 summary=final_state["rejection_reason"]
             )
+        elif not evaluation_report and final_state.get("screening_result"):
+            from app.agent.schemas import EvaluationReport
+            res = final_state["screening_result"]
+            evaluation_report = EvaluationReport(
+                overall_score=res.fit_score,
+                communication_score=0.0,
+                technical_score=0.0,
+                cultural_fit_score=0.0,
+                strengths=res.matched_requirements,
+                concerns=res.missing_requirements,
+                recommendation="shortlist" if res.decision == "advance" else res.decision,
+                summary=res.reasoning
+            )
             
         if evaluation_report:
             existing_eval = await prisma.evaluation.find_unique(where={"candidateId": candidate_id})
@@ -253,8 +314,15 @@ async def resume_pipeline(candidate_id: str, resume_data: Any):
                 "summary": evaluation_report.summary,
                 "strengths": evaluation_report.strengths,
                 "concerns": evaluation_report.concerns,
+                "interviewQuestions": Json([q.dict() for q in final_state.get("interview_questions", [])]) if final_state.get("interview_questions") else None,
             }
             if not existing_eval:
                 await prisma.evaluation.create(data=eval_data)
             else:
                 await prisma.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)
+    elif interrupt_value:
+        fallback_status = "review" if interrupt_value == "hold_for_review" else "interviewing"
+        await prisma.candidate.update(
+            where={"id": candidate_id},
+            data={"status": fallback_status}
+        )

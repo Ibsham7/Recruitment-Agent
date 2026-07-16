@@ -26,18 +26,18 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           const evalData = candidateData.evaluation || {};
           const mappedCand = {
             ...candidateData,
-            score: candidateData.fitScore || evalData.overallScore || 0,
+            score: Number((candidateData.fitScore ?? evalData.overallScore ?? 0).toFixed(2)),
             recommendation: candidateData.decision || evalData.recommendation || 'pending',
             stage: candidateData.status,
             currentRole: candidateData.structuredProfile?.currentRole || "Candidate",
             experience: candidateData.structuredProfile?.experience || "",
             scores: {
-              technical: evalData.technicalScore || 0,
-              communication: evalData.communicationScore || 0,
-              culturalFit: evalData.culturalFitScore || 0,
-              problemSolving: evalData.technicalScore || 0, // Fallback if missing
-              leadership: evalData.culturalFitScore || 0, // Fallback if missing
-              domain: evalData.technicalScore || 0 // Fallback if missing
+              technical: Number((evalData.technicalScore || 0).toFixed(2)),
+              communication: Number((evalData.communicationScore || 0).toFixed(2)),
+              culturalFit: Number((evalData.culturalFitScore || 0).toFixed(2)),
+              problemSolving: Number((evalData.technicalScore || 0).toFixed(2)), // Fallback if missing
+              leadership: Number((evalData.culturalFitScore || 0).toFixed(2)), // Fallback if missing
+              domain: Number((evalData.technicalScore || 0).toFixed(2)) // Fallback if missing
             },
             summary: candidateData.rejectionReason 
               ? (evalData.summary ? `Rejection Reason: ${candidateData.rejectionReason}\n\n${evalData.summary}` : candidateData.rejectionReason)
@@ -213,7 +213,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               try {
                 const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "hold" }) });
                 if (!res.ok) throw new Error("Failed to submit");
-                setCandidate({ ...candidate, recommendation: "hold", status: "complete" });
+                setCandidate({ ...candidate, recommendation: "hold", status: "review" });
               } catch (e) { alert("Failed to submit"); }
             }}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium" style={{ ...G.card, color: t.txtSecondary }}><Pause size={11} /> Hold</button>
@@ -222,7 +222,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               try {
                 const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "reject" }) });
                 if (!res.ok) throw new Error("Failed to submit");
-                setCandidate({ ...candidate, recommendation: "reject", status: "complete" });
+                setCandidate({ ...candidate, recommendation: "reject", status: "rejected" });
               } catch (e) { alert("Failed to submit"); }
             }}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all"
@@ -236,7 +236,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               try {
                 const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve" }) });
                 if (!res.ok) throw new Error("Failed to submit");
-                setCandidate({ ...candidate, recommendation: "approve", status: "complete" });
+                setCandidate({ ...candidate, recommendation: "approve", status: "finalized" });
               } catch (e) { alert("Failed to submit"); }
             }}
             className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-semibold transition-all"

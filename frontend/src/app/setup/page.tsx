@@ -173,10 +173,15 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
       setDbWakingUp(false);
 
       // 1. Upload pending/error files
-      const tasksToUpload = uploadTasksRef.current.filter(t => t.status === 'pending' || t.status === 'error');
+      const currentTasks = uploadTasksRef.current;
+      const tasksToUpload = currentTasks.filter(t => t.status === 'pending' || t.status === 'error');
       
+      const newlyUploadedUrls: Record<string, string> = {};
       if (tasksToUpload.length > 0) {
-        const uploadPromises = tasksToUpload.map(t => uploadToCloudinaryWithProgress(t.id, t.file));
+        const uploadPromises = tasksToUpload.map(async t => {
+          const url = await uploadToCloudinaryWithProgress(t.id, t.file);
+          return { id: t.id, url };
+        });
         const uploadResults = await Promise.allSettled(uploadPromises);
         
         const hasErrors = uploadResults.some(r => r.status === 'rejected');
@@ -184,16 +189,24 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
           setUploading(false);
           return; // UI will show error states, allow user to retry
         }
+
+        uploadResults.forEach(r => {
+          if (r.status === 'fulfilled') {
+            newlyUploadedUrls[r.value.id] = r.value.url;
+          }
+        });
       }
 
-      // 2. Double check all tasks are successful
-      const allTasks = uploadTasksRef.current;
-      if (allTasks.some(t => t.status !== 'success')) {
+      // 2. Get all file URLs
+      const fileUrls = currentTasks.map(t => {
+        if (t.status === 'success' && t.url) return t.url;
+        return newlyUploadedUrls[t.id];
+      });
+
+      if (fileUrls.some(url => !url)) {
         setUploading(false);
         return;
       }
-
-      const fileUrls = allTasks.map(t => t.url!);
 
       // 3. Send payload to backend
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
