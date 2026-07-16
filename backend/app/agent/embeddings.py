@@ -2,10 +2,10 @@ import os
 import httpx
 import numpy as np
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.agent.config import get_model
+from app.agent.config import get_model, EMBEDDING_MODEL
 
 async def get_embedding_async(text: str) -> list[float]:
-    """Get embedding using text-embedding-3-small via OpenRouter asynchronously."""
+    """Get embedding using configured model via OpenRouter asynchronously."""
     api_key = os.getenv("OPENROUTER_API_KEY_PAID")
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY_PAID not set. Cannot get embeddings.")
@@ -15,7 +15,7 @@ async def get_embedding_async(text: str) -> list[float]:
         "Content-Type": "application/json"
     }
     data = {
-        "model": "text-embedding-3-small",
+        "model": EMBEDDING_MODEL,
         "input": text
     }
     async with httpx.AsyncClient() as client:
