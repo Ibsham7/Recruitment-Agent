@@ -12,6 +12,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 import asyncio
 from app.database import prisma
 from app.agent.utils import extract_json
+from typing import Tuple, Optional, Dict
 
 import httpx
 
@@ -21,7 +22,7 @@ except ImportError:
     fitz = None
 
 
-async def extract_pdf_text(filepath: str) -> str:
+async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict]]:
     temp_path = None
     if filepath.startswith("http://") or filepath.startswith("https://"):
         fd, temp_path = tempfile.mkstemp(suffix=".pdf")
@@ -50,19 +51,21 @@ async def extract_pdf_text(filepath: str) -> str:
         # Trigger OCR fallback if PyPDF2 extracts virtually no text
         if len(text.strip()) < 50:
             print("  [CV Parser] Standard text extraction failed or returned too little text. Falling back to OCR.")
-            text = await ocr_pdf_fallback(pdf_path)
+            profile_data = await ocr_pdf_fallback(pdf_path)
+            raw_text = json.dumps(profile_data) if profile_data else text
+            return raw_text, profile_data
             
-        return text
+        return text, None
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
 
-async def ocr_pdf_fallback(pdf_path: str) -> str:
-    """Fallback method that converts PDF pages to images and uses a Vision model to extract text."""
+async def ocr_pdf_fallback(pdf_path: str) -> Optional[Dict]:
+    """Fallback method that converts PDF pages to images and uses a Vision model to extract directly to JSON."""
     print(f"  [OCR Fallback] Initiating Vision OCR for {pdf_path}...")
     if not fitz:
         print("  [OCR Fallback] PyMuPDF (fitz) is not installed. Cannot perform OCR.")
-        return ""
+        return None
         
     try:
         def process_pdf():
@@ -78,7 +81,12 @@ async def ocr_pdf_fallback(pdf_path: str) -> str:
 
         base64_images = await asyncio.to_thread(process_pdf)
         
-        content_parts = [{"type": "text", "text": "Extract all text from the following pages of this document. Transcribe it exactly as it appears. Do not add conversational text."}]
+        ocr_prompt = CV_PARSER_SYSTEM + "\n\n" + (
+            "You are an expert OCR system specialized in reading Curriculum Vitae (CV) and resumes. "
+            "Extract all information from the provided image(s) of a CV directly into the required JSON format as specified by the schema above. "
+            "Ensure all extracted information aligns precisely with the schema."
+        )
+        content_parts = [{"type": "text", "text": ocr_prompt}]
         for b64 in base64_images:
             content_parts.append({
                 "type": "image_url",
@@ -87,12 +95,14 @@ async def ocr_pdf_fallback(pdf_path: str) -> str:
             
         model = get_model("ocr")
         response = await model.ainvoke([HumanMessage(content=content_parts)])
-        print(f"  [OCR Fallback] Successfully extracted {len(response.content)} characters via OCR.")
-        return response.content
+        print(f"  [OCR Fallback] Successfully parsed JSON via Vision OCR.")
+        raw_json = extract_json(response.content)
+        profile_data = json.loads(raw_json)
+        return profile_data
 
     except Exception as e:
         print(f"  [OCR Fallback] Failed: {e}")
-        return ""
+        return None
 
 #todo : can save token by adding raw cv text manually instead of sending to LLM
 CV_PARSER_SYSTEM = """
@@ -133,7 +143,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             "log": ["CV parsed from cache"]
         }
 
-    raw_text = await extract_pdf_text(state["cv_filepath"])
+    raw_text, pre_parsed_profile = await extract_pdf_text(state["cv_filepath"])
     file_hash = hashlib.sha256(raw_text.encode('utf-8')).hexdigest()
     
     # Check global Resume cache by hash
@@ -160,32 +170,36 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             "log": ["CV parsed from global hash cache"]
         }
 
-    # Not found, parse via LLM
-    model = get_model("fast")
-    max_retries = 3
-    profile_data = None
-    for attempt in range(max_retries):
-        try:
-            response = await model.ainvoke([
-                SystemMessage(content=CV_PARSER_SYSTEM),
-                HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
-            ])
-            raw_json = extract_json(response.content)
-            profile_data = json.loads(raw_json)
-            break
-        except Exception as e:
-            print(f"  [CV Parser] Attempt {attempt+1} failed: {e}. Raw response: {getattr(response, 'content', 'None') if 'response' in locals() else 'None'}")
-            if attempt == max_retries - 1:
-                print(f"  [CV Parser] All {max_retries} attempts failed. Falling back to unknown candidate.")
-                profile_data = {
-                    "name": "Unknown Candidate (Parse Failed)",
-                    "skills": [],
-                    "total_experience_years": 0.0,
-                    "previous_roles": [],
-                    "education": [],
-                    "projects": [],
-                    "other_info": f"Failed to parse CV after {max_retries} attempts due to LLM degradation. Raw CV length: {len(raw_text)} chars"
-                }
+    if pre_parsed_profile:
+        print("  [OK] Using directly parsed profile from Vision OCR.")
+        profile_data = pre_parsed_profile
+    else:
+        # Not found, parse via LLM
+        model = get_model("fast")
+        max_retries = 3
+        profile_data = None
+        for attempt in range(max_retries):
+            try:
+                response = await model.ainvoke([
+                    SystemMessage(content=CV_PARSER_SYSTEM),
+                    HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
+                ])
+                raw_json = extract_json(response.content)
+                profile_data = json.loads(raw_json)
+                break
+            except Exception as e:
+                print(f"  [CV Parser] Attempt {attempt+1} failed: {e}. Raw response: {getattr(response, 'content', 'None') if 'response' in locals() else 'None'}")
+                if attempt == max_retries - 1:
+                    print(f"  [CV Parser] All {max_retries} attempts failed. Falling back to unknown candidate.")
+                    profile_data = {
+                        "name": "Unknown Candidate (Parse Failed)",
+                        "skills": [],
+                        "total_experience_years": 0.0,
+                        "previous_roles": [],
+                        "education": [],
+                        "projects": [],
+                        "other_info": f"Failed to parse CV after {max_retries} attempts due to LLM degradation. Raw CV length: {len(raw_text)} chars"
+                    }
     
     if not profile_data.get("name"):
         profile_data["name"] = "Unknown Candidate"
