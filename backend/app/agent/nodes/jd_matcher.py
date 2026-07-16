@@ -11,11 +11,11 @@ against a job description and produce a structured match score. Evaluate the can
 
 Return ONLY a valid JSON object. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
 {
-  "fit_score": 0-100,
+  "cv_summary": "Short summary of candidate including projects/achievements",
+  "reasoning": "2-3 sentence explanation",
   "matched_requirements": ["requirement met"],
   "missing_requirements": ["requirement not met"],
-  "reasoning": "2-3 sentence explanation",
-  "cv_summary": "Short summary of candidate including projects/achievements",
+  "fit_score": 0-100,
   "decision": "advance" or "hold" or "reject"
 }
 

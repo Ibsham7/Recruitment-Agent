@@ -11,14 +11,14 @@ Assess the candidate on four dimensions and produce a structured report.
 
 Return ONLY a valid JSON object. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
 {
-  "overall_score": 0-100,
+  "summary": "2-3 sentence overall assessment",
+  "strengths": ["strength1", "strength2"],
+  "concerns": ["concern1", "concern2"],
   "communication_score": 0-100,
   "technical_score": 0-100,
   "cultural_fit_score": 0-100,
-  "strengths": ["strength1", "strength2"],
-  "concerns": ["concern1", "concern2"],
-  "recommendation": "shortlist" | "reject" | "hold",
-  "summary": "2-3 sentence overall assessment"
+  "overall_score": 0-100,
+  "recommendation": "shortlist" | "reject" | "hold"
 }
 
 Recommendation guide:

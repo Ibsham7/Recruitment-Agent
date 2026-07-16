@@ -52,6 +52,7 @@ Return ONLY a valid JSON object matching this exact schema. Do NOT wrap it in ``
   "name": "Full Name",
   "email": "email or null",
   "phone": "phone or null",
+  "experience_calculation": "Step-by-step calculation: Role A (Jan 2020 - Jan 2022) = 24 months. Total = 24 months / 12 = 2.0 years",
   "total_experience_years": 0.0,
   "education": ["Degree, Institution, Year"],
   "skills": ["skill1", "skill2"],
