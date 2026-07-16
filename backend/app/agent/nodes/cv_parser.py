@@ -206,6 +206,18 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         
     profile_data["raw_cv_text"] = raw_text
     
+    # Ensure required fields have defaults
+    if "total_experience_years" not in profile_data:
+        profile_data["total_experience_years"] = 0.0
+    if "skills" not in profile_data:
+        profile_data["skills"] = []
+    if "previous_roles" not in profile_data:
+        profile_data["previous_roles"] = []
+    if "education" not in profile_data:
+        profile_data["education"] = []
+    if "projects" not in profile_data:
+        profile_data["projects"] = []
+        
     candidate_profile = CandidateProfile(**profile_data)
 
     # Create new global Resume record

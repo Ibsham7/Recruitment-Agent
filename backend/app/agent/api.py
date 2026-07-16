@@ -4,6 +4,7 @@ from app.database import prisma
 from prisma import Json
 from .graph import build_recruitment_graph
 from app.dev_logger import log_event, log_error
+from app.agent.state import RecruitmentState
 
 async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str, checkpointer=None):
     # Load existing profile if it's cached
@@ -169,7 +170,6 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
         if evaluation_report:
             existing_eval = await prisma.evaluation.find_unique(where={"candidateId": candidate_id})
             eval_data = {
-                "candidateId": candidate_id,
                 "overallScore": evaluation_report.overall_score,
                 "technicalScore": evaluation_report.technical_score,
                 "communicationScore": evaluation_report.communication_score,
@@ -178,9 +178,12 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                 "summary": evaluation_report.summary,
                 "strengths": evaluation_report.strengths,
                 "concerns": evaluation_report.concerns,
-                "interviewQuestions": Json([q.dict() for q in final_state.get("interview_questions", [])]) if final_state.get("interview_questions") else None,
             }
+            if final_state.get("interview_questions"):
+                eval_data["interviewQuestions"] = Json([q.dict() for q in final_state["interview_questions"]])
+                
             if not existing_eval:
+                eval_data["candidate"] = {"connect": {"id": candidate_id}}
                 await prisma.evaluation.create(data=eval_data)
             else:
                 await prisma.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)
@@ -305,7 +308,6 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
         if evaluation_report:
             existing_eval = await prisma.evaluation.find_unique(where={"candidateId": candidate_id})
             eval_data = {
-                "candidateId": candidate_id,
                 "overallScore": evaluation_report.overall_score,
                 "technicalScore": evaluation_report.technical_score,
                 "communicationScore": evaluation_report.communication_score,
@@ -314,9 +316,12 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
                 "summary": evaluation_report.summary,
                 "strengths": evaluation_report.strengths,
                 "concerns": evaluation_report.concerns,
-                "interviewQuestions": Json([q.dict() for q in final_state.get("interview_questions", [])]) if final_state.get("interview_questions") else None,
             }
+            if final_state.get("interview_questions"):
+                eval_data["interviewQuestions"] = Json([q.dict() for q in final_state["interview_questions"]])
+                
             if not existing_eval:
+                eval_data["candidate"] = {"connect": {"id": candidate_id}}
                 await prisma.evaluation.create(data=eval_data)
             else:
                 await prisma.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)

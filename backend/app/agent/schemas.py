@@ -13,7 +13,7 @@ class CandidateProfile(BaseModel):
     previous_roles: list[str] = Field(default_factory=list, description="Job titles held")
     key_achievements: list[str] = Field(default_factory=list, description="Notable accomplishments")
     projects: list[str] = Field(default_factory=list, description="Notable projects")
-    other_info: str = Field(default="", description="Any other relevant info from the CV")
+    other_info: Optional[str] = Field(default="", description="Any other relevant info from the CV")
     raw_cv_text: str = Field(description="Full extracted text, kept for later nodes")
 
 class ScreeningResult(BaseModel):

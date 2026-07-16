@@ -15,6 +15,7 @@ from app.agent.api import start_candidate_pipeline, resume_pipeline
 from app.database import prisma
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg_pool import AsyncConnectionPool
+from app.agent.state import RecruitmentState
 
 async def startup(ctx):
     """
@@ -30,11 +31,13 @@ async def startup(ctx):
     pool = AsyncConnectionPool(
         conninfo=db_url,
         max_size=20,
+        open=False,
         kwargs={
             "autocommit": True,
             "prepare_threshold": 0,
         },
     )
+    await pool.open()
     await pool.wait()
     ctx['pool'] = pool
     checkpointer = AsyncPostgresSaver(pool)

@@ -4,6 +4,7 @@ import asyncio
 import numpy as np
 from app.database import prisma
 from app.agent.embeddings import get_embedding_async, cosine_similarity, _distill_jd_async
+from app.agent.state import RecruitmentState
 
 import requests
 import httpx
