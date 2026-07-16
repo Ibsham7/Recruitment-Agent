@@ -5,6 +5,7 @@
 .venv/
 node_modules/
 *.md
+!README.md
 .env*
 __pycache__/
 *.pyc
