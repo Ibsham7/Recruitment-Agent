@@ -1,61 +1,13 @@
-from app.agent.state import RecruitmentState
 import os
 import json
 import asyncio
 import numpy as np
 from app.database import prisma
-from app.agent.config import get_model
-from langchain_core.messages import SystemMessage, HumanMessage
+from app.agent.embeddings import get_embedding_async, cosine_similarity, _distill_jd_async
 
 import requests
 import httpx
 import hashlib
-
-# Lazy load embeddings to avoid heavy import on startup if not needed
-async def get_embedding_async(text: str) -> list[float]:
-    """Get embedding using text-embedding-3-small via OpenRouter asynchronously."""
-    api_key = os.getenv("OPENROUTER_API_KEY_PAID")
-    if not api_key:
-        raise ValueError("OPENROUTER_API_KEY_PAID not set. Cannot get embeddings.")
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": "text-embedding-3-small",
-        "input": text
-    }
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://openrouter.ai/api/v1/embeddings",
-            headers=headers,
-            json=data
-        )
-        if response.status_code != 200:
-            raise RuntimeError(f"Failed to get embedding ({response.status_code}): {response.text}")
-        
-        return response.json()["data"][0]["embedding"]
-
-def cosine_similarity(v1: list[float], v2: list[float]) -> float:
-    a = np.array(v1)
-    b = np.array(v2)
-    if np.linalg.norm(a) == 0 or np.linalg.norm(b) == 0:
-        return 0.0
-    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
-
-async def _distill_jd_async(jd_text: str) -> str:
-    """Distill the JD to its core requirements to avoid diluting embeddings."""
-    try:
-        model = get_model("fast")
-        response = await model.ainvoke([
-            SystemMessage(content="You are a helpful assistant. Extract ONLY the core skills, required experience, and key responsibilities from this Job Description. Exclude company boilerplate, benefits, and EEO statements. Be concise."),
-            HumanMessage(content=jd_text)
-        ])
-        return response.content
-    except Exception as e:
-        print(f"  [JD Distiller] LLM distillation failed (rate limit/error): {e}. Falling back to raw JD.")
-        return jd_text
 
 async def _get_or_create_embedding_async(file_hash: str, text_to_embed: str) -> list[float]:
     # Check if we already have an embedding stored for this CV hash
@@ -112,9 +64,38 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     
     cv_vector = await _get_or_create_embedding_async(file_hash, cv_summary)
     
-    jd_distilled = await _distill_jd_async(jd)
-    jd_vector = await get_embedding_async(jd_distilled)
-    
+    # Query database for cached JD embedding and distillation
+    candidate_id = state.get("candidate_id")
+    campaign_data = await prisma.query_raw('''
+        SELECT c.id, c."distilledJd", c."jdEmbedding"::text 
+        FROM "Candidate" cand
+        JOIN "Campaign" c ON cand."campaignId" = c.id
+        WHERE cand.id = $1
+    ''', candidate_id)
+
+    jd_distilled = None
+    jd_vector = None
+    campaign_id = None
+
+    if campaign_data:
+        campaign_id = campaign_data[0]['id']
+        if campaign_data[0].get('jdEmbedding') and campaign_data[0].get('distilledJd'):
+            jd_distilled = campaign_data[0]['distilledJd']
+            jd_vector = json.loads(campaign_data[0]['jdEmbedding'])
+
+    if not jd_vector or not jd_distilled:
+        # Fallback: compute it on the fly
+        jd_distilled = await _distill_jd_async(jd)
+        jd_vector = await get_embedding_async(jd_distilled)
+        
+        # Self-heal: save it back to the campaign for the next candidates
+        if campaign_id:
+            await prisma.execute_raw('''
+                UPDATE "Campaign"
+                SET "distilledJd" = $1, "jdEmbedding" = $2::vector
+                WHERE id = $3
+            ''', jd_distilled, str(jd_vector), campaign_id)
+            
     similarity = cosine_similarity(cv_vector, jd_vector)
     print(f"  Similarity Score: {similarity:.2f}")
     

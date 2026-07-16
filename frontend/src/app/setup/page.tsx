@@ -380,7 +380,7 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
                 ) : uploadTasks.some(t => t.status !== 'success') ? (
                   <><Loader2 size={16} className="animate-spin" /> Uploading...</>
                 ) : (
-                  <><Loader2 size={16} className="animate-spin" /> Creating Campaign...</>
+                  <><Loader2 size={16} className="animate-spin" /> Creating Campaign (Embedding JD)...</>
                 )
               ) : uploadTasks.some(t => t.status === 'error') ? "Retry Failed Uploads" : "Launch Campaign"}
             </button>

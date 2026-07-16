@@ -16,6 +16,8 @@ model Campaign {
   id                String      @id @default(uuid())
   title             String
   jobDescription    String
+  distilledJd       String?
+  jdEmbedding       Unsupported("vector(1536)")?
   hardFiltersConfig Json?
   enableInterviews  Boolean     @default(true)
   interviewConfig   String?

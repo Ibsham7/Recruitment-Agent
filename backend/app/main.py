@@ -11,6 +11,7 @@ import asyncio
 import os
 from app.agent.api import start_candidate_pipeline, resume_pipeline
 from app.database import prisma
+from app.agent.embeddings import _distill_jd_async, get_embedding_async
 from arq import create_pool
 from arq.connections import RedisSettings
 
@@ -57,6 +58,20 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
             "interviewConfig": campaign.interviewConfig
         }
     )
+    
+    # Synchronously generate distilled JD and embedding before queuing any candidates
+    try:
+        distilled_jd = await _distill_jd_async(campaign.jobDescription)
+        jd_embedding = await get_embedding_async(distilled_jd)
+        
+        await prisma.execute_raw('''
+            UPDATE "Campaign"
+            SET "distilledJd" = $1, "jdEmbedding" = $2::vector
+            WHERE id = $3
+        ''', distilled_jd, str(jd_embedding), new_campaign.id)
+    except Exception as e:
+        print(f"Warning: Failed to generate JD embedding during campaign creation: {e}")
+        # The embedding_matcher_node will self-heal and generate it when the first candidate runs
     
     for resume_url in campaign.resumes:
         # Extract a basic name from the URL string
