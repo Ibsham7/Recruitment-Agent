@@ -12,6 +12,7 @@ OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY_PAID")
 MODELS = {
     "smart": "google/gemini-2.5-flash",
     "fast": "google/gemini-2.5-flash",
+    "ocr": "qwen/qwen3.6-35b-a3b",
 }
 EMBEDDING_MODEL = "text-embedding-3-small"
 # ----------------------

@@ -12,3 +12,4 @@ psycopg[binary]
 psycopg-pool
 arq
 redis
+pymupdf

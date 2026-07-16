@@ -3,6 +3,7 @@ import os
 import tempfile
 import urllib.request
 import hashlib
+import base64
 from pypdf import PdfReader
 from app.agent.config import get_model
 from app.agent.schemas import CandidateProfile
@@ -13,6 +14,12 @@ from app.database import prisma
 from app.agent.utils import extract_json
 
 import httpx
+
+try:
+    import fitz
+except ImportError:
+    fitz = None
+
 
 async def extract_pdf_text(filepath: str) -> str:
     temp_path = None
@@ -38,10 +45,54 @@ async def extract_pdf_text(filepath: str) -> str:
             reader = PdfReader(pdf_path)
             return "\n".join([page.extract_text() or "" for page in reader.pages])
         
-        return await asyncio.to_thread(read_pdf)
+        text = await asyncio.to_thread(read_pdf)
+        
+        # Trigger OCR fallback if PyPDF2 extracts virtually no text
+        if len(text.strip()) < 50:
+            print("  [CV Parser] Standard text extraction failed or returned too little text. Falling back to OCR.")
+            text = await ocr_pdf_fallback(pdf_path)
+            
+        return text
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
+async def ocr_pdf_fallback(pdf_path: str) -> str:
+    """Fallback method that converts PDF pages to images and uses a Vision model to extract text."""
+    print(f"  [OCR Fallback] Initiating Vision OCR for {pdf_path}...")
+    if not fitz:
+        print("  [OCR Fallback] PyMuPDF (fitz) is not installed. Cannot perform OCR.")
+        return ""
+        
+    try:
+        def process_pdf():
+            doc = fitz.open(pdf_path)
+            base64_images = []
+            for page in doc:
+                pix = page.get_pixmap(dpi=150)
+                img_data = pix.tobytes("jpeg")
+                b64 = base64.b64encode(img_data).decode("utf-8")
+                base64_images.append(b64)
+            doc.close()
+            return base64_images
+
+        base64_images = await asyncio.to_thread(process_pdf)
+        
+        content_parts = [{"type": "text", "text": "Extract all text from the following pages of this document. Transcribe it exactly as it appears. Do not add conversational text."}]
+        for b64 in base64_images:
+            content_parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
+            })
+            
+        model = get_model("ocr")
+        response = await model.ainvoke([HumanMessage(content=content_parts)])
+        print(f"  [OCR Fallback] Successfully extracted {len(response.content)} characters via OCR.")
+        return response.content
+
+    except Exception as e:
+        print(f"  [OCR Fallback] Failed: {e}")
+        return ""
 
 #todo : can save token by adding raw cv text manually instead of sending to LLM
 CV_PARSER_SYSTEM = """
