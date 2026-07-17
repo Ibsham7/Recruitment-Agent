@@ -4,7 +4,7 @@ import { hexToRgba } from "../../lib/theme";
 import { ShapeGrid } from "../../components/common/ShapeGrid";
 import { PillNav } from "../../components/common/PillNav";
 import { motion } from "motion/react";
-import { FileText, Bot, Video, CheckCircle } from "lucide-react";
+import { FileText, Bot, MessageSquareText, CheckCircle } from "lucide-react";
 import TargetCursor from "../../components/common/TargetCursor";
 import TextType from "../../components/common/TextType";
 const logoLightImg = "/Screenshot_2026-07-10_121453-removebg-preview.png";
@@ -17,7 +17,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
   const steps = [
     { num: 1, title: "Post a Campaign", body: "Define the role, requirements, and ideal candidate profile. hireagent configures your pipeline automatically.", icon: FileText },
     { num: 2, title: "AI Screens Every CV", body: "Every application is parsed, scored against your job description, and ranked — instantly, at any volume.", icon: Bot },
-    { num: 3, title: "Automated Interviews", body: "Top candidates receive an asynchronous AI interview. No scheduling, no bias, consistent evaluation every time.", icon: Video },
+    { num: 3, title: "Automated Interviews", body: "Top candidates receive an asynchronous AI interview. No scheduling, no bias, consistent evaluation every time.", icon: MessageSquareText },
     { num: 4, title: "You Make the Call", body: "Review transcripts, radar scores, and AI recommendations. Your shortlist arrives pre-ranked and ready.", icon: CheckCircle },
   ];
 
@@ -144,8 +144,15 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
           className="text-center mb-16"
         >
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: t.accentBadge, fontFamily: "'DM Mono',monospace" }}>Process</div>
-          <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15 }}>
-            From job post to shortlist.<br />No human bottlenecks.
+          <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "pre-line" }}>
+            <TextType 
+              as="span"
+              text={"From job post to shortlist.\nNo human bottlenecks."}
+              typingSpeed={25}
+              loop={false}
+              startOnVisible={true}
+              showCursor={false}
+            />
           </h2>
         </motion.div>
 
@@ -252,8 +259,15 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
           className="text-center mb-16"
         >
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: t.accentBadge, fontFamily: "'DM Mono',monospace" }}>Features</div>
-          <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15 }}>
-            Everything a recruiting team needs.<br />Nothing it doesn't.
+          <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "pre-line" }}>
+            <TextType 
+              as="span"
+              text={"Everything a recruiting team needs.\nNothing it doesn't."}
+              typingSpeed={25}
+              loop={false}
+              startOnVisible={true}
+              showCursor={false}
+            />
           </h2>
         </motion.div>
 

@@ -12,6 +12,8 @@ import os
 from app.agent.api import start_candidate_pipeline, resume_pipeline
 from app.database import prisma
 from app.agent.embeddings import _distill_jd_async, get_embedding_async
+from app.security import verify_jwt
+from fastapi import Depends
 from arq import create_pool
 from arq.connections import RedisSettings
 
@@ -29,10 +31,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Recruitment Agent API", lifespan=lifespan)
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify the exact frontend URL (e.g., http://localhost:5173)
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,10 +51,11 @@ class CampaignCreate(BaseModel):
     interviewConfig: Optional[str] = None
 
 @app.post("/api/campaigns")
-async def create_campaign(campaign: CampaignCreate, request: Request, background_tasks: BackgroundTasks):
+async def create_campaign(campaign: CampaignCreate, request: Request, background_tasks: BackgroundTasks, user: dict = Depends(verify_jwt)):
     from prisma import Json
     new_campaign = await prisma.campaign.create(
         data={
+            "userId": user.get("sub"),
             "title": campaign.title,
             "jobDescription": campaign.jobDescription,
             "hardFiltersConfig": Json(campaign.hardFiltersConfig) if campaign.hardFiltersConfig is not None else None,
@@ -97,8 +102,8 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
     return {"status": "success", "campaignId": new_campaign.id}
 
 @app.post("/api/campaigns/{id}/retry-failed")
-async def retry_failed_candidates(id: str, request: Request):
-    campaign = await prisma.campaign.find_unique(where={"id": id})
+async def retry_failed_candidates(id: str, request: Request, user: dict = Depends(verify_jwt)):
+    campaign = await prisma.campaign.find_first(where={"id": id, "userId": user.get("sub")})
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
         
@@ -142,9 +147,12 @@ async def health_db():
         raise HTTPException(status_code=503, detail="Database is waking up or unreachable")
 
 @app.get("/api/campaigns")
-async def get_campaigns():
+async def get_campaigns(user: dict = Depends(verify_jwt)):
     """Get all job campaigns."""
     campaigns = await prisma.campaign.find_many(
+        where={
+            "userId": user.get("sub")
+        },
         include={
             "candidates": {
                 "include": {
@@ -180,7 +188,7 @@ class HumanReview(BaseModel):
     decision: str # approve, reject, hold
 
 @app.post("/api/candidates/{id}/review")
-async def submit_human_review(id: str, review_data: HumanReview):
+async def submit_human_review(id: str, review_data: HumanReview, user: dict = Depends(verify_jwt)):
     try:
         await prisma.candidate.update(
             where={"id": id},
@@ -194,9 +202,9 @@ async def submit_human_review(id: str, review_data: HumanReview):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/campaigns/{id}")
-async def get_campaign(id: str):
-    campaign = await prisma.campaign.find_unique(
-        where={"id": id},
+async def get_campaign(id: str, user: dict = Depends(verify_jwt)):
+    campaign = await prisma.campaign.find_first(
+        where={"id": id, "userId": user.get("sub")},
         include={
             "candidates": {
                 "include": {

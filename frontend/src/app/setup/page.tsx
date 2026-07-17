@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Check, Upload, FileText, CheckCircle, Loader2, XCircle, RefreshCw } from "lucide-react";
 import { Theme } from "../../lib/types";
 import { hexToRgba, getGlass } from "../../lib/theme";
+import { apiFetch } from "../../lib/api";
 
 interface UploadTask {
   id: string;
@@ -209,7 +210,7 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
       }
 
       // 3. Send payload to backend
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
+      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

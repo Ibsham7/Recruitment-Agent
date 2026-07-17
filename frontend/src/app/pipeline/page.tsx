@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
 import { hexToRgba, getGlass, scoreColor } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
+import { apiFetch } from "../../lib/api";
 
 const STAGE_CONFIG: Record<CandidateStage, { label: string; color: string }> = {
   pending:      { label: "Pending Screening", color: "#808090" },
@@ -85,7 +86,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
     if (!id) return;
     setRetrying(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${id}/retry-failed`, {
+      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${id}/retry-failed`, {
         method: 'POST'
       });
       if (!res.ok) throw new Error("Failed to retry candidates");
@@ -105,7 +106,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
     async function fetchData() {
       if (!id) return;
       try {
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${id}`);
+        const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${id}`);
         if (!res.ok) throw new Error("Failed to fetch campaign data");
         const campaignData = await res.json();
         const candidatesData = campaignData.candidates || [];
