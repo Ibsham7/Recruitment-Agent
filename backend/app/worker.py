@@ -16,6 +16,8 @@ from app.database import prisma
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg_pool import AsyncConnectionPool
 from app.agent.state import RecruitmentState
+from arq.cron import cron
+from app.sweeper import run_all_sweepers
 
 async def startup(ctx):
     """
@@ -74,6 +76,9 @@ class WorkerSettings:
     This class is read by the `arq app.worker.WorkerSettings` command.
     """
     functions = [process_cv_task, resume_pipeline_task]
+    cron_jobs = [
+        cron(run_all_sweepers, hour={2, 14}, minute=0) # Run at 2 AM and 2 PM
+    ]
     redis_settings = RedisSettings.from_dsn(REDIS_URL)
     on_startup = startup
     on_shutdown = shutdown
