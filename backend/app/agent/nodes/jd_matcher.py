@@ -4,32 +4,8 @@ from app.agent.schemas import ScreeningResult
 from app.agent.state import RecruitmentState
 from app.agent.utils import extract_json
 from langchain_core.messages import HumanMessage, SystemMessage
+from app.agent.prompts import JD_MATCHER_SYSTEM
 
-JD_MATCHER_SYSTEM = """
-You are a fair and holistic recruitment screener. You compare a candidate profile 
-against a job description and produce a structured match score. Evaluate the candidate's potential and transferable skills, not just exact keyword matches. Read the whole CV text and provide a short summary of it as well, covering everything not in the structured extracted portion (e.g. achievements, projects).
-
-Return ONLY a valid JSON object. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
-{
-  "cv_summary": "Short summary of candidate including projects/achievements",
-  "reasoning": "2-3 sentence explanation",
-  "matched_requirements": ["requirement met"],
-  "missing_requirements": ["requirement not met"],
-  "fit_score": 0-100,
-  "decision": "advance" or "hold" or "reject"
-}
-
-Scoring guide:
-- 80–100: Strong match. Clear advance.
-- 60–79: Good match. Advance.
-- 50–59: Partial match. Hold for review.
-- 0–49:  Poor match. Reject.
-
-Decision rules:
-- "advance" if fit_score >= 60
-- "hold" if fit_score >= 50 and fit_score < 60
-- "reject" if fit_score < 50
-"""
 
 async def jd_matcher_node(state: RecruitmentState) -> dict:
     """Score the candidate against the job description."""

@@ -4,31 +4,8 @@ from app.agent.schemas import EvaluationReport
 from app.agent.state import RecruitmentState
 from app.agent.utils import extract_json
 from langchain_core.messages import HumanMessage, SystemMessage
+from app.agent.prompts import EVALUATOR_SYSTEM
 
-EVALUATOR_SYSTEM = """
-You are a senior hiring manager evaluating an interview transcript.
-Assess the candidate on four dimensions and produce a structured report.
-
-Return ONLY a valid JSON object. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
-{
-  "summary": "2-3 sentence overall assessment",
-  "strengths": ["strength1", "strength2"],
-  "concerns": ["concern1", "concern2"],
-  "communication_score": 0-100,
-  "technical_score": 0-100,
-  "cultural_fit_score": 0-100,
-  "overall_score": 0-100,
-  "recommendation": "shortlist" | "reject" | "hold"
-}
-
-Recommendation guide:
-- shortlist: overall >= 65 AND no critical concerns
-- hold: overall >= 55 AND some concerns worth flagging
-- reject: overall < 55 OR critical red flag present
-
-Be honest. A candidate who gave vague non-answers should score low 
-on communication even if their CV is strong. Judge the interview, not the CV.
-"""
 
 async def evaluator_node(state: RecruitmentState) -> dict:
     """Score the interview transcript and write the evaluation report."""

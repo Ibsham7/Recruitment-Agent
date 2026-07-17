@@ -9,6 +9,7 @@ from app.agent.config import get_model
 from app.agent.schemas import CandidateProfile
 from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
+from app.agent.prompts import CV_PARSER_SYSTEM
 import asyncio
 from app.database import prisma
 from app.agent.utils import extract_json
@@ -105,31 +106,6 @@ async def ocr_pdf_fallback(pdf_path: str) -> Optional[Dict]:
         return None
 
 #todo : can save token by adding raw cv text manually instead of sending to LLM
-CV_PARSER_SYSTEM = """
-You are a CV parsing expert. Extract structured information from the CV text provided.
-
-Return ONLY a valid JSON object matching this exact schema. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
-{
-  "name": "Full Name",
-  "email": "email or null",
-  "phone": "phone or null",
-  "experience_calculation": "Step-by-step calculation: Role A (Jan 2020 - Jan 2022) = 24 months. Total = 24 months / 12 = 2.0 years",
-  "total_experience_years": 0.0,
-  "education": ["Degree, Institution, Year"],
-  "skills": ["skill1", "skill2"],
-  "previous_roles": ["Job Title at Company (dates)"],
-  "key_achievements": ["achievement1"],
-  "projects": ["Project Name: Description"],
-  "other_info": "Any other relevant info from the CV or null"
-}
-
-Rules:
-- total_experience_years: calculate from dates if possible, estimate otherwise
-- skills: include both technical (Python, SQL) and soft (leadership, communication)
-- projects: include notable academic, personal or professional projects
-- other_info: include anything else that is relevant like certifications, awards, etc.
-- Do not invent information. If something is not in the CV, omit it or use null.
-"""
 
 async def cv_parser_node(state: RecruitmentState) -> dict:
     """Parse a CV PDF into a structured CandidateProfile."""

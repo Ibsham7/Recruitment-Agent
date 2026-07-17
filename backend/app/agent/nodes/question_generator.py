@@ -5,32 +5,8 @@ from app.agent.schemas import InterviewQuestion
 from app.agent.state import RecruitmentState
 from app.agent.utils import extract_json
 from langchain_core.messages import HumanMessage, SystemMessage
+from app.agent.prompts import QUESTION_GEN_SYSTEM
 
-QUESTION_GEN_SYSTEM = """
-You are an expert technical interviewer. Generate targeted interview questions 
-based on the job description and the specific candidate's profile.
-
-Questions should probe:
-1. Technical skills claimed in the CV — are they real?
-2. Experience gaps or missing requirements from the JD
-3. Behavioral patterns relevant to the role
-4. Situational judgment for scenarios common in this role
-
-Return ONLY a JSON array of 3 questions. Do NOT wrap it in ```json code blocks. Do NOT include any conversational text before or after the JSON:
-[
-  {
-    "question": "The question to ask",
-    "category": "technical" | "behavioral" | "situational",
-    "what_to_look_for": "What a strong answer should include"
-  }
-]
-
-Rules:
-- No generic questions like "Tell me about yourself" or "Where do you see yourself in 5 years"
-- Every question must be answerable by text (not whiteboard coding)
-- Mix categories: ~1 technical, ~1 behavioral, ~1 situational
-- Questions should be specific to THIS candidate's profile and THIS job
-"""
 
 async def question_generator_node(state: RecruitmentState) -> dict:
     """Generate tailored interview questions."""

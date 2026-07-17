@@ -2,6 +2,7 @@ import os
 import httpx
 import numpy as np
 from langchain_core.messages import SystemMessage, HumanMessage
+from app.agent.prompts import JD_DISTILLER_SYSTEM
 from app.agent.config import get_model, EMBEDDING_MODEL
 
 async def get_embedding_async(text: str) -> list[float]:
@@ -41,7 +42,7 @@ async def _distill_jd_async(jd_text: str) -> str:
     try:
         model = get_model("fast")
         response = await model.ainvoke([
-            SystemMessage(content="You are a helpful assistant. Extract ONLY the core skills, required experience, and key responsibilities from this Job Description. Exclude company boilerplate, benefits, and EEO statements. Be concise."),
+            SystemMessage(content=JD_DISTILLER_SYSTEM),
             HumanMessage(content=jd_text)
         ])
         return response.content
