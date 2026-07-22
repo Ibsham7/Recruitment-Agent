@@ -1,7 +1,7 @@
 export type View = "landing" | "login" | "signup" | "dashboard" | "setup" | "pipeline" | "candidate" | "notfound";
 export type CampaignStatus = "active" | "completed" | "paused";
-export type CandidateStage = "pending" | "rejected" | "interviewing" | "shortlisted" | "review" | "finalized";
-export type Recommendation = "shortlist" | "reject" | "pending" | "hold" | "approve";
+export type CandidateStage = "pending" | "screening" | "interviewing" | "shortlisted" | "review" | "finalized" | "complete" | "rejected";
+export type Recommendation = "shortlist" | "reject" | "pending" | "hold" | "approve" | "override";
 
 export interface Campaign {
   id: string;
@@ -19,7 +19,7 @@ export interface Campaign {
   processed?: number;
   shortlisted?: number;
   created?: string;
-  totalCost?: number; // COST_TRACKING: Remove after testing
+  totalCost?: number; // COST_TRACKING
 }
 
 export interface Evaluation {
@@ -50,6 +50,7 @@ export interface Candidate {
   fitScore: number | null;
   decision: string | null;
   structuredProfile: any;
+  currentQuestion?: string | null;
   createdAt: string;
   updatedAt: string;
   

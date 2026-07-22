@@ -31,6 +31,24 @@ export default defineConfig({
     },
   },
 
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts')) return 'vendor-recharts';
+            if (id.includes('@supabase')) return 'vendor-supabase';
+            if (id.includes('motion') || id.includes('gsap')) return 'vendor-animation';
+            if (id.includes('lucide-react')) return 'vendor-icons';
+            if (id.includes('@mui') || id.includes('@emotion')) return 'vendor-ui';
+            return 'vendor';
+          }
+        }
+      }
+    }
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

@@ -87,17 +87,10 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
       const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
       
       if (!cloudName || !uploadPreset) {
-        console.warn("Cloudinary env vars missing. Returning mock URL.");
-        let p = 0;
-        const interval = setInterval(() => {
-          p += 20;
-          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploading', progress: p } : t));
-          if (p >= 100) {
-            clearInterval(interval);
-            setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'success', progress: 100, url: `https://mock.cloudinary.com/resumes/${file.name}` } : t));
-            resolve(`https://mock.cloudinary.com/resumes/${file.name}`);
-          }
-        }, 300);
+        const errorMsg = "Cloudinary upload credentials missing (VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET).";
+        console.error(errorMsg);
+        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', progress: 0 } : t));
+        reject(new Error(errorMsg));
         return;
       }
 

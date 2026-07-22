@@ -1,19 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { createBrowserRouter, RouterProvider, useNavigate } from "react-router";
 import { Theme } from "../lib/types";
 import { PRESETS } from "../lib/theme";
 import { AuthProvider, useAuth } from "../lib/AuthContext";
 
-// Pages
+// Pages (Lazy loaded for code splitting)
 import Layout from "./layout";
-import LandingPage from "./landing/page";
-import AuthPage from "./auth/page";
-import DashboardPage from "./dashboard/page";
-import SetupPage from "./setup/page";
-import PipelinePage from "./pipeline/page";
-import CandidatePage from "./candidate/page";
-import InterviewPage from "./interview/page";
-import NotFoundPage from "./not-found";
+const LandingPage = lazy(() => import("./landing/page"));
+const AuthPage = lazy(() => import("./auth/page"));
+const DashboardPage = lazy(() => import("./dashboard/page"));
+const SetupPage = lazy(() => import("./setup/page"));
+const PipelinePage = lazy(() => import("./pipeline/page"));
+const CandidatePage = lazy(() => import("./candidate/page"));
+const InterviewPage = lazy(() => import("./interview/page"));
+const NotFoundPage = lazy(() => import("./not-found"));
+
+function PageLoader({ theme }: { theme: Theme }) {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh] p-12 text-sm font-medium" style={{ color: theme.txtMuted }}>
+      Loading page…
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, isLoading } = useAuth();
@@ -25,7 +33,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [session, isLoading, navigate]);
 
-  if (isLoading) return null; // Or a loading spinner
+  if (isLoading) return null;
 
   return session ? <>{children}</> : null;
 }
@@ -36,19 +44,30 @@ export function AppRouter() {
   const router = createBrowserRouter([
     {
       path: "/",
-      element: <LandingPage theme={theme} />,
+      element: (
+        <Suspense fallback={<PageLoader theme={theme} />}>
+          <LandingPage theme={theme} />
+        </Suspense>
+      ),
     },
     {
       path: "/auth",
-      element: <AuthPage theme={theme} />,
+      element: (
+        <Suspense fallback={<PageLoader theme={theme} />}>
+          <AuthPage theme={theme} />
+        </Suspense>
+      ),
     },
     {
       path: "/interview/:id",
-      element: <InterviewPage theme={theme} />,
+      element: (
+        <Suspense fallback={<PageLoader theme={theme} />}>
+          <InterviewPage theme={theme} />
+        </Suspense>
+      ),
     },
     {
       path: "/",
-
       element: (
         <ProtectedRoute>
           <Layout theme={theme} setTheme={setTheme} />
@@ -57,27 +76,51 @@ export function AppRouter() {
       children: [
         {
           path: "dashboard",
-          element: <DashboardPage theme={theme} />,
+          element: (
+            <Suspense fallback={<PageLoader theme={theme} />}>
+              <DashboardPage theme={theme} />
+            </Suspense>
+          ),
         },
         {
           path: "setup",
-          element: <SetupPage theme={theme} />,
+          element: (
+            <Suspense fallback={<PageLoader theme={theme} />}>
+              <SetupPage theme={theme} />
+            </Suspense>
+          ),
         },
         {
           path: "pipeline/:id",
-          element: <PipelinePage theme={theme} />,
+          element: (
+            <Suspense fallback={<PageLoader theme={theme} />}>
+              <PipelinePage theme={theme} />
+            </Suspense>
+          ),
         },
         {
           path: "candidate/:id",
-          element: <CandidatePage theme={theme} />,
+          element: (
+            <Suspense fallback={<PageLoader theme={theme} />}>
+              <CandidatePage theme={theme} />
+            </Suspense>
+          ),
         },
         {
           path: "notfound",
-          element: <NotFoundPage theme={theme} />,
+          element: (
+            <Suspense fallback={<PageLoader theme={theme} />}>
+              <NotFoundPage theme={theme} />
+            </Suspense>
+          ),
         },
         {
           path: "*",
-          element: <NotFoundPage theme={theme} />,
+          element: (
+            <Suspense fallback={<PageLoader theme={theme} />}>
+              <NotFoundPage theme={theme} />
+            </Suspense>
+          ),
         },
       ],
     },

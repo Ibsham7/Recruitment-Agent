@@ -7,11 +7,13 @@ import { apiFetch } from "../../lib/api";
 
 const STAGE_CONFIG: Record<CandidateStage, { label: string; color: string }> = {
   pending:      { label: "Pending Screening", color: "#808090" },
-  rejected:     { label: "Rejected",          color: "#C04040" },
+  screening:    { label: "AI Screening",      color: "#EAB308" },
   interviewing: { label: "Interviewing",      color: "#4088C0" },
   shortlisted:  { label: "AI Shortlisted",    color: "#40A060" },
   review:       { label: "In Review",         color: "#9040C0" },
   finalized:    { label: "Finalized",         color: "#40C080" },
+  complete:     { label: "Completed",         color: "#10B981" },
+  rejected:     { label: "Rejected",          color: "#C04040" },
 };
 
 function CandidateGridCard({ candidate, theme: t, G }: { candidate: Candidate; theme: Theme; G: ReturnType<typeof getGlass> }) {
@@ -114,8 +116,8 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
         if (campaignData && isMounted) {
           const cands = candidatesData || [];
           const total = cands.length;
-          const processed = cands.filter((c: any) => c.status !== 'pending').length;
-          const shortlisted = cands.filter((c: any) => c.status === 'shortlisted').length;
+          const processed = cands.filter((c: any) => c.status !== 'pending' && c.status !== 'screening').length;
+          const shortlisted = cands.filter((c: any) => c.status === 'shortlisted' || c.status === 'complete' || c.status === 'finalized').length;
           
           setCampaign({
             ...campaignData,
@@ -130,7 +132,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
             ...c,
             score: c.fitScore || c.evaluation?.overallScore || 0,
             recommendation: c.decision || c.evaluation?.recommendation || 'pending',
-            stage: c.status,
+            stage: c.status as CandidateStage,
             currentRole: c.structuredProfile?.currentRole || "",
             experience: c.structuredProfile?.experience || ""
           }));
@@ -146,7 +148,8 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
     
     fetchData();
 
-    // Set up Supabase Realtime subscription
+    // Set up Supabase Realtime subscription with debounce
+    let timeoutId: any = null;
     const channel = supabase
       .channel(`campaign-${id}-updates`)
       .on(
@@ -157,19 +160,17 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
           table: 'Candidate',
         },
         (payload) => {
-          console.log('Realtime Candidate update:', payload);
-          if (payload.new && 'campaignId' in payload.new) {
-             if (payload.new.campaignId === id) fetchData();
-          } 
-          else {
-             fetchData(); 
-          }
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            if (isMounted) fetchData();
+          }, 1000);
         }
       )
       .subscribe();
 
     return () => {
       isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
   }, [id]);
@@ -182,7 +183,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
     return <div className="flex items-center justify-center h-full text-lg" style={{ color: t.txtMuted }}>Campaign not found.</div>;
   }
 
-  const allStages: CandidateStage[] = ["pending","interviewing","shortlisted","review","finalized","rejected"];
+  const allStages: CandidateStage[] = ["pending", "screening", "interviewing", "shortlisted", "review", "complete", "finalized", "rejected"];
   const stages = campaign.enableInterviews === false ? allStages.filter(s => s !== "interviewing") : allStages;
   const progress = campaign.total && campaign.total > 0 ? Math.round(((campaign.processed || 0) / campaign.total) * 100) : 0;
   

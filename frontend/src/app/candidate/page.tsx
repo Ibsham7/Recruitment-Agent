@@ -36,9 +36,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               technical: Number((evalData.technicalScore || 0).toFixed(2)),
               communication: Number((evalData.communicationScore || 0).toFixed(2)),
               culturalFit: Number((evalData.culturalFitScore || 0).toFixed(2)),
-              problemSolving: Number((evalData.technicalScore || 0).toFixed(2)), // Fallback if missing
-              leadership: Number((evalData.culturalFitScore || 0).toFixed(2)), // Fallback if missing
-              domain: Number((evalData.technicalScore || 0).toFixed(2)) // Fallback if missing
+              overall: Number((evalData.overallScore || candidateData.fitScore || 0).toFixed(2))
             },
             summary: candidateData.rejectionReason 
               ? (evalData.summary ? `Rejection Reason: ${candidateData.rejectionReason}\n\n${evalData.summary}` : candidateData.rejectionReason)
@@ -73,9 +71,10 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
   }
 
   const radarData = [
-    { subject: "Technical", score: candidate.scores.technical }, { subject: "Comms", score: candidate.scores.communication },
-    { subject: "Culture", score: candidate.scores.culturalFit }, { subject: "Problems", score: candidate.scores.problemSolving },
-    { subject: "Leadership", score: candidate.scores.leadership }, { subject: "Domain", score: candidate.scores.domain },
+    { subject: "Technical", score: candidate.scores.technical },
+    { subject: "Comms", score: candidate.scores.communication },
+    { subject: "Culture", score: candidate.scores.culturalFit },
+    { subject: "Overall", score: candidate.scores.overall },
   ];
   
   const recommendation = candidate.recommendation || "pending";
@@ -89,12 +88,10 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
   const rec = recCfg[recommendation as keyof typeof recCfg] || recCfg.pending;
   
   const scoreMetrics = [
-    { label: "Technical",       value: candidate.scores.technical },
-    { label: "Communication",   value: candidate.scores.communication },
-    { label: "Cultural Fit",    value: candidate.scores.culturalFit },
-    { label: "Problem Solving", value: candidate.scores.problemSolving },
-    { label: "Leadership",      value: candidate.scores.leadership },
-    { label: "Domain Knowledge",value: candidate.scores.domain },
+    { label: "Technical Score",    value: candidate.scores.technical },
+    { label: "Communication Score",value: candidate.scores.communication },
+    { label: "Cultural Fit Score", value: candidate.scores.culturalFit },
+    { label: "Overall Match Score",value: candidate.scores.overall },
   ];
 
   const hasInterviewData = Boolean(

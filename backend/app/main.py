@@ -258,6 +258,21 @@ async def get_candidate(id: str):
     else:
         cand_dict["structuredProfile"] = None
         cand_dict["rawCvText"] = None
+
+    # Dynamically resolve currentQuestion for interview workflow
+    if cand_dict.get("evaluation") and cand_dict["evaluation"].get("interviewQuestions"):
+        iq = cand_dict["evaluation"]["interviewQuestions"]
+        if isinstance(iq, list) and len(iq) > 0:
+            transcript = cand_dict["evaluation"].get("interviewTranscript") or []
+            ai_turns = [t for t in transcript if isinstance(t, dict) and t.get("role") in ["ai", "interviewer"]]
+            curr_idx = len(ai_turns)
+            if curr_idx < len(iq):
+                q_item = iq[curr_idx]
+                cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
+            else:
+                q_item = iq[-1]
+                cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
+
     return cand_dict
 
 if __name__ == "__main__":
