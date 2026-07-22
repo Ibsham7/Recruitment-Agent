@@ -30,7 +30,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     cost = 0.0
     
     async def invoke_model(tier, system_prompt, human_content):
-        m = get_model(tier, max_tokens=8000)
+        m = get_model(tier, max_tokens=4000)
         sm = m.with_structured_output(ScreeningResult, method="json_schema", include_raw=True)
         for attempt in range(max_retries):
             try:
@@ -41,11 +41,11 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 r = response["parsed"]
                 c = extract_cost(response)
                 
-                # Compute weighted fit_score deterministicly
+                # Compute weighted fit_score deterministically
                 weights = {
-                    "default": {"skills": 0.50, "exp": 0.20, "nice": 0.15, "traj": 0.15},
-                    "strict": {"skills": 0.65, "exp": 0.20, "nice": 0.10, "traj": 0.05},
-                    "lenient": {"skills": 0.35, "exp": 0.15, "nice": 0.10, "traj": 0.40},
+                    "default": {"skills": 0.50, "exp": 0.25, "nice": 0.15, "traj": 0.10},
+                    "strict": {"skills": 0.55, "exp": 0.30, "nice": 0.10, "traj": 0.05},
+                    "lenient": {"skills": 0.50, "exp": 0.20, "nice": 0.15, "traj": 0.15},
                 }
                 w = weights.get(eval_mode, weights["default"])
                 calculated_score = (
@@ -54,6 +54,16 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                     r.score_breakdown.nice_to_have_score * w["nice"] +
                     r.score_breakdown.trajectory_score * w["traj"]
                 )
+                if eval_mode == "lenient":
+                    mod_w = weights["default"]
+                    mod_score = (
+                        r.score_breakdown.required_skills_score * mod_w["skills"] +
+                        r.score_breakdown.experience_score * mod_w["exp"] +
+                        r.score_breakdown.nice_to_have_score * mod_w["nice"] +
+                        r.score_breakdown.trajectory_score * mod_w["traj"]
+                    )
+                    calculated_score = min(100.0, max(calculated_score + 3, mod_score + 3))
+
                 r.fit_score = round(calculated_score)
                 
                 def get_decision(score, mode):
@@ -74,9 +84,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     human_content = f"CANDIDATE PROFILE (JSON):\n{json.dumps(profile_dict, indent=2)}"
     result, cost = await invoke_model("fast", system_prompt, human_content)
     
-
-    
-    # Apply penalties from hard_filters
+    # Apply penalties from hard_filters with strictness scaling
     penalties = state.get("penalties", [])
     deduction = 0
     penalty_reasons = []
@@ -91,8 +99,10 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         penalty_reasons.append(p.get("reason"))
         
     if deduction > 0:
-        result.fit_score = max(0, result.fit_score - deduction)
-        result.reasoning_summary += f" [Penalty applied: -{deduction} pts for: {', '.join(penalty_reasons)}]"
+        penalty_scale = 0.5 if eval_mode == "lenient" else 1.5 if eval_mode == "strict" else 1.0
+        scaled_deduction = round(deduction * penalty_scale)
+        result.fit_score = max(0, result.fit_score - scaled_deduction)
+        result.reasoning_summary += f" [Penalty applied: -{scaled_deduction} pts for: {', '.join(penalty_reasons)}]"
         # Re-evaluate decision based on new score
         if eval_mode == "strict":
             if result.fit_score < 60:

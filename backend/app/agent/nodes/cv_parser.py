@@ -123,16 +123,21 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     raw_text, pre_parsed_profile, total_cost = await extract_pdf_text(state["cv_filepath"])
     file_hash = hashlib.sha256(raw_text.encode('utf-8')).hexdigest()
     
-    # Check global Resume cache by hash
-    resume = await prisma.resume.find_unique(where={"fileHash": file_hash})
+    # Check global Resume cache by hash if DB is connected
+    resume = None
+    if prisma.is_connected():
+        try:
+            resume = await prisma.resume.find_unique(where={"fileHash": file_hash})
+        except Exception:
+            resume = None
+
     if resume and resume.structuredProfile:
         print("  [OK] Found global resume cache via hash.")
         profile_data = json.loads(resume.structuredProfile) if isinstance(resume.structuredProfile, str) else resume.structuredProfile
         candidate_profile = CandidateProfile(**profile_data)
         
         # Link candidate to existing resume
-        if "candidate_id" in state and not state["candidate_id"].startswith("candidate_"):
-            # Only update if it's a real database UUID (not local dummy string)
+        if "candidate_id" in state and not state["candidate_id"].startswith("candidate_") and prisma.is_connected():
             try:
                 await prisma.candidate.update(
                     where={"id": state["candidate_id"]},
@@ -191,23 +196,25 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         
     candidate_profile = CandidateProfile(**profile_data)
 
-    # Create new global Resume record
-    new_resume = await prisma.resume.create(
-        data={
-            "fileHash": file_hash,
-            "rawCvText": raw_text,
-            "structuredProfile": json.dumps(profile_data, sort_keys=True)
-        }
-    )
-    
-    # Link candidate
-    if "candidate_id" in state and not state["candidate_id"].startswith("candidate_"):
+    # Create new global Resume record if DB is connected
+    if prisma.is_connected():
         try:
-            await prisma.candidate.update(
-                where={"id": state["candidate_id"]},
-                data={"resumeId": new_resume.id}
+            new_resume = await prisma.resume.create(
+                data={
+                    "fileHash": file_hash,
+                    "rawCvText": raw_text,
+                    "structuredProfile": json.dumps(profile_data, sort_keys=True)
+                }
             )
+            
+            # Link candidate
+            if "candidate_id" in state and not state["candidate_id"].startswith("candidate_"):
+                await prisma.candidate.update(
+                    where={"id": state["candidate_id"]},
+                    data={"resumeId": new_resume.id}
+                )
         except Exception as e:
+            print(f"  [Warning] DB save failed in cv_parser: {e}")
             print(f"  [Warning] Could not link new resume to candidate: {e}")
 
     return {

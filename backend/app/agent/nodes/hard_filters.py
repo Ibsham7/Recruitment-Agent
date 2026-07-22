@@ -56,16 +56,15 @@ async def hard_filters_node(state: RecruitmentState) -> dict:
                     penalties.append({"reason": reason, "severity": penalty})
                     log.append(f"Penalty applied ({penalty}): {reason}")
     else:
-        # Fallback
+        # Fallback: Apply soft penalty for experience shortfall rather than hard-rejecting,
+        # ensuring the LLM screener can evaluate transferable skills and penalize proportionally.
         min_exp = extract_min_experience_from_jd(jd)
-        if profile.total_experience_years < min_exp:
-            reason = f"Candidate has {profile.total_experience_years} years exp, but {min_exp} is required."
-            print(f"  [FAIL] Rejected: {reason}")
-            return {
-                "pipeline_status": "rejected",
-                "rejection_reason": reason,
-                "log": [f"Hard filter rejected: {reason}"]
-            }
+        if min_exp > 0 and profile.total_experience_years < min_exp:
+            shortfall = min_exp - profile.total_experience_years
+            reason = f"Candidate has {profile.total_experience_years} years exp, but {min_exp} is required ({shortfall:.1f} yr shortfall)."
+            print(f"  [PENALTY] Experience shortfall: {reason}")
+            penalties.append({"reason": reason, "severity": "intermediate_penalize" if shortfall <= 2 else "hard_penalize"})
+            log.append(f"Penalty applied for experience shortfall: {reason}")
             
     print("  [OK] Passed hard filters.")
     log.append("Passed hard filters checks.")
