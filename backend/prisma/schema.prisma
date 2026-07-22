@@ -22,6 +22,7 @@ model Campaign {
   hardFiltersConfig Json?
   enableInterviews  Boolean     @default(true)
   interviewConfig   String?
+  evaluationStrictness String   @default("moderate")
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   candidates        Candidate[]
@@ -49,6 +50,9 @@ model Candidate {
   
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+  
+  // COST_TRACKING: Remove after testing
+  apiCost         Float       @default(0)
 }
 
 model Resume {
@@ -74,6 +78,7 @@ model Evaluation {
   summary             String
   strengths           String[]
   concerns            String[]
+  chainOfThought      String?
   interviewTranscript Json?
   interviewQuestions  Json?
   

@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { Filter, Plus, ChevronRight, Calendar } from "lucide-react";
 import { Theme, Campaign } from "../../lib/types";
 import { hexToRgb, hexToRgba, getGlass } from "../../lib/theme";
@@ -7,7 +7,7 @@ import { apiFetch } from "../../lib/api";
 
 import { ParticleCard, GlobalSpotlight } from "../../components/common/MagicBento";
 
-function CampaignCard({ campaign, theme: t, G, glowColor, onClick }: { campaign: Campaign; theme: Theme; G: ReturnType<typeof getGlass>; glowColor: string; onClick: () => void }) {
+function CampaignCard({ campaign, theme: t, G, glowColor }: { campaign: Campaign; theme: Theme; G: ReturnType<typeof getGlass>; glowColor: string }) {
   const statusColors = { active: "#40A060", completed: "#808090", paused: "#C09040" };
   const sc = statusColors[campaign.status || "active"];
   const total = campaign.total || 0;
@@ -16,9 +16,10 @@ function CampaignCard({ campaign, theme: t, G, glowColor, onClick }: { campaign:
   const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
   
   return (
-    <ParticleCard onClick={onClick} className="magic-bento-card magic-bento-card--border-glow rounded-2xl p-6 cursor-pointer"
-      style={{ "--glow-color": glowColor, ...G.card } as React.CSSProperties}
-      glowColor={glowColor} particleCount={10} enableTilt={true} clickEffect={true} enableMagnetism={true}>
+    <Link to={`/pipeline/${campaign.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+      <ParticleCard className="magic-bento-card magic-bento-card--border-glow rounded-2xl p-6 cursor-pointer"
+        style={{ "--glow-color": glowColor, ...G.card } as React.CSSProperties}
+        glowColor={glowColor} particleCount={10} enableTilt={true} clickEffect={true} enableMagnetism={true}>
       <div className="flex items-start justify-between mb-4" style={{ position: "relative", zIndex: 1 }}>
         <div className="flex-1">
           <div className="flex items-center gap-1.5 mb-1.5">
@@ -50,7 +51,8 @@ function CampaignCard({ campaign, theme: t, G, glowColor, onClick }: { campaign:
           {new Date(campaign.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
         </div>
       </div>
-    </ParticleCard>
+      </ParticleCard>
+    </Link>
   );
 }
 
@@ -91,7 +93,7 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
               department: c.department || 'General',
               location: c.location || 'Remote'
             };
-          });
+          }).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           setCampaigns(processedCampaigns);
         }
       } catch (err) {
@@ -136,7 +138,7 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {campaigns.map((c) => (
-            <CampaignCard key={c.id} campaign={c} theme={t} G={G} glowColor={glow} onClick={() => navigate(`/pipeline/${c.id}`)} />
+            <CampaignCard key={c.id} campaign={c} theme={t} G={G} glowColor={glow} />
           ))}
           <button onClick={() => navigate("/setup")} className="rounded-2xl flex flex-col items-center justify-center gap-2 py-12 transition-all"
             style={{ border: `2px dashed ${hexToRgba(t.bgCard, t.isDark ? 0.14 : 0.30)}`, background: hexToRgba(t.bgCard, t.isDark ? 0.04 : 0.20), color: t.txtGhost }}

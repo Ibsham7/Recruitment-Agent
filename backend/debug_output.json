@@ -1,0 +1,15 @@
+{
+  "chain_of_thought": "1. **Extract Must-Have and Nice-to-Have Requirements from JD:**\n   *   **Must-Have:** Python, TypeScript, Backend\n   *   **Nice-to-Have:** LangChain\n\n2. **Map Candidate's Skills and Experiences to Requirements:**\n   *   **Python:** Candidate lists 'Python' in skills. (Match)\n   *   **TypeScript:** Candidate lists 'TypeScript' in skills. (Match)\n   *   **Backend:** The candidate has a 'Dev' role and lists projects like 'SmartPulse', 'ReviewRoute', 'Chatbot', and 'And 100 more projects...', which often imply backend development, especially for a 'Dev' role. While not explicitly stated as 'Backend Developer', the combination of Python, TypeScript, and project types strongly suggests backend experience. (Assumed Match based on context)\n   *   **LangChain:** Candidate does not list 'LangChain' in skills. (Missing)\n\n3. **Weigh Findings to Compute Score:**\n   *   The candidate explicitly matches two out of three must-have skills (Python, TypeScript). \n   *   Backend experience is strongly implied by the 'Dev' role and project types, which are often backend-heavy, especially with Python. Given the brevity of the provided CV data, this is a reasonable inference.\n   *   The candidate is missing the nice-to-have skill (LangChain).\n   *   The candidate has 2 years of experience, which is generally positive.\n   *   The candidate has a significant number of projects, including 'Chatbot', which could be related to AI/LLM applications where LangChain is used, indicating potential for quick learning.\n\n   *   **Scoring Logic:**\n      *   Python (Must-have): +30 points\n      *   TypeScript (Must-have): +30 points\n      *   Backend (Must-have, inferred): +20 points (slightly less than explicit due to inference)\n      *   LangChain (Nice-to-have, missing): -5 points (minor deduction for nice-to-have)\n      *   Total: 30 + 30 + 20 - 5 = 75",
+  "fit_score": 75.0,
+  "matched_requirements": [
+    "Python",
+    "TypeScript",
+    "Backend"
+  ],
+  "missing_requirements": [
+    "LangChain"
+  ],
+  "reasoning": "The candidate is a good match, possessing strong Python and TypeScript skills, which are core requirements. While 'Backend' experience is inferred from their 'Dev' role and project types, it aligns well with the job. The only missing skill is LangChain, which is a nice-to-have.",
+  "cv_summary": "The candidate has 2 years of experience as a 'Dev' and has worked on numerous projects, including 'SmartPulse', 'ReviewRoute', and 'Chatbot', indicating a broad range of development experience. The CV text itself is very long but does not provide additional specific details beyond the extracted skills and projects.",
+  "decision": "advance"
+}

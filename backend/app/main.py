@@ -49,6 +49,7 @@ class CampaignCreate(BaseModel):
     hardFiltersConfig: Optional[List[dict]] = None
     enableInterviews: bool = True
     interviewConfig: Optional[str] = None
+    strictness: str = "moderate"
 
 @app.post("/api/campaigns")
 async def create_campaign(campaign: CampaignCreate, request: Request, background_tasks: BackgroundTasks, user: dict = Depends(verify_jwt)):
@@ -60,7 +61,8 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
             "jobDescription": campaign.jobDescription,
             "hardFiltersConfig": Json(campaign.hardFiltersConfig) if campaign.hardFiltersConfig is not None else None,
             "enableInterviews": campaign.enableInterviews,
-            "interviewConfig": campaign.interviewConfig
+            "interviewConfig": campaign.interviewConfig,
+            "evaluationStrictness": campaign.strictness
         }
     )
     
@@ -218,13 +220,18 @@ async def get_campaign(id: str, user: dict = Depends(verify_jwt)):
         raise HTTPException(status_code=404, detail="Campaign not found")
     
     c_dict = campaign.model_dump() if hasattr(campaign, "model_dump") else campaign.dict()
+    total_cost = 0.0
     for cand in c_dict.get("candidates", []):
+        total_cost += cand.get("apiCost", 0.0)
         if cand.get("resume"):
             cand["structuredProfile"] = cand["resume"].get("structuredProfile")
             cand["rawCvText"] = cand["resume"].get("rawCvText")
         else:
             cand["structuredProfile"] = None
             cand["rawCvText"] = None
+    
+    # COST_TRACKING: Remove after testing
+    c_dict["totalCost"] = total_cost
     return c_dict
 
 @app.get("/api/candidates/{id}")

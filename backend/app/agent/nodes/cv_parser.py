@@ -6,13 +6,12 @@ import hashlib
 import base64
 from pypdf import PdfReader
 from app.agent.config import get_model
-from app.agent.schemas import CandidateProfile
+from app.agent.schemas import CandidateProfile, CandidateProfileOutput
 from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import CV_PARSER_SYSTEM
 import asyncio
 from app.database import prisma
-from app.agent.utils import extract_json
 from typing import Tuple, Optional, Dict
 
 import httpx
@@ -23,7 +22,7 @@ except ImportError:
     fitz = None
 
 
-async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict]]:
+async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
     temp_path = None
     if filepath.startswith("http://") or filepath.startswith("https://"):
         fd, temp_path = tempfile.mkstemp(suffix=".pdf")
@@ -52,21 +51,21 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict]]:
         # Trigger OCR fallback if PyPDF2 extracts virtually no text
         if len(text.strip()) < 50:
             print("  [CV Parser] Standard text extraction failed or returned too little text. Falling back to OCR.")
-            profile_data = await ocr_pdf_fallback(pdf_path)
-            raw_text = json.dumps(profile_data) if profile_data else text
-            return raw_text, profile_data
+            profile_data, cost = await ocr_pdf_fallback(pdf_path)
+            raw_text = json.dumps(profile_data, sort_keys=True) if profile_data else text
+            return raw_text, profile_data, cost
             
-        return text, None
+        return text, None, 0.0
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
 
-async def ocr_pdf_fallback(pdf_path: str) -> Optional[Dict]:
+async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float]:
     """Fallback method that converts PDF pages to images and uses a Vision model to extract directly to JSON."""
     print(f"  [OCR Fallback] Initiating Vision OCR for {pdf_path}...")
     if not fitz:
         print("  [OCR Fallback] PyMuPDF (fitz) is not installed. Cannot perform OCR.")
-        return None
+        return None, 0.0
         
     try:
         def process_pdf():
@@ -95,15 +94,17 @@ async def ocr_pdf_fallback(pdf_path: str) -> Optional[Dict]:
             })
             
         model = get_model("ocr")
-        response = await model.ainvoke([HumanMessage(content=content_parts)])
+        structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
+        result = await structured_model.ainvoke([HumanMessage(content=content_parts)])
         print(f"  [OCR Fallback] Successfully parsed JSON via Vision OCR.")
-        raw_json = extract_json(response.content)
-        profile_data = json.loads(raw_json)
-        return profile_data
+        from app.agent.utils import extract_cost
+        cost = extract_cost(result)
+        profile_data = result["parsed"].model_dump()
+        return profile_data, cost
 
     except Exception as e:
         print(f"  [OCR Fallback] Failed: {e}")
-        return None
+        return None, 0.0
 
 #todo : can save token by adding raw cv text manually instead of sending to LLM
 
@@ -119,7 +120,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             "log": ["CV parsed from cache"]
         }
 
-    raw_text, pre_parsed_profile = await extract_pdf_text(state["cv_filepath"])
+    raw_text, pre_parsed_profile, total_cost = await extract_pdf_text(state["cv_filepath"])
     file_hash = hashlib.sha256(raw_text.encode('utf-8')).hexdigest()
     
     # Check global Resume cache by hash
@@ -143,7 +144,8 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         return {
             "candidate_profile": candidate_profile,
             "pipeline_status": "running",
-            "log": ["CV parsed from global hash cache"]
+            "log": ["CV parsed from global hash cache"],
+            "total_cost": total_cost
         }
 
     if pre_parsed_profile:
@@ -152,19 +154,21 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     else:
         # Not found, parse via LLM
         model = get_model("fast")
+        structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
         max_retries = 3
         profile_data = None
         for attempt in range(max_retries):
             try:
-                response = await model.ainvoke([
+                result = await structured_model.ainvoke([
                     SystemMessage(content=CV_PARSER_SYSTEM),
                     HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
                 ])
-                raw_json = extract_json(response.content)
-                profile_data = json.loads(raw_json)
+                from app.agent.utils import extract_cost
+                total_cost += extract_cost(result)
+                profile_data = result["parsed"].model_dump()
                 break
             except Exception as e:
-                print(f"  [CV Parser] Attempt {attempt+1} failed: {e}. Raw response: {getattr(response, 'content', 'None') if 'response' in locals() else 'None'}")
+                print(f"  [CV Parser] Attempt {attempt+1} failed: {e}.")
                 if attempt == max_retries - 1:
                     print(f"  [CV Parser] All {max_retries} attempts failed. Falling back to unknown candidate.")
                     profile_data = {
@@ -201,7 +205,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         data={
             "fileHash": file_hash,
             "rawCvText": raw_text,
-            "structuredProfile": json.dumps(profile_data)
+            "structuredProfile": json.dumps(profile_data, sort_keys=True)
         }
     )
     
@@ -218,5 +222,6 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     return {
         "candidate_profile": candidate_profile,
         "pipeline_status": "running",
-        "log": [f"CV parsed: {candidate_profile.name}, {candidate_profile.total_experience_years} yrs exp"]
+        "log": [f"CV parsed: {candidate_profile.name}, {candidate_profile.total_experience_years} yrs exp"],
+        "total_cost": total_cost
     }

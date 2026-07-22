@@ -45,6 +45,7 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
   }, [uploadTasks]);
 
   const [dragging, setDragging] = useState(false);
+  const [strictness, setStrictness] = useState<"lenient" | "moderate" | "strict">("moderate");
   const [enableInterviews, setEnableInterviews] = useState(true);
   const [interviewConfig, setInterviewConfig] = useState("");
   const [hardFilters, setHardFilters] = useState<{type: string, value: string, penalty: string}[]>([]);
@@ -219,7 +220,8 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
           resumes: fileUrls,
           hardFiltersConfig: hardFilters,
           enableInterviews,
-          interviewConfig
+          interviewConfig,
+          strictness
         })
       });
 
@@ -258,6 +260,29 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
             <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Job Title</label><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Senior Frontend Engineer" className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={fieldStyle} /></div>
             <div><label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Job Description</label><textarea value={jd} onChange={(e) => setJd(e.target.value)} rows={7} className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none resize-none leading-relaxed" style={fieldStyle} /></div>
             
+            <div className="rounded-2xl p-5 space-y-4" style={G.card}>
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>Evaluation Strictness</div>
+                <div className="text-xs mt-1" style={{ color: t.txtSecondary }}>How strictly should the AI evaluate candidates against the requirements?</div>
+              </div>
+              <div className="flex gap-2 p-1 rounded-xl" style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6) }}>
+                {(["lenient", "moderate", "strict"] as const).map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => setStrictness(level)}
+                    className="flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all"
+                    style={{
+                      background: strictness === level ? t.accentPrimary : "transparent",
+                      color: strictness === level ? t.accentText : t.txtSecondary,
+                      boxShadow: strictness === level ? `0 2px 8px ${hexToRgba(t.accentPrimary, 0.4)}` : "none"
+                    }}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="rounded-2xl p-5 space-y-4" style={G.card}>
               <div className="flex items-center justify-between">
                 <div>

@@ -11,6 +11,7 @@ export interface Campaign {
   updatedAt: string;
   
   // UI computed/fallback fields
+  evaluationStrictness?: "lenient" | "moderate" | "strict";
   department?: string;
   location?: string;
   status?: CampaignStatus;
@@ -18,6 +19,7 @@ export interface Campaign {
   processed?: number;
   shortlisted?: number;
   created?: string;
+  totalCost?: number; // COST_TRACKING: Remove after testing
 }
 
 export interface Evaluation {
@@ -31,6 +33,7 @@ export interface Evaluation {
   summary: string;
   strengths: string[];
   concerns: string[];
+  chainOfThought?: string;
   interviewTranscript: any;
   interviewQuestions?: any;
   createdAt: string;
@@ -60,6 +63,7 @@ export interface Candidate {
   summary?: string;
   strengths?: string[];
   concerns?: string[];
+  chainOfThought?: string;
   transcript?: any[];
   
   evaluation?: Evaluation;

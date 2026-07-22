@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, Link } from "react-router";
 import { useState, useEffect } from "react";
 import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
 import { hexToRgba, getGlass, scoreColor } from "../../lib/theme";
@@ -14,7 +14,7 @@ const STAGE_CONFIG: Record<CandidateStage, { label: string; color: string }> = {
   finalized:    { label: "Finalized",         color: "#40C080" },
 };
 
-function CandidateGridCard({ candidate, theme: t, G, onClick }: { candidate: Candidate; theme: Theme; G: ReturnType<typeof getGlass>; onClick: () => void }) {
+function CandidateGridCard({ candidate, theme: t, G }: { candidate: Candidate; theme: Theme; G: ReturnType<typeof getGlass> }) {
   const recMap = { shortlist: { text: t.numPos, label: "✓ Shortlist" }, reject: { text: t.numNeg, label: "✗ Reject" }, pending: { text: t.numMid, label: "⋯ Pending" } };
   const recommendation = (candidate.recommendation || "pending").toLowerCase();
   const rec = recMap[recommendation as keyof typeof recMap] || { text: t.numMid, label: `? ${candidate.recommendation}` };
@@ -23,7 +23,7 @@ function CandidateGridCard({ candidate, theme: t, G, onClick }: { candidate: Can
   score = typeof score === 'number' && score % 1 !== 0 ? Number(score.toFixed(2)) : score;
   
   return (
-    <button onClick={onClick} className="w-full rounded-3xl p-5 text-left transition-all duration-300 flex flex-col justify-between h-full group" style={{ ...G.card, position: 'relative', overflow: 'hidden' }}
+    <Link to={`/candidate/${candidate.id}`} className="w-full rounded-3xl p-5 text-left transition-all duration-300 flex flex-col justify-between h-full group" style={{ ...G.card, position: 'relative', overflow: 'hidden' }}
       onMouseEnter={(e) => { 
         const el = e.currentTarget as HTMLElement; 
         el.style.transform = "translateY(-6px)";
@@ -67,7 +67,7 @@ function CandidateGridCard({ candidate, theme: t, G, onClick }: { candidate: Can
           </span>
         </div>
       </div>
-    </button>
+    </Link>
   );
 }
 
@@ -226,7 +226,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
               {retrying ? "Retrying..." : "Retry Failed"}
             </button>
             <div className="flex gap-8">
-              {[{ v: campaign.total, l: "Total CVs", c: t.numHero }, { v: campaign.processed, l: "Processed", c: t.txtPrimary }, { v: campaign.shortlisted, l: "Shortlisted", c: t.numPos }].map((s) => (
+              {[{ v: campaign.total, l: "Total CVs", c: t.numHero }, { v: campaign.processed, l: "Processed", c: t.txtPrimary }, { v: campaign.shortlisted, l: "Shortlisted", c: t.numPos }, { v: campaign.totalCost ? `$${campaign.totalCost.toFixed(4)}` : "$0.00", l: "API Cost", c: t.numNeg }].map((s) => (
                 <div key={s.l} className="text-center">
                   <div className="text-4xl font-bold mb-1" style={{ fontFamily: "'Fraunces',serif", color: s.c }}>{s.v}</div>
                   <div className="text-xs font-medium uppercase tracking-widest" style={{ color: t.txtGhost }}>{s.l}</div>
@@ -328,7 +328,6 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
                     candidate={cand} 
                     theme={t} 
                     G={G} 
-                    onClick={() => navigate(`/candidate/${cand.id}`)} 
                   />
                 </div>
               ))}

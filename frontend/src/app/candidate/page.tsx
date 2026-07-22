@@ -45,6 +45,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               : (evalData.summary || "No summary available."),
             strengths: evalData.strengths || [],
             concerns: evalData.concerns || [],
+            chainOfThought: evalData.chainOfThought || "No reasoning provided.",
             transcript: evalData.interviewTranscript || []
           };
           
@@ -96,6 +97,11 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
     { label: "Domain Knowledge",value: candidate.scores.domain },
   ];
 
+  const hasInterviewData = Boolean(
+    (candidate.transcript && candidate.transcript.length > 0) || 
+    (candidate.scores && (candidate.scores.technical > 0 || candidate.scores.communication > 0 || candidate.scores.culturalFit > 0))
+  );
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-8 py-5 flex-shrink-0" style={G.bar}>
@@ -121,8 +127,9 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-8 space-y-5" style={{ borderRight: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.45)}` }}>
+        <div className="flex-1 overflow-y-auto p-8 space-y-5" style={{ borderRight: hasInterviewData ? `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.45)}` : undefined }}>
           {/* Score breakdown */}
+          {hasInterviewData && (
           <div className="rounded-2xl p-6" style={G.cardWarm}>
             <div className="text-[10px] font-semibold uppercase tracking-widest mb-5" style={{ color: t.txtMuted }}>Score Breakdown</div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6">
@@ -148,6 +155,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               </ResponsiveContainer>
             </div>
           </div>
+          )}
 
           {/* AI Summary */}
           <div className="rounded-2xl p-6" style={G.card}>
@@ -156,6 +164,15 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>AI Summary</span>
             </div>
             <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: t.txtBody }}>{candidate.summary}</p>
+          </div>
+
+          {/* Chain of Thought */}
+          <div className="rounded-2xl p-6" style={G.card}>
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle size={12} style={{ color: t.txtGhost }} />
+              <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>JD Match Reasoning</span>
+            </div>
+            <p className="text-[11px] leading-relaxed whitespace-pre-wrap font-mono" style={{ color: t.txtSecondary }}>{candidate.chainOfThought}</p>
           </div>
 
           {/* Strengths & Concerns */}
@@ -171,6 +188,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
         </div>
 
         {/* Transcript */}
+        {hasInterviewData && (
         <div className="w-80 flex flex-col flex-shrink-0">
           <div className="px-5 py-4 flex-shrink-0" style={{ ...G.bar, borderBottom: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.50)}` }}>
             <div className="flex items-center gap-2"><MessageSquare size={12} style={{ color: t.txtGhost }} /><span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtGhost }}>Interview Transcript</span></div>
@@ -199,6 +217,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Decision bar */}

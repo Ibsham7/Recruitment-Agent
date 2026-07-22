@@ -2,9 +2,8 @@ import json
 from app.agent.config import get_model
 from app.agent.schemas import EvaluationReport
 from app.agent.state import RecruitmentState
-from app.agent.utils import extract_json
 from langchain_core.messages import HumanMessage, SystemMessage
-from app.agent.prompts import EVALUATOR_SYSTEM
+from app.agent.prompts import EVALUATOR_PROMPTS
 
 
 async def evaluator_node(state: RecruitmentState) -> dict:
@@ -38,12 +37,13 @@ async def evaluator_node(state: RecruitmentState) -> dict:
         )
     qa_text = "\n\n".join(qa_pairs)
 
+    missing = [req.requirement for req in screening.must_have if req.match == "none"]
     prompt = f"""
 JOB: (Summary) {jd[:500]}...
 
 CANDIDATE: {profile.name}
 Screening score: {screening.fit_score}/100
-Missing requirements: {', '.join(screening.missing_requirements) or 'none'}
+Missing requirements: {', '.join(missing) or 'none'}
 
 INTERVIEW TRANSCRIPT:
 {qa_text}
@@ -51,20 +51,27 @@ INTERVIEW TRANSCRIPT:
 Evaluate this candidate's interview performance.
 """
 
+    eval_mode = state.get("jd_matcher_prompt_variant") or "default"
+    system_prompt = EVALUATOR_PROMPTS.get(eval_mode, EVALUATOR_PROMPTS["default"])
+
     model = get_model("smart")
+    structured_model = model.with_structured_output(EvaluationReport, method="json_schema", include_raw=True)
     max_retries = 3
     report = None
+    total_cost = 0.0
     for attempt in range(max_retries):
         try:
-            response = await model.ainvoke([
-                SystemMessage(content=EVALUATOR_SYSTEM),
+            result = await structured_model.ainvoke([
+                SystemMessage(content=system_prompt),
                 HumanMessage(content=prompt)
             ])
-            raw_json = extract_json(response.content)
-            report = EvaluationReport(**json.loads(raw_json))
+            report = result["parsed"]
+            from app.agent.utils import extract_cost
+            total_cost = extract_cost(result)
+            report.chain_of_thought = f"{screening.experience_assessment}\n\n{screening.reasoning_summary}"
             break
         except Exception as e:
-            print(f"  [Evaluator] Attempt {attempt+1} failed: {e}. Raw response: {getattr(response, 'content', 'None') if 'response' in locals() else 'None'}")
+            print(f"  [Evaluator] Attempt {attempt+1} failed: {e}.")
             if attempt == max_retries - 1:
                 print(f"  [Evaluator] All {max_retries} attempts failed. Falling back to HOLD.")
                 report = EvaluationReport(
@@ -74,6 +81,7 @@ Evaluate this candidate's interview performance.
                     cultural_fit_score=50,
                     strengths=[],
                     concerns=["Failed to generate AI evaluation due to LLM degradation."],
+                    chain_of_thought=f"{screening.experience_assessment}\n\n{screening.reasoning_summary}",
                     recommendation="hold",
                     summary=f"Evaluation failed after {max_retries} retries: {str(e)}"
                 )
@@ -81,5 +89,6 @@ Evaluate this candidate's interview performance.
     return {
         "evaluation_report": report,
         "pipeline_status": "review",   # signal ready for human review
-        "log": [f"Evaluated: {report.recommendation.upper()} (score={report.overall_score})"]
+        "log": [f"Evaluated: {report.recommendation.upper()} (score={report.overall_score})"],
+        "total_cost": total_cost
     }

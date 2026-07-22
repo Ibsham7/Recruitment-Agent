@@ -11,6 +11,7 @@ class RecruitmentState(TypedDict):
     penalties: list[dict]                    # accrued penalties
     enable_interviews: bool                  # whether to conduct an interview
     interview_config: Optional[str]          # custom interview questions or focus
+    jd_matcher_prompt_variant: Optional[str] # specific prompt variant to use (strict, lenient, default)
 
     # ── Node outputs (each node fills one of these) ──────────────────────
     candidate_profile: Optional[CandidateProfile]     # filled by cv_parser
@@ -31,3 +32,6 @@ class RecruitmentState(TypedDict):
     # ── Human review output ───────────────────────────────────────────────
     human_decision: Optional[str]   # "approve" | "reject" | "hold"
     human_notes: Optional[str]
+
+    # COST_TRACKING: Remove after testing
+    total_cost: Annotated[float, add]

@@ -45,6 +45,9 @@ async def _distill_jd_async(jd_text: str) -> str:
             SystemMessage(content=JD_DISTILLER_SYSTEM),
             HumanMessage(content=jd_text)
         ])
+        # We could extract cost here: from app.agent.utils import extract_cost; cost = extract_cost(response)
+        # However, distillation runs once per Campaign, not per Candidate, so Candidate level tracking doesn't perfectly fit.
+        # It's very cheap, so we'll skip tracking it to keep the code simpler.
         return response.content
     except Exception as e:
         print(f"  [JD Distiller] LLM distillation failed (rate limit/error): {e}. Falling back to raw JD.")
