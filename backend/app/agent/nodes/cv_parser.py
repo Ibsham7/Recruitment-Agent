@@ -170,16 +170,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             except Exception as e:
                 print(f"  [CV Parser] Attempt {attempt+1} failed: {e}.")
                 if attempt == max_retries - 1:
-                    print(f"  [CV Parser] All {max_retries} attempts failed. Falling back to unknown candidate.")
-                    profile_data = {
-                        "name": "Unknown Candidate (Parse Failed)",
-                        "skills": [],
-                        "total_experience_years": 0.0,
-                        "previous_roles": [],
-                        "education": [],
-                        "projects": [],
-                        "other_info": f"Failed to parse CV after {max_retries} attempts due to LLM degradation. Raw CV length: {len(raw_text)} chars"
-                    }
+                    raise RuntimeError(f"Failed to parse CV after {max_retries} attempts due to LLM failure: {e}")
     
     if not profile_data.get("name"):
         profile_data["name"] = "Unknown Candidate"

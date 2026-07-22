@@ -1,12 +1,10 @@
 import os
 import json
 import asyncio
-import numpy as np
 from app.database import prisma
 from app.agent.embeddings import get_embedding_async, cosine_similarity, _distill_jd_async
 from app.agent.state import RecruitmentState
 
-import requests
 import httpx
 import hashlib
 
@@ -20,7 +18,6 @@ async def _get_or_create_embedding_async(file_hash: str, text_to_embed: str) -> 
     ''', file_hash)
     
     if result and result[0].get('embedding'):
-        # The database returns it as a string e.g. "[0.1, 0.2, ...]"
         embedding_str = result[0]['embedding']
         return json.loads(embedding_str)
         
@@ -39,8 +36,7 @@ async def _get_or_create_embedding_async(file_hash: str, text_to_embed: str) -> 
 async def embedding_matcher_node(state: RecruitmentState) -> dict:
     """
     Filters candidates based on vector similarity between structured CV and JD.
-    Option A: Threshold-based. Option B: Batch Top-N% (implemented outside this node in batch_run.py).
-    For the graph node (processing single candidate), we use Option A.
+    Uses native PGVector cosine distance (<=>) in PostgreSQL when embeddings are present.
     """
     print("\n[Embedding Matcher] Calculating semantic similarity...")
     profile = state.get("candidate_profile")
@@ -97,7 +93,20 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
                 WHERE id = $3
             ''', jd_distilled, str(jd_vector), campaign_id)
             
-    similarity = cosine_similarity(cv_vector, jd_vector)
+    # Try querying native PGVector cosine similarity directly from database
+    similarity_result = await prisma.query_raw('''
+        SELECT 1 - (r.embedding <=> c."jdEmbedding") AS similarity
+        FROM "Candidate" cand
+        JOIN "Resume" r ON cand."resumeId" = r.id
+        JOIN "Campaign" c ON cand."campaignId" = c.id
+        WHERE cand.id = $1 AND r.embedding IS NOT NULL AND c."jdEmbedding" IS NOT NULL
+    ''', candidate_id)
+
+    if similarity_result and similarity_result[0].get('similarity') is not None:
+        similarity = float(similarity_result[0]['similarity'])
+    else:
+        similarity = cosine_similarity(cv_vector, jd_vector)
+
     print(f"  Similarity Score: {similarity:.2f}")
     
     # Read strategy from env or default to threshold

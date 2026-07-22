@@ -67,19 +67,9 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 r.decision = get_decision(r.fit_score, eval_mode)
                 return r, c
             except Exception as e:
-                print(f"  [JD Matcher] Attempt {attempt+1} failed: {e}. Raw response: {getattr(response, 'content', 'None') if 'response' in locals() else 'None'}")
+                print(f"  [JD Matcher] Attempt {attempt+1} failed: {e}.")
                 if attempt == max_retries - 1:
-                    print(f"  [JD Matcher] All {max_retries} attempts failed. Falling back to HOLD.")
-                    from app.agent.schemas import ScoreBreakdown
-                    return ScreeningResult(
-                        must_have=[],
-                        nice_to_have=[],
-                        experience_assessment="Fallback triggered due to consecutive LLM parsing failures.",
-                        score_breakdown=ScoreBreakdown(required_skills_score=50, experience_score=50, nice_to_have_score=50, trajectory_score=50),
-                        fit_score=50,
-                        reasoning_summary=f"Error extracting structured evaluation from LLM after 3 retries: {str(e)}",
-                        decision="hold"
-                    ), 0.0
+                    raise RuntimeError(f"Failed to evaluate candidate against JD after {max_retries} attempts: {e}")
                     
     human_content = f"CANDIDATE PROFILE (JSON):\n{json.dumps(profile_dict, indent=2)}"
     result, cost = await invoke_model("fast", system_prompt, human_content)

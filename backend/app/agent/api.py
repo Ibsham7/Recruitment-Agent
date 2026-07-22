@@ -139,9 +139,8 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                 "education": profile_dict.get("education", [])
             })
             
-        # COST_TRACKING: Remove after testing
-        if final_state.get("total_cost"):
-            update_data["apiCost"] = {"increment": final_state.get("total_cost", 0.0)}
+        if final_state.get("total_cost") is not None:
+            update_data["apiCost"] = final_state.get("total_cost", 0.0)
             
         await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
         
@@ -285,9 +284,8 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
                 "education": profile_dict.get("education", [])
             })
             
-        # COST_TRACKING: Remove after testing
-        if final_state.get("total_cost"):
-            update_data["apiCost"] = {"increment": final_state.get("total_cost", 0.0)}
+        if final_state.get("total_cost") is not None:
+            update_data["apiCost"] = final_state.get("total_cost", 0.0)
             
         await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
         

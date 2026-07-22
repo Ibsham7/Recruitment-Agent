@@ -73,18 +73,7 @@ Evaluate this candidate's interview performance.
         except Exception as e:
             print(f"  [Evaluator] Attempt {attempt+1} failed: {e}.")
             if attempt == max_retries - 1:
-                print(f"  [Evaluator] All {max_retries} attempts failed. Falling back to HOLD.")
-                report = EvaluationReport(
-                    overall_score=50,
-                    technical_score=50,
-                    communication_score=50,
-                    cultural_fit_score=50,
-                    strengths=[],
-                    concerns=["Failed to generate AI evaluation due to LLM degradation."],
-                    chain_of_thought=f"{screening.experience_assessment}\n\n{screening.reasoning_summary}",
-                    recommendation="hold",
-                    summary=f"Evaluation failed after {max_retries} retries: {str(e)}"
-                )
+                raise RuntimeError(f"Failed to generate evaluation report after {max_retries} attempts: {e}")
 
     return {
         "evaluation_report": report,

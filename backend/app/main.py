@@ -190,16 +190,20 @@ class HumanReview(BaseModel):
     decision: str # approve, reject, hold
 
 @app.post("/api/candidates/{id}/review")
-async def submit_human_review(id: str, review_data: HumanReview, user: dict = Depends(verify_jwt)):
+async def submit_human_review(id: str, review_data: HumanReview, request: Request, user: dict = Depends(verify_jwt)):
     try:
+        status_update = "complete" if review_data.decision != "approve" and review_data.decision != "override" else "interviewing"
         await prisma.candidate.update(
             where={"id": id},
             data={
-                "status": "complete",
+                "status": status_update,
                 "decision": review_data.decision
             }
         )
-        return {"status": "success", "message": "Review submitted"}
+        # Resume the paused LangGraph thread so execution advances correctly
+        resume_val = "override" if review_data.decision in ["approve", "override"] else "reject"
+        await request.app.state.redis.enqueue_job('resume_pipeline_task', id, resume_val)
+        return {"status": "success", "message": "Review submitted and pipeline resumed"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
