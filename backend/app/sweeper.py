@@ -33,43 +33,48 @@ async def hard_delete_expired_candidates(ctx=None):
             logger.info("No expired candidates found to sweep.")
             return
 
-        deleted_count = 0
-        resume_deleted_count = 0
+        # 1. Prepare batch analytics payload & collect IDs
+        analytics_payload = []
+        candidate_ids = []
+        possible_resume_ids = set()
 
-        for candidate in expired_candidates:
-            try:
-                # 1. Create Analytics Record
-                await prisma.candidateanalytics.create(
-                    data={
-                        "campaignId": candidate.campaignId,
-                        "campaignTitle": candidate.campaign.title if candidate.campaign else "Unknown",
-                        "status": candidate.status,
-                        "fitScore": candidate.fitScore,
-                        "overallScore": candidate.evaluation.overallScore if candidate.evaluation else None,
-                        "exitStage": candidate.status
-                    }
+        for c in expired_candidates:
+            candidate_ids.append(c.id)
+            if c.resumeId:
+                possible_resume_ids.add(c.resumeId)
+            analytics_payload.append({
+                "campaignId": c.campaignId,
+                "campaignTitle": c.campaign.title if c.campaign else "Unknown",
+                "status": c.status,
+                "fitScore": c.fitScore,
+                "overallScore": c.evaluation.overallScore if c.evaluation else None,
+                "exitStage": c.status
+            })
+
+        # 2. Batch insert analytics records
+        if analytics_payload:
+            await prisma.candidateanalytics.create_many(data=analytics_payload)
+
+        # 3. Batch delete candidates
+        delete_result = await prisma.candidate.delete_many(
+            where={"id": {"in": candidate_ids}}
+        )
+        deleted_count = delete_result
+
+        # 4. Clean up orphaned resumes in batch
+        resume_deleted_count = 0
+        if possible_resume_ids:
+            active_links = await prisma.candidate.find_many(
+                where={"resumeId": {"in": list(possible_resume_ids)}},
+                distinct=["resumeId"]
+            )
+            linked_resume_ids = {c.resumeId for c in active_links if c.resumeId}
+            orphaned_ids = list(possible_resume_ids - linked_resume_ids)
+
+            if orphaned_ids:
+                resume_deleted_count = await prisma.resume.delete_many(
+                    where={"id": {"in": orphaned_ids}}
                 )
-                
-                resume_id = candidate.resumeId
-                
-                # 2. Delete Candidate (cascades Evaluation because of onDelete: Cascade in schema)
-                await prisma.candidate.delete(
-                    where={"id": candidate.id}
-                )
-                deleted_count += 1
-                
-                # 3. Clean up orphaned Resume
-                if resume_id:
-                    links = await prisma.candidate.count(
-                        where={"resumeId": resume_id}
-                    )
-                    if links == 0:
-                        await prisma.resume.delete(
-                            where={"id": resume_id}
-                        )
-                        resume_deleted_count += 1
-            except Exception as e:
-                logger.error(f"Failed to process deletion for candidate {candidate.id}: {e}")
 
         logger.info(f"Sweeper finished: Deleted {deleted_count} candidates and {resume_deleted_count} orphaned resumes.")
 

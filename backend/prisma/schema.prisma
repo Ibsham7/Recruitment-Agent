@@ -26,6 +26,8 @@ model Campaign {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   candidates        Candidate[]
+
+  @@index([userId])
 }
 
 model Candidate {
@@ -53,6 +55,12 @@ model Candidate {
   
   // COST_TRACKING: Remove after testing
   apiCost         Float       @default(0)
+
+  @@index([campaignId])
+  @@index([resumeId])
+  @@index([campaignId, status])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model Resume {
@@ -96,4 +104,7 @@ model CandidateAnalytics {
   overallScore    Float?
   exitStage       String?
   createdAt       DateTime @default(now())
+
+  @@index([campaignId])
 }
+

@@ -80,26 +80,33 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
         print(f"Warning: Failed to generate JD embedding during campaign creation: {e}")
         # The embedding_matcher_node will self-heal and generate it when the first candidate runs
     
+    import uuid
+    candidate_records = []
+    jobs_to_enqueue = []
+    
     for resume_url in campaign.resumes:
-        # Extract a basic name from the URL string
         filename = resume_url.split("/")[-1]
         name = filename.split(".")[0] if "." in filename else "Unknown Candidate"
+        cand_id = str(uuid.uuid4())
         
-        candidate = await prisma.candidate.create(
-            data={
-                "campaign": {"connect": {"id": new_campaign.id}},
-                "name": name.replace("%20", " "),
-                "status": "pending",
-                "cvUrl": resume_url
-            }
-        )
+        candidate_records.append({
+            "id": cand_id,
+            "campaignId": new_campaign.id,
+            "name": name.replace("%20", " "),
+            "status": "pending",
+            "cvUrl": resume_url
+        })
+        jobs_to_enqueue.append((cand_id, resume_url, campaign.jobDescription))
         
-        await request.app.state.redis.enqueue_job(
-            'process_cv_task',
-            candidate.id,
-            resume_url,
-            campaign.jobDescription
-        )
+    if candidate_records:
+        await prisma.candidate.create_many(data=candidate_records)
+        for cand_id, resume_url, job_desc in jobs_to_enqueue:
+            await request.app.state.redis.enqueue_job(
+                'process_cv_task',
+                cand_id,
+                resume_url,
+                job_desc
+            )
         
     return {"status": "success", "campaignId": new_campaign.id}
 
