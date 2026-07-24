@@ -48,7 +48,7 @@ graph TD
     classDef endSuccess fill:#059669,stroke:#047857,stroke-width:2px,color:#ffffff,font-weight:bold;
     classDef endReject fill:#DC2626,stroke:#B91C1C,stroke-width:2px,color:#ffffff,font-weight:bold;
 
-    START((🚀 START: CV Upload)):::startNode --> cv_parser
+    START(("🚀 START: CV Upload")):::startNode --> cv_parser
 
     cv_parser["1. 📄 cv_parser<br/><i>PyPDF + Vision OCR Fallback + SHA-256 Cache</i>"]:::parseNode --> hard_filters
 
@@ -73,9 +73,9 @@ graph TD
 
     evaluator["8. 🧠 evaluator<br/><i>Claude Sonnet 4-Score Transcript Review</i>"]:::smartNode --> END_SUCCESS
 
-    END_SHORTLIST((✅ END: Shortlisted)):::endSuccess
-    END_SUCCESS((✅ END: Review Complete)):::endSuccess
-    rejected["❌ rejected<br/><i>Terminal Filtered Node</i>"]:::endReject --> END_REJECTED((🚫 END: Candidate Rejected)):::endReject
+    END_SHORTLIST(("✅ END: Shortlisted")):::endSuccess
+    END_SUCCESS(("✅ END: Review Complete")):::endSuccess
+    rejected["❌ rejected<br/><i>Terminal Filtered Node</i>"]:::endReject --> END_REJECTED(("🚫 END: Candidate Rejected")):::endReject
 ```
 
 ---
@@ -117,8 +117,8 @@ flowchart TB
         Embeddings["OpenAI text-embedding-3-small<br/><i>1536-Dimensional Vectors</i>"]:::aiStyle
     end
 
-    UI <==>|REST API & WebSockets| API
-    UI <..>|Direct JWT Auth| SupaAuth
+    UI <-->|REST API & WebSockets| API
+    UI <-.->|Direct JWT Auth| SupaAuth
     API -->|Authenticate Token| SupaAuth
     API -->|Enqueue Processing Task| Redis
     Redis <--> ARQ

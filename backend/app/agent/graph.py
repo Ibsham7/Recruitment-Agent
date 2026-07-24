@@ -52,14 +52,12 @@ def route_after_embedding_matcher(state: RecruitmentState) -> str:
     return "jd_matcher"
 
 def route_after_screening(state: RecruitmentState) -> str:
-    """After JD matching: advance to interview, hold, or reject immediately. If interviews are disabled, skip straight to evaluator."""
+    """After JD matching: advance to shortlisted, hold, or reject immediately."""
     if state["pipeline_status"] == "rejected":
         return "rejected"
     if state["pipeline_status"] == "awaiting_human":
         return "human_override"
-    if not state.get("enable_interviews", True):
-        return END
-    return "question_generator"
+    return END
 
 def route_after_interview_turn(state: RecruitmentState) -> str:
     """After each interview question: loop back or move to evaluation."""

@@ -68,7 +68,9 @@ Evaluate this candidate's interview performance.
             report = result["parsed"]
             from app.agent.utils import extract_cost
             total_cost = extract_cost(result)
-            report.chain_of_thought = f"{screening.experience_assessment}\n\n{screening.reasoning_summary}"
+            if not report.interview_score:
+                report.interview_score = report.overall_score
+            report.chain_of_thought = f"Screening Fit Score: {screening.fit_score}/100\nExperience Assessment: {screening.experience_assessment}\n\nInterview Evaluation Summary: {report.summary}"
             break
         except Exception as e:
             print(f"  [Evaluator] Attempt {attempt+1} failed: {e}.")

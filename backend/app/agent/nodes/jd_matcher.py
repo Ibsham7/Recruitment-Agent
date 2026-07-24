@@ -91,7 +91,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
 
     return {
         "screening_result": result,
-        "pipeline_status": "running",
-        "log": [f"Screened: ADVANCE (score={result.fit_score})"],
+        "pipeline_status": "shortlisted",
+        "log": [f"Screened: ADVANCE (score={result.fit_score}) -> Shortlisted for Interview Invitation"],
         "total_cost": cost
     }

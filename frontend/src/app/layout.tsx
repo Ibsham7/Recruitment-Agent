@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
-import { ChevronLeft, Briefcase, BarChart2, Users, Settings, LogOut, ArrowLeft, SlidersHorizontal, Bell, Plus } from "lucide-react";
+import { ChevronLeft, Briefcase, BarChart2, Users, Settings, LogOut, ArrowLeft, SlidersHorizontal, Bell, Plus, Mail } from "lucide-react";
 import { Theme } from "../lib/types";
 import { getGlass, hexToRgba } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
@@ -19,7 +19,8 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
   const G = getGlass(theme);
 
   // In a real app, this would be dynamic
-  const title = location.pathname.includes("/dashboard") ? "Campaigns" :
+  const title = location.pathname.includes("/interviews") ? "Interview Management" :
+    location.pathname.includes("/dashboard") ? "Campaigns" :
     location.pathname.includes("/setup") ? "New Campaign" :
       location.pathname.includes("/candidate") ? "Candidate Review" :
         location.pathname.includes("/pipeline") ? "Pipeline" : "Hireagent";
@@ -65,6 +66,7 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
         <nav className="flex-1 px-2 py-3 space-y-0.5">
           {[
             { icon: <Briefcase size={15} />, label: "Campaigns", active: location.pathname.includes("/dashboard") || location.pathname.includes("/pipeline") || location.pathname.includes("/candidate") || location.pathname.includes("/setup"), fn: () => navigate("/dashboard") },
+            { icon: <Mail size={15} />, label: "Interviews", active: location.pathname.includes("/interviews"), fn: () => navigate("/interviews") },
             { icon: <BarChart2 size={15} />, label: "Analytics", active: location.pathname.includes("/analytics"), fn: () => navigate("/notfound") },
             { icon: <Users size={15} />, label: "Candidates", active: location.pathname.includes("/candidates"), fn: () => navigate("/notfound") },
             { icon: <Settings size={15} />, label: "Settings", active: location.pathname.includes("/settings"), fn: () => navigate("/notfound") },

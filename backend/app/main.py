@@ -9,10 +9,13 @@ from typing import List, Optional
 import uvicorn
 import asyncio
 import os
-from app.agent.api import start_candidate_pipeline, resume_pipeline
+from app.agent.api import start_candidate_pipeline, resume_pipeline, generate_on_demand_questions
 from app.database import prisma
 from app.agent.embeddings import _distill_jd_async, get_embedding_async
 from app.security import verify_jwt
+from app.interview_security import generate_interview_token, verify_interview_token
+from app.services.email_service import send_interview_invitation_email
+import datetime
 from fastapi import Depends
 from arq import create_pool
 from arq.connections import RedisSettings
@@ -280,7 +283,157 @@ async def get_candidate(id: str):
                 q_item = iq[-1]
                 cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
 
+    # Composite score computation (40% screening fitScore + 60% interview overallScore)
+    fit_score = cand_dict.get("fitScore")
+    if fit_score is not None and cand_dict.get("evaluation") and cand_dict["evaluation"].get("overallScore") is not None:
+        interview_score = cand_dict["evaluation"]["overallScore"]
+        cand_dict["compositeScore"] = round((fit_score * 0.4) + (interview_score * 0.6), 1)
+    else:
+        cand_dict["compositeScore"] = fit_score
+
     return cand_dict
+
+class SendInvitationsRequest(BaseModel):
+    candidateIds: List[str]
+
+class StartInterviewRequest(BaseModel):
+    token: str
+    email: str
+    consent: bool
+
+@app.post("/api/interviews/send-invitations")
+async def send_interview_invitations(req: SendInvitationsRequest, user: dict = Depends(verify_jwt)):
+    """Bulk send interview invitation emails with protected cryptographic tokens."""
+    if not req.candidateIds:
+        raise HTTPException(status_code=400, detail="No candidate IDs provided")
+        
+    candidates = await prisma.candidate.find_many(
+        where={"id": {"in": req.candidateIds}},
+        include={"campaign": True}
+    )
+    
+    sent_count = 0
+    now = datetime.datetime.now(datetime.timezone.utc)
+    
+    for cand in candidates:
+        if not cand.email:
+            continue
+            
+        token = generate_interview_token(cand.id, cand.email)
+        interview_url = f"{FRONTEND_URL}/interview/{cand.id}?token={token}"
+        
+        await prisma.candidate.update(
+            where={"id": cand.id},
+            data={
+                "invitationToken": token,
+                "invitedAt": now,
+                "status": "invited"
+            }
+        )
+        
+        campaign_title = cand.campaign.title if cand.campaign else "AI Candidate Assessment"
+        await send_interview_invitation_email(cand.name, cand.email, campaign_title, interview_url)
+        sent_count += 1
+        
+    return {"status": "success", "count": sent_count, "message": f"Sent {sent_count} interview invitation emails."}
+
+@app.get("/api/candidates/{id}/interview-access")
+async def check_interview_access(id: str, token: str):
+    """
+    Verifies that the provided token grants access to candidate's interview.
+    Returns masked info without revealing questions or raw CV.
+    """
+    token_data = verify_interview_token(token)
+    if token_data["candidate_id"] != id:
+        raise HTTPException(status_code=403, detail="Token does not match target candidate")
+        
+    candidate = await prisma.candidate.find_unique(
+        where={"id": id},
+        include={"campaign": True, "evaluation": True}
+    )
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    email = candidate.email or ""
+    masked_email = ""
+    if "@" in email:
+        parts = email.split("@")
+        user_part = parts[0]
+        masked_user = user_part[0] + "***" + (user_part[-1] if len(user_part) > 1 else "")
+        masked_email = f"{masked_user}@{parts[1]}"
+    else:
+        masked_email = "***"
+
+    has_questions = bool(candidate.evaluation and candidate.evaluation.interviewQuestions)
+    
+    return {
+        "valid": True,
+        "candidateId": candidate.id,
+        "candidateName": candidate.name,
+        "campaignTitle": candidate.campaign.title if candidate.campaign else "Assessment",
+        "maskedEmail": masked_email,
+        "status": candidate.status,
+        "hasQuestions": has_questions
+    }
+
+@app.post("/api/candidates/{id}/start-interview")
+async def start_candidate_interview(id: str, req: StartInterviewRequest):
+    """
+    Validates token + matching candidate email + policy consent.
+    Dynamically generates questions on-demand via LLM if not already generated,
+    and advances candidate status to 'interviewing'.
+    """
+    if not req.consent:
+        raise HTTPException(status_code=400, detail="Consent is required to start assessment")
+        
+    token_data = verify_interview_token(req.token)
+    if token_data["candidate_id"] != id:
+        raise HTTPException(status_code=403, detail="Token does not match target candidate")
+        
+    candidate = await prisma.candidate.find_unique(
+        where={"id": id},
+        include={"campaign": True, "evaluation": True}
+    )
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    cand_email = (candidate.email or "").strip().lower()
+    input_email = req.email.strip().lower()
+    
+    if cand_email and cand_email != input_email:
+        raise HTTPException(status_code=403, detail="Specified email does not match the invitation email for this assessment.")
+        
+    await generate_on_demand_questions(id)
+    
+    updated_cand = await get_candidate(id)
+    return updated_cand
+
+@app.get("/api/interviews/candidates")
+async def get_interview_candidates(campaignId: Optional[str] = None, status: Optional[str] = None, user: dict = Depends(verify_jwt)):
+    """Fetch candidates across campaigns specifically for the Interviews management tab."""
+    where_filter: dict = {}
+    if campaignId:
+        where_filter["campaignId"] = campaignId
+    if status:
+        where_filter["status"] = status
+    else:
+        where_filter["status"] = {"in": ["shortlisted", "invited", "interviewing", "review", "complete", "finalized"]}
+        
+    candidates = await prisma.candidate.find_many(
+        where=where_filter,
+        include={"campaign": True, "evaluation": True},
+        order={"updatedAt": "desc"}
+    )
+    
+    result = []
+    for cand in candidates:
+        c_dict = cand.model_dump() if hasattr(cand, "model_dump") else cand.dict()
+        c_dict["campaignTitle"] = cand.campaign.title if cand.campaign else "Unknown Campaign"
+        c_dict["hasQuestions"] = bool(cand.evaluation and cand.evaluation.interviewQuestions)
+        result.append(c_dict)
+        
+    return result
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+

@@ -53,19 +53,28 @@ class InterviewTranscript(BaseModel):
     questions_asked: list[InterviewQuestion] = Field(default_factory=list)
     answers_given: list[str] = Field(default_factory=list)
     current_question_index: int = 0
+    probe_counts: dict[int, int] = Field(default_factory=dict, description="Maps question index to number of probes asked")
 
 class InterviewQuestionList(BaseModel):
     """Wrapper for returning a list of questions via structured output."""
     questions: list[InterviewQuestion]
 
+class CompetencyScore(BaseModel):
+    competency: str
+    score: float = Field(ge=0, le=100)
+    evidence_quote: str = Field(description="Exact verbatim quote from candidate transcript supporting this score")
+    rationale: str
+
 class EvaluationReport(BaseModel):
     """Output of the Evaluator node."""
+    interview_score: float = Field(ge=0, le=100, default=0.0, description="Score based purely on interview Q&A performance")
     overall_score: float = Field(ge=0, le=100)
     communication_score: float = Field(ge=0, le=100)
     technical_score: float = Field(ge=0, le=100)
     cultural_fit_score: float = Field(ge=0, le=100)
+    competency_scores: list[CompetencyScore] = Field(default_factory=list)
     strengths: list[str]
     concerns: list[str]
     chain_of_thought: Optional[str] = Field(default=None, description="Step-by-step reasoning from screening")
     recommendation: str = Field(pattern="^(shortlist|reject|hold)$")
-    summary: str = Field(description="2–3 sentence overall assessment")
+    summary: str = Field(description="2–3 sentence overall assessment")

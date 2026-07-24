@@ -349,3 +349,82 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
             where={"id": candidate_id},
             data={"status": fallback_status}
         )
+
+async def generate_on_demand_questions(candidate_id: str):
+    """
+    On-demand question generation invoked only when a candidate opens their protected link,
+    verifies their email, accepts the policy, and clicks 'Start Assessment'.
+    """
+    candidate = await prisma.candidate.find_unique(
+        where={"id": candidate_id},
+        include={"campaign": True, "resume": True, "evaluation": True}
+    )
+    if not candidate:
+        raise ValueError(f"Candidate {candidate_id} not found")
+        
+    # If questions already generated in evaluation record, return them directly
+    if candidate.evaluation and candidate.evaluation.interviewQuestions:
+        return candidate.evaluation.interviewQuestions
+
+    import json
+    from app.agent.schemas import CandidateProfile, ScreeningResult
+    from app.agent.nodes.question_generator import question_generator_node
+
+    profile_data = candidate.resume.structuredProfile if candidate.resume and candidate.resume.structuredProfile else {}
+    if isinstance(profile_data, str):
+        profile_data = json.loads(profile_data)
+        
+    candidate_profile = CandidateProfile(**profile_data) if profile_data else CandidateProfile(name=candidate.name or "Candidate")
+    
+    screening_result = ScreeningResult(
+        fit_score=candidate.fitScore or 80.0,
+        score_breakdown={},
+        must_have=[],
+        nice_to_have=[],
+        experience_assessment=candidate.evaluation.summary if candidate.evaluation else "",
+        reasoning_summary=candidate.evaluation.summary if candidate.evaluation else "",
+        decision="advance"
+    )
+
+    state = {
+        "candidate_profile": candidate_profile,
+        "screening_result": screening_result,
+        "job_description": candidate.campaign.jobDescription if candidate.campaign else "",
+        "interview_config": candidate.campaign.interviewConfig if candidate.campaign else None
+    }
+
+    res = await question_generator_node(state)
+    questions = res.get("interview_questions", [])
+    
+    questions_json = [q.model_dump() if hasattr(q, "model_dump") else q.dict() for q in questions]
+    
+    # Save to Evaluation table in Prisma
+    if candidate.evaluation:
+        await prisma.evaluation.update(
+            where={"candidateId": candidate_id},
+            data={"interviewQuestions": Json(questions_json)}
+        )
+    else:
+        await prisma.evaluation.create(
+            data={
+                "candidateId": candidate_id,
+                "overallScore": candidate.fitScore or 0.0,
+                "technicalScore": 0.0,
+                "communicationScore": 0.0,
+                "culturalFitScore": 0.0,
+                "recommendation": "shortlist",
+                "summary": "Assessment started",
+                "strengths": [],
+                "concerns": [],
+                "interviewQuestions": Json(questions_json)
+            }
+        )
+
+    # Update candidate status to interviewing
+    await prisma.candidate.update(
+        where={"id": candidate_id},
+        data={"status": "interviewing"}
+    )
+    
+    return questions_json
+
