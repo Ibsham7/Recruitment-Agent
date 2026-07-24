@@ -183,8 +183,6 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     profile_data["raw_cv_text"] = raw_text
     
     # Ensure required fields have defaults
-    if "total_experience_years" not in profile_data:
-        profile_data["total_experience_years"] = 0.0
     if "skills" not in profile_data:
         profile_data["skills"] = []
     if "previous_roles" not in profile_data:
@@ -193,6 +191,14 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         profile_data["education"] = []
     if "projects" not in profile_data:
         profile_data["projects"] = []
+
+    # Apply deterministic TimelineCalculator to merge non-overlapping employment intervals
+    from app.agent.tools.timeline import calculate_total_experience_years
+    llm_exp = profile_data.get("total_experience_years", 0.0)
+    profile_data["total_experience_years"] = calculate_total_experience_years(
+        profile_data.get("previous_roles", []),
+        fallback_years=float(llm_exp) if llm_exp else 0.0
+    )
         
     candidate_profile = CandidateProfile(**profile_data)
 

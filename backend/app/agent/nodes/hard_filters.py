@@ -36,10 +36,10 @@ async def hard_filters_node(state: RecruitmentState) -> dict:
                     failed = True
                     reason = f"Candidate has {profile.total_experience_years} years exp, but {min_exp} is required."
             elif rule_type == "skill":
-                required_skills = [s.strip().lower() for s in str(value).split(",") if s.strip()]
-                profile_skills = [s.lower() for s in profile.skills]
-                missing = [s for s in required_skills if s not in profile_skills]
-                if missing:
+                from app.agent.tools.skills import evaluate_mandatory_skills
+                required_skills = [s.strip() for s in str(value).split(",") if s.strip()]
+                all_passed, missing = evaluate_mandatory_skills(profile.skills, required_skills)
+                if not all_passed:
                     failed = True
                     reason = f"Missing mandatory skill(s): {', '.join(missing)}"
             
