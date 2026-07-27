@@ -32,7 +32,11 @@ export default defineConfig({
   },
 
   build: {
+    target: 'es2020',
+    cssCodeSplit: true,
+    cssMinify: true,
     chunkSizeWarningLimit: 600,
+    assetsInlineLimit: 4096,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -42,7 +46,6 @@ export default defineConfig({
             if (id.includes('motion') || id.includes('gsap')) return 'vendor-animation';
             if (id.includes('lucide-react')) return 'vendor-icons';
             if (id.includes('@mui') || id.includes('@emotion')) return 'vendor-ui';
-            return 'vendor';
           }
         }
       }

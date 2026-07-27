@@ -7,8 +7,8 @@ import { motion } from "motion/react";
 import { FileText, Bot, MessageSquareText, CheckCircle } from "lucide-react";
 import TargetCursor from "../../components/common/TargetCursor";
 import TextType from "../../components/common/TextType";
-const logoLightImg = "/Screenshot_2026-07-10_121453-removebg-preview.png";
-const logoDarkImg = "/Screenshot_2026-07-10_121508-removebg-preview.png";
+const logoLightImg = "/logo-light.webp";
+const logoDarkImg = "/logo-dark.webp";
 
 export default function LandingPage({ theme: t }: { theme: Theme }) {
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
 
         {/* Nav bar — 3-col: logo | PillNav | CTA */}
         <div className="absolute top-0 left-0 right-0 z-10" style={{ height: "72px", display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", padding: "0 2.5rem", gap: "1rem" }}>
-          <img src={t.isDark ? logoDarkImg : logoLightImg} alt="hireagent" className="cursor-target" style={{ width: "148px", height: "48px", objectFit: "contain", objectPosition: "left center" }} />
+          <img src={t.isDark ? logoDarkImg : logoLightImg} alt="hireagent logo" width={148} height={48} decoding="async" fetchpriority="high" className="cursor-target" style={{ width: "148px", height: "48px", objectFit: "contain", objectPosition: "left center" }} />
 
           <PillNav
             containerStyle={{ position: "relative", top: "unset" }}
@@ -145,14 +145,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
         >
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: t.accentBadge, fontFamily: "'DM Mono',monospace" }}>Process</div>
           <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "pre-line" }}>
-            <TextType 
-              as="span"
-              text={"From job post to shortlist.\nNo human bottlenecks."}
-              typingSpeed={25}
-              loop={false}
-              startOnVisible={true}
-              showCursor={false}
-            />
+            From job post to shortlist.{"\n"}No human bottlenecks.
           </h2>
         </motion.div>
 
@@ -260,14 +253,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
         >
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: t.accentBadge, fontFamily: "'DM Mono',monospace" }}>Features</div>
           <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "pre-line" }}>
-            <TextType 
-              as="span"
-              text={"Everything a recruiting team needs.\nNothing it doesn't."}
-              typingSpeed={25}
-              loop={false}
-              startOnVisible={true}
-              showCursor={false}
-            />
+            Everything a recruiting team needs.{"\n"}Nothing it doesn't.
           </h2>
         </motion.div>
 

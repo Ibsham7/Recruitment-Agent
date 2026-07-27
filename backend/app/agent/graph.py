@@ -23,14 +23,9 @@ from app.agent.nodes.evaluator import evaluator_node
 async def human_override_node(state: RecruitmentState) -> dict:
     decision = interrupt("hold_for_review")
     if decision == "override":
-        if not state.get("enable_interviews", True):
-            return {
-                "pipeline_status": "shortlisted",
-                "log": ["Human override: Candidate auto-shortlisted (Interviews disabled)"]
-            }
         return {
-            "pipeline_status": "running",
-            "log": ["Human override: Candidate advanced to interview"]
+            "pipeline_status": "shortlisted",
+            "log": ["Human override: Candidate advanced to shortlist"]
         }
     else:
         return {
@@ -128,8 +123,8 @@ def build_recruitment_graph(checkpointer=None):
     # Conditional: after human override
     builder.add_conditional_edges(
         "human_override",
-        lambda state: "rejected" if state["pipeline_status"] == "rejected" else ("question_generator" if state.get("enable_interviews", True) else END),
-        {"rejected": "rejected", "question_generator": "question_generator", "evaluator": "evaluator", END: END}
+        lambda state: "rejected" if state["pipeline_status"] == "rejected" else END,
+        {"rejected": "rejected", END: END}
     )
 
     builder.add_edge("question_generator", "interviewer")

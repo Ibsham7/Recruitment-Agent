@@ -1,0 +1,21 @@
+{
+  "short_name": "hireagent",
+  "name": "Recruitment Automation Platform",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/logo-light.webp",
+      "type": "image/webp",
+      "sizes": "300x153"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -184,7 +184,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
   }
 
   const allStages: CandidateStage[] = ["pending", "screening", "interviewing", "shortlisted", "review", "complete", "finalized", "rejected"];
-  const stages = campaign.enableInterviews === false ? allStages.filter(s => s !== "interviewing") : allStages;
+  const stages = allStages;
   const progress = campaign.total && campaign.total > 0 ? Math.round(((campaign.processed || 0) / campaign.total) * 100) : 0;
   
   const activeCandidates = candidates

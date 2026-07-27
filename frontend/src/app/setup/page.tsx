@@ -277,23 +277,11 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
             </div>
 
             <div className="rounded-2xl p-5 space-y-4" style={G.card}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>AI Interviews</div>
-                  <div className="text-xs mt-1" style={{ color: t.txtSecondary }}>Enable to automatically conduct chat-based interviews after screening</div>
-                </div>
-                <button onClick={() => setEnableInterviews(!enableInterviews)} className="w-9 h-5 rounded-full relative flex-shrink-0 transition-all"
-                  style={{ background: enableInterviews ? hexToRgba(t.progressFill, 0.65) : hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.30), border: `1px solid ${hexToRgba(t.bgCard, 0.20)}`, boxShadow: enableInterviews ? `0 0 10px ${hexToRgba(t.progressFill, 0.35)}` : "none" }}>
-                  <span className="w-3.5 h-3.5 rounded-full absolute top-[2px] transition-all shadow-sm" style={{ left: enableInterviews ? "19px" : "2px", backgroundColor: enableInterviews ? "#fff" : t.txtGhost }} />
-                </button>
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>Interview Focus & Custom Questions (Optional)</div>
+                <div className="text-xs mt-1 mb-2" style={{ color: t.txtSecondary }}>Specify topics or specific questions for candidate technical interviews on the /interviews portal</div>
+                <textarea value={interviewConfig} onChange={(e) => setInterviewConfig(e.target.value)} rows={3} placeholder="e.g. Ask the candidate to explain their most complex React project. Focus heavily on system design and cultural fit..." className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none resize-none leading-relaxed" style={fieldStyle} />
               </div>
-              
-              {enableInterviews && (
-                <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{ color: t.txtMuted }}>Interview Focus & Custom Questions (Optional)</label>
-                  <textarea value={interviewConfig} onChange={(e) => setInterviewConfig(e.target.value)} rows={3} placeholder="e.g. Ask the candidate to explain their most complex React project. Focus heavily on system design and cultural fit..." className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none resize-none leading-relaxed" style={fieldStyle} />
-                </div>
-              )}
             </div>
 
             <div className="rounded-2xl p-5 space-y-4" style={G.card}>

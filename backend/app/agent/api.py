@@ -205,7 +205,176 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             where={"id": candidate_id},
             data={"status": fallback_status}
         )
+async def process_interview_answer(candidate_id: str, answer_text: str):
+    """
+    Processes candidate answer submission for an active interview session.
+    Updates interview transcript, handles adaptive probing, and triggers evaluator node
+    when all questions are completed.
+    """
+    candidate = await prisma.candidate.find_unique(
+        where={"id": candidate_id},
+        include={"campaign": True, "resume": True, "evaluation": True}
+    )
+    if not candidate or not candidate.evaluation:
+        print(f"[Interview] Candidate {candidate_id} or evaluation not found")
+        return
+
+    import json
+    from datetime import datetime
+    now_str = datetime.now().strftime("%I:%M %p")
+
+    raw_questions = candidate.evaluation.interviewQuestions or []
+    if isinstance(raw_questions, str):
+        raw_questions = json.loads(raw_questions)
+
+    raw_transcript = candidate.evaluation.interviewTranscript or []
+    if isinstance(raw_transcript, str):
+        raw_transcript = json.loads(raw_transcript)
+    transcript_list = list(raw_transcript)
+
+    # Filter AI questions asked so far
+    ai_turns = [t for t in transcript_list if isinstance(t, dict) and t.get("role") in ["ai", "interviewer"]]
+    curr_q_idx = len(ai_turns)
+
+    # Ensure the first AI question turn is recorded if transcript is empty
+    if len(transcript_list) == 0 and len(raw_questions) > 0:
+        first_q = raw_questions[0]
+        q_text = first_q.get("question") if isinstance(first_q, dict) else str(first_q)
+        transcript_list.append({"role": "ai", "message": q_text, "time": now_str})
+        ai_turns = [transcript_list[0]]
+        curr_q_idx = 1
+
+    # Record candidate answer
+    transcript_list.append({"role": "candidate", "message": answer_text, "time": now_str})
+
+    # Check for adaptive probing: if answer is short (< 20 words) and probe not asked for this question yet
+    words = answer_text.strip().split()
+    probe_already_asked = False
+    if len(transcript_list) >= 3:
+        prev_turn = transcript_list[-3]
+        if isinstance(prev_turn, dict) and "[Follow-up]" in prev_turn.get("message", ""):
+            probe_already_asked = True
+
+    if len(words) < 20 and not probe_already_asked and curr_q_idx <= len(raw_questions):
+        current_q_obj = raw_questions[curr_q_idx - 1] if curr_q_idx - 1 < len(raw_questions) else raw_questions[-1]
+        q_text = current_q_obj.get("question") if isinstance(current_q_obj, dict) else str(current_q_obj)
+        
+        from app.agent.nodes.interviewer import generate_followup_probe
+        probe_question = await generate_followup_probe(q_text, answer_text)
+        
+        transcript_list.append({
+            "role": "ai",
+            "message": f"[Follow-up] {probe_question}",
+            "time": now_str
+        })
+        
+        await prisma.evaluation.update(
+            where={"candidateId": candidate_id},
+            data={"interviewTranscript": Json(transcript_list)}
+        )
+        return
+
+    # If next question exists, ask next question
+    if curr_q_idx < len(raw_questions):
+        next_q_obj = raw_questions[curr_q_idx]
+        next_q_text = next_q_obj.get("question") if isinstance(next_q_obj, dict) else str(next_q_obj)
+        transcript_list.append({
+            "role": "ai",
+            "message": next_q_text,
+            "time": now_str
+        })
+        await prisma.evaluation.update(
+            where={"candidateId": candidate_id},
+            data={"interviewTranscript": Json(transcript_list)}
+        )
+        return
+
+    # All questions answered! Run Evaluator Node
+    await prisma.evaluation.update(
+        where={"candidateId": candidate_id},
+        data={"interviewTranscript": Json(transcript_list)}
+    )
+
+    from app.agent.schemas import CandidateProfile, ScreeningResult, ScoreBreakdown, InterviewTranscript, InterviewQuestion
+    profile_data = candidate.resume.structuredProfile if candidate.resume and candidate.resume.structuredProfile else {}
+    if isinstance(profile_data, str):
+        profile_data = json.loads(profile_data)
+    candidate_profile = CandidateProfile(**profile_data) if profile_data else CandidateProfile(name=candidate.name or "Candidate")
+
+    fit_score_val = int(round(candidate.fitScore)) if candidate.fitScore is not None else 0
+    screening_result = ScreeningResult(
+        fit_score=fit_score_val,
+        score_breakdown=ScoreBreakdown(
+            required_skills_score=fit_score_val,
+            experience_score=fit_score_val,
+            nice_to_have_score=fit_score_val,
+            trajectory_score=fit_score_val,
+        ),
+        must_have=[],
+        nice_to_have=[],
+        experience_assessment=candidate.evaluation.summary or "",
+        reasoning_summary=candidate.evaluation.summary or "",
+        decision="advance"
+    )
+
+    questions_asked = []
+    answers_given = []
+    temp_q = None
+    for turn in transcript_list:
+        if turn.get("role") in ["ai", "interviewer"]:
+            temp_q = turn.get("message", "")
+        elif turn.get("role") == "candidate" and temp_q:
+            questions_asked.append(InterviewQuestion(question=temp_q, category="Technical", what_to_look_for="Relevance and technical depth"))
+            answers_given.append(turn.get("message", ""))
+            temp_q = None
+
+    it_obj = InterviewTranscript(
+        questions_asked=questions_asked,
+        answers_given=answers_given,
+        current_question_index=len(questions_asked)
+    )
+
+    eval_state = {
+        "candidate_profile": candidate_profile,
+        "screening_result": screening_result,
+        "job_description": candidate.campaign.jobDescription if candidate.campaign else "",
+        "interview_transcript": it_obj,
+        "jd_matcher_prompt_variant": candidate.campaign.evaluationStrictness if candidate.campaign else "moderate"
+    }
+
+    from app.agent.nodes.evaluator import evaluator_node
+    eval_res = await evaluator_node(eval_state)
+    report = eval_res.get("evaluation_report")
+
+    if report:
+        await prisma.evaluation.update(
+            where={"candidateId": candidate_id},
+            data={
+                "overallScore": report.overall_score,
+                "technicalScore": report.technical_score,
+                "communicationScore": report.communication_score,
+                "culturalFitScore": report.cultural_fit_score,
+                "recommendation": report.recommendation,
+                "summary": report.summary,
+                "strengths": report.strengths,
+                "concerns": report.concerns,
+                "chainOfThought": report.chain_of_thought,
+            }
+        )
+        await prisma.candidate.update(
+            where={"id": candidate_id},
+            data={
+                "status": "review",
+                "apiCost": candidate.apiCost + eval_res.get("total_cost", 0.0)
+            }
+        )
+
 async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None):
+    candidate = await prisma.candidate.find_unique(where={"id": candidate_id})
+    if candidate and candidate.status == "interviewing":
+        await process_interview_answer(candidate_id, str(resume_data))
+        return
+
     from langgraph.types import Command
     import os
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -367,7 +536,7 @@ async def generate_on_demand_questions(candidate_id: str):
         return candidate.evaluation.interviewQuestions
 
     import json
-    from app.agent.schemas import CandidateProfile, ScreeningResult
+    from app.agent.schemas import CandidateProfile, ScreeningResult, ScoreBreakdown
     from app.agent.nodes.question_generator import question_generator_node
 
     profile_data = candidate.resume.structuredProfile if candidate.resume and candidate.resume.structuredProfile else {}
@@ -376,9 +545,16 @@ async def generate_on_demand_questions(candidate_id: str):
         
     candidate_profile = CandidateProfile(**profile_data) if profile_data else CandidateProfile(name=candidate.name or "Candidate")
     
+    fit_score_val = int(round(candidate.fitScore)) if candidate.fitScore is not None else 0
+
     screening_result = ScreeningResult(
-        fit_score=candidate.fitScore or 80.0,
-        score_breakdown={},
+        fit_score=fit_score_val,
+        score_breakdown=ScoreBreakdown(
+            required_skills_score=fit_score_val,
+            experience_score=fit_score_val,
+            nice_to_have_score=fit_score_val,
+            trajectory_score=fit_score_val,
+        ),
         must_have=[],
         nice_to_have=[],
         experience_assessment=candidate.evaluation.summary if candidate.evaluation else "",
@@ -398,11 +574,20 @@ async def generate_on_demand_questions(candidate_id: str):
     
     questions_json = [q.model_dump() if hasattr(q, "model_dump") else q.dict() for q in questions]
     
+    initial_transcript = []
+    if questions_json:
+        q1_text = questions_json[0].get("question") if isinstance(questions_json[0], dict) else str(questions_json[0])
+        from datetime import datetime
+        initial_transcript = [{"role": "ai", "message": q1_text, "time": datetime.now().strftime("%I:%M %p")}]
+
     # Save to Evaluation table in Prisma
     if candidate.evaluation:
         await prisma.evaluation.update(
             where={"candidateId": candidate_id},
-            data={"interviewQuestions": Json(questions_json)}
+            data={
+                "interviewQuestions": Json(questions_json),
+                "interviewTranscript": Json(initial_transcript)
+            }
         )
     else:
         await prisma.evaluation.create(
@@ -416,7 +601,8 @@ async def generate_on_demand_questions(candidate_id: str):
                 "summary": "Assessment started",
                 "strengths": [],
                 "concerns": [],
-                "interviewQuestions": Json(questions_json)
+                "interviewQuestions": Json(questions_json),
+                "interviewTranscript": Json(initial_transcript)
             }
         )
 

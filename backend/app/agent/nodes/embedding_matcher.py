@@ -137,7 +137,7 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     else:
         # Batch mode: we let everyone pass this node, but record their score.
         # batch_run.py will later filter the top N%.
-        print("  ℹ Batch mode active. Score recorded.")
+        print("  [INFO] Batch mode active. Score recorded.")
         return {
             "semantic_score": similarity,
             "log": logs + [f"Embedding calculated (score {similarity:.2f}). Waiting for batch filter."]

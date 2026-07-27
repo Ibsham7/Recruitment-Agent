@@ -9,6 +9,16 @@ from typing import List, Optional
 import uvicorn
 import asyncio
 import os
+import sys
+
+# Ensure stdout and stderr handle UTF-8 cleanly on Windows standard console
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except Exception:
+        pass
+
 from app.agent.api import start_candidate_pipeline, resume_pipeline, generate_on_demand_questions
 from app.database import prisma
 from app.agent.embeddings import _distill_jd_async, get_embedding_async
@@ -274,22 +284,22 @@ async def get_candidate(id: str):
         iq = cand_dict["evaluation"]["interviewQuestions"]
         if isinstance(iq, list) and len(iq) > 0:
             transcript = cand_dict["evaluation"].get("interviewTranscript") or []
-            ai_turns = [t for t in transcript if isinstance(t, dict) and t.get("role") in ["ai", "interviewer"]]
-            curr_idx = len(ai_turns)
-            if curr_idx < len(iq):
-                q_item = iq[curr_idx]
-                cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
+            if isinstance(transcript, list) and len(transcript) > 0:
+                last_turn = transcript[-1]
+                if isinstance(last_turn, dict) and last_turn.get("role") in ["ai", "interviewer"]:
+                    cand_dict["currentQuestion"] = last_turn.get("message")
+                else:
+                    ai_turns = [t for t in transcript if isinstance(t, dict) and t.get("role") in ["ai", "interviewer"]]
+                    curr_idx = len(ai_turns)
+                    if curr_idx < len(iq):
+                        q_item = iq[curr_idx]
+                        cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
+                    else:
+                        q_item = iq[-1]
+                        cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
             else:
-                q_item = iq[-1]
+                q_item = iq[0]
                 cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
-
-    # Composite score computation (40% screening fitScore + 60% interview overallScore)
-    fit_score = cand_dict.get("fitScore")
-    if fit_score is not None and cand_dict.get("evaluation") and cand_dict["evaluation"].get("overallScore") is not None:
-        interview_score = cand_dict["evaluation"]["overallScore"]
-        cand_dict["compositeScore"] = round((fit_score * 0.4) + (interview_score * 0.6), 1)
-    else:
-        cand_dict["compositeScore"] = fit_score
 
     return cand_dict
 

@@ -30,11 +30,11 @@ The **Recruitment Agent** is an end-to-end recruitment platform powered by **Lan
 
 ---
 
-## 🏗️ System Architecture & Workflow
+## 🏗️ System Architecture & Decoupled Workflows
 
-The platform operates as a state machine where candidate resumes pass sequentially through 8 specialized nodes. Candidates can be rejected, held for human recruiter intervention, or advanced to automated technical and behavioral Q&A interviews.
+The platform is engineered around **two completely decoupled, autonomous workflows**:
 
-### 1. LangGraph State Machine Flow
+### 1. Dual Autonomous Workflow Topology
 
 ```mermaid
 graph TD
@@ -43,39 +43,28 @@ graph TD
     classDef ruleNode fill:#7C3AED,stroke:#6D28D9,stroke-width:2px,color:#ffffff;
     classDef vectorNode fill:#0891B2,stroke:#0E7490,stroke-width:2px,color:#ffffff;
     classDef llmNode fill:#D97706,stroke:#B45309,stroke-width:2px,color:#ffffff;
-    classDef pauseNode fill:#DB2777,stroke:#BE185D,stroke-width:2px,color:#ffffff,font-weight:bold;
     classDef smartNode fill:#4F46E5,stroke:#4338CA,stroke-width:2px,color:#ffffff;
     classDef endSuccess fill:#059669,stroke:#047857,stroke-width:2px,color:#ffffff,font-weight:bold;
     classDef endReject fill:#DC2626,stroke:#B91C1C,stroke-width:2px,color:#ffffff,font-weight:bold;
 
-    START(("🚀 START: CV Upload")):::startNode --> cv_parser
+    subgraph WF1 ["Workflow 1: JD Screening Engine (/pipeline)"]
+        START1(("🚀 CV Upload")):::startNode --> cv_parser
+        cv_parser["1. 📄 cv_parser<br/><i>PyPDF + Vision OCR Fallback + SHA-256 Cache</i>"]:::parseNode --> hard_filters
+        hard_filters["2. ⚡ hard_filters<br/><i>Zero-Cost Python Rule Checks</i>"]:::ruleNode -->|Passed| embedding_matcher
+        hard_filters -->|Rejected| rejected
+        embedding_matcher["3. 🧬 embedding_matcher<br/><i>text-embedding-3-small + pgvector(1536)</i>"]:::vectorNode -->|Passed| jd_matcher
+        embedding_matcher -->|Rejected| rejected
+        jd_matcher["4. 🎯 jd_matcher<br/><i>Gemini Flash Fit Scoring (0-100)</i>"]:::llmNode -->|Shortlisted| END_SHORTLIST(("✅ Shortlisted (fitScore)")):::endSuccess
+        jd_matcher -->|Rejected| rejected
+        rejected["❌ rejected<br/><i>Terminal Screening Node</i>"]:::endReject --> END_REJECTED(("🚫 Rejected")):::endReject
+    end
 
-    cv_parser["1. 📄 cv_parser<br/><i>PyPDF + Vision OCR Fallback + SHA-256 Cache</i>"]:::parseNode --> hard_filters
-
-    hard_filters["2. ⚡ hard_filters<br/><i>Zero-Cost Python Rule Check</i>"]:::ruleNode -->|Passed| embedding_matcher
-    hard_filters -->|Rejected| rejected
-
-    embedding_matcher["3. 🧬 embedding_matcher<br/><i>text-embedding-3-small + pgvector(1536)</i>"]:::vectorNode -->|Passed| jd_matcher
-    embedding_matcher -->|Rejected| rejected
-
-    jd_matcher["4. 🎯 jd_matcher<br/><i>Gemini Flash Fit Scoring (0-100)</i>"]:::llmNode -->|Advance & Interviews On| question_generator
-    jd_matcher -->|Advance & Interviews Off| END_SHORTLIST
-    jd_matcher -->|Hold Score| human_override
-    jd_matcher -->|Reject Score| rejected
-
-    human_override["5. ⏸️ human_override<br/><i>interrupt('hold_for_review')</i>"]:::pauseNode -->|Approve / Override| question_generator
-    human_override -->|Reject| rejected
-
-    question_generator["6. ❓ question_generator<br/><i>Tailored 3-Question Generation</i>"]:::llmNode --> interviewer
-
-    interviewer["7. 💬 interviewer<br/><i>Turn-by-Turn Candidate Q&A Loop</i>"]:::llmNode -->|Next Turn| interviewer
-    interviewer -->|Interview Complete| evaluator
-
-    evaluator["8. 🧠 evaluator<br/><i>Claude Sonnet 4-Score Transcript Review</i>"]:::smartNode --> END_SUCCESS
-
-    END_SHORTLIST(("✅ END: Shortlisted")):::endSuccess
-    END_SUCCESS(("✅ END: Review Complete")):::endSuccess
-    rejected["❌ rejected<br/><i>Terminal Filtered Node</i>"]:::endReject --> END_REJECTED(("🚫 END: Candidate Rejected")):::endReject
+    subgraph WF2 ["Workflow 2: Technical Interview Engine (/interviews)"]
+        START2(("📩 Token Access")):::startNode --> question_generator
+        question_generator["5. ❓ question_generator<br/><i>On-Demand Tailored Technical Questions</i>"]:::llmNode --> interviewer
+        interviewer["6. 💬 process_interview_turn<br/><i>Turn-by-Turn Q&A Loop + Adaptive Probing</i>"]:::llmNode -->|Completed| evaluator
+        evaluator["7. 🧠 evaluator<br/><i>Multi-Score Transcript Review (Tech, Comms, Culture)</i>"]:::smartNode --> END_INTERVIEW(("✅ Assessment Complete")):::endSuccess
+    end
 ```
 
 ---
@@ -140,11 +129,10 @@ flowchart TB
 | **1** | **`cv_parser`** | `google/gemini-3.1-flash-lite` + PyMuPDF | Extracts structured JSON (Experience, Skills, Education, Roles) from PDF resumes. If text extraction yields $<50$ characters, triggers Vision OCR fallback. Uses **SHA-256 cryptographic deduplication** against the `Resume` database table to bypass LLM parsing on identical resumes. |
 | **2** | **`hard_filters`** | Zero-Cost Python Rule Check | Compares structured profile attributes against mandatory campaign rules (e.g., minimum years of experience, mandatory tech stack). Rejects unqualified candidates at **$0.00 cost**. |
 | **3** | **`embedding_matcher`** | `text-embedding-3-small` + `pgvector` | Computes semantic similarity between candidate resume summary and distilled Job Description (JD). Leverages native PostgreSQL `pgvector(1536)` cosine distance (`<=>`) queries. Rejects candidates failing minimum vector threshold. |
-| **4** | **`jd_matcher`** | `google/gemini-3.1-flash-lite` | Conducts fast-tier LLM screening against full JD with prompt caching. Generates fit score ($0-100$) and recommendation (`advance`, `hold`, `reject`). |
-| **5** | **`human_override`** | LangGraph `interrupt()` | Pauses the state machine execution graph when candidates receive a `hold` score. Pauses execution until recruiter reviews candidate via dashboard. |
-| **6** | **`question_generator`** | `google/gemini-3.1-flash-lite` | Formulates bounded set of 3 technical, behavioral, and situational questions tailored specifically to candidate weak spots and campaign criteria. |
-| **7** | **`interviewer`** | Asynchronous REST Loop + `interrupt()` | Conducts interactive turn-by-turn interview with candidate over web UI, persisting transcript turns incrementally into database. |
-| **8** | **`evaluator`** | `anthropic/claude-sonnet-4-6` | Frontier model performs final deep review of full interview transcript. Evaluates candidate across 4 dimensions: Technical, Communication, Cultural Fit, and Overall Score with Chain-of-Thought (CoT) reasoning. |
+| **4** | **`jd_matcher`** | `google/gemini-3.1-flash-lite` | Conducts fast-tier LLM screening against full JD with prompt caching. Generates **JD Fit Score ($0-100$)** and recommendation. Shortlists qualified candidates. |
+| **5** | **`question_generator`** | `google/gemini-3.1-flash-lite` | Formulates bounded set of 3-5 technical questions tailored specifically to candidate CV gaps and job requirements when candidate accesses interview portal. |
+| **6** | **`process_interview_turn`** | DB-Persisted Q&A Handler | Executes turn-by-turn written interview with candidate over web UI, generating bounded adaptive follow-up probes for short answers (<20 words) and persisting turns in database. |
+| **7** | **`evaluator`** | `anthropic/claude-sonnet-4-6` | Frontier model performs final deep review of full interview transcript. Evaluates candidate across 4 separate dimensions: Technical (0-100), Communication (0-100), Cultural Fit (0-100), and Overall Interview Score. |
 
 ---
 

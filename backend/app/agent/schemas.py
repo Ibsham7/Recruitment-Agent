@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, Literal
 from datetime import datetime
 
 class CandidateProfileOutput(BaseModel):
@@ -20,28 +20,40 @@ class CandidateProfile(CandidateProfileOutput):
     """Full candidate profile including the raw text, kept for later nodes."""
     raw_cv_text: str = Field(default="", description="Full extracted text, kept for later nodes")
 
-from typing import Literal
-
 class RequirementMatch(BaseModel):
     requirement: str
     match: Literal["full", "partial", "none"]
     evidence: str = Field(description="max 15 words")
 
 class ScoreBreakdown(BaseModel):
-    required_skills_score: int = Field(ge=0, le=100)
-    experience_score: int = Field(ge=0, le=100)
-    nice_to_have_score: int = Field(ge=0, le=100)
-    trajectory_score: int = Field(ge=0, le=100)
+    required_skills_score: int = Field(default=0, ge=0, le=100)
+    experience_score: int = Field(default=0, ge=0, le=100)
+    nice_to_have_score: int = Field(default=0, ge=0, le=100)
+    trajectory_score: int = Field(default=0, ge=0, le=100)
+
+    @field_validator("required_skills_score", "experience_score", "nice_to_have_score", "trajectory_score", mode="before")
+    @classmethod
+    def convert_sub_scores(cls, v):
+        if isinstance(v, (float, int)):
+            return int(round(v))
+        return v
 
 class ScreeningResult(BaseModel):
     """Output of the JD Matcher LLM."""
-    must_have: list[RequirementMatch]
-    nice_to_have: list[RequirementMatch]
-    experience_assessment: str = Field(description="1-2 sentences: required vs. directly relevant experience, and how any gap was weighted (not zeroed)")
-    score_breakdown: ScoreBreakdown
-    fit_score: int = Field(description="A score out of 100 representing how well the candidate matches the job description.")
-    decision: Literal["advance", "reject", "hold"]
-    reasoning_summary: str = Field(description="2-3 sentence justification")
+    must_have: list[RequirementMatch] = Field(default_factory=list)
+    nice_to_have: list[RequirementMatch] = Field(default_factory=list)
+    experience_assessment: str = Field(default="", description="1-2 sentences: required vs. directly relevant experience, and how any gap was weighted (not zeroed)")
+    score_breakdown: ScoreBreakdown = Field(default_factory=ScoreBreakdown)
+    fit_score: int = Field(default=0, description="A score out of 100 representing how well the candidate matches the job description.")
+    decision: Literal["advance", "reject", "hold"] = Field(default="advance")
+    reasoning_summary: str = Field(default="", description="2-3 sentence justification")
+
+    @field_validator("fit_score", mode="before")
+    @classmethod
+    def convert_fit_score(cls, v):
+        if isinstance(v, (float, int)):
+            return int(round(v))
+        return v
 
 class InterviewQuestion(BaseModel):
     question: str

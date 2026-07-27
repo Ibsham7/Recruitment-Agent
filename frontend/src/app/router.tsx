@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { createBrowserRouter, RouterProvider, useNavigate } from "react-router";
 import { Theme } from "../lib/types";
-import { PRESETS } from "../lib/theme";
+import { PRESETS, loadSavedTheme, saveTheme } from "../lib/theme";
 import { AuthProvider, useAuth } from "../lib/AuthContext";
 
 // Pages (Lazy loaded for code splitting)
@@ -40,14 +40,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function AppRouter() {
-  const [theme, setTheme] = useState<Theme>(PRESETS[4]);
+  const [theme, setTheme] = useState<Theme>(loadSavedTheme);
+
+  useEffect(() => {
+    saveTheme(theme);
+  }, [theme]);
+
 
   const router = createBrowserRouter([
     {
       path: "/",
       element: (
-        <Suspense fallback={<PageLoader theme={theme} />}>
-          <LandingPage theme={theme} />
+        <Suspense fallback={<PageLoader theme={PRESETS[4]} />}>
+          <LandingPage theme={PRESETS[4]} />
         </Suspense>
       ),
     },

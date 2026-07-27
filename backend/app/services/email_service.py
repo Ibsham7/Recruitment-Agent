@@ -108,5 +108,5 @@ async def send_interview_invitation_email(
 
     # 3. Dev Fallback: Log email details cleanly to terminal / logs
     log_event("EMAIL_SERVICE", "mock_email", f"[INVITATION EMAIL SENT - DEV MOCK] To: {candidate_name} <{candidate_email}> - Access URL: {interview_url}")
-    print(f"\n💌 [DEV MOCK EMAIL] Sent to {candidate_name} ({candidate_email}): {interview_url}\n")
+    print(f"\n[DEV MOCK EMAIL] Sent to {candidate_name} ({candidate_email}): {interview_url}\n")
     return True

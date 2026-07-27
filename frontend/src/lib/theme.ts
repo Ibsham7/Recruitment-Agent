@@ -104,13 +104,13 @@ export const PRESETS: Theme[] = [
     txtPrimary: "#955d0f", txtBody: "#121221",   txtSecondary: "#44445A",
     txtMuted: "#747480",   txtGhost: "#ca974e",
     numHero: "#120e48",   numPos: "#18582E",    numMid: "#784410",  numNeg: "#880A22",
-    accentPrimary: "#0679e5", accentText: "#FAF8F2", accentBadge: "#880A22", progressFill: "#18582E",
+    accentPrimary: "#000080", accentText: "#FFFFFF", accentBadge: "#880A22", progressFill: "#18582E",
     darkVariant: {
       bgPage: "#17140d", bgCard: "#FFFFFF", bgSurface: "#201c13",
       txtPrimary: "#e8a030", txtBody: "#f0ece3", txtSecondary: "#c4baa8",
       txtMuted: "#807260",   txtGhost: "#524338",
       numHero: "#7080e8", numPos: "#50b870", numMid: "#d89040", numNeg: "#e85068",
-      accentPrimary: "#3a9aff", accentText: "#FAF8F2", accentBadge: "#e85068", progressFill: "#50b870",
+      accentPrimary: "#000080", accentText: "#FFFFFF", accentBadge: "#e85068", progressFill: "#50b870",
     },
   },
   {
@@ -123,3 +123,31 @@ export const PRESETS: Theme[] = [
     accentPrimary: "#0080CC", accentText: "#FFFFFF", accentBadge: "#00B8FF", progressFill: "#00D870",
   },
 ];
+
+export const THEME_STORAGE_KEY = "hireagent_theme";
+
+export function loadSavedTheme(): Theme {
+  if (typeof window === "undefined") return PRESETS[4];
+  try {
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && typeof parsed.name === "string" && typeof parsed.bgPage === "string") {
+        return parsed as Theme;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load theme from localStorage:", err);
+  }
+  return PRESETS[4];
+}
+
+export function saveTheme(theme: Theme): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(theme));
+  } catch (err) {
+    console.error("Failed to save theme to localStorage:", err);
+  }
+}
+
