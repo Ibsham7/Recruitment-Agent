@@ -54,18 +54,23 @@ Evaluate this candidate's interview performance.
     eval_mode = state.get("jd_matcher_prompt_variant") or "default"
     system_prompt = EVALUATOR_PROMPTS.get(eval_mode, EVALUATOR_PROMPTS["default"])
 
-    model = get_model("smart")
-    structured_model = model.with_structured_output(EvaluationReport, method="json_schema", include_raw=True)
     max_retries = 3
     report = None
     total_cost = 0.0
     for attempt in range(max_retries):
+        max_tokens = 4000 if attempt == 0 else 8000
+        model = get_model("smart", max_tokens=max_tokens)
+        structured_model = model.with_structured_output(EvaluationReport, method="json_schema", include_raw=True)
         try:
             result = await structured_model.ainvoke([
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=prompt)
             ])
-            report = result["parsed"]
+            parsed_res = result.get("parsed") if isinstance(result, dict) else None
+            if not parsed_res:
+                err = result.get("parsing_error") if isinstance(result, dict) else None
+                raise ValueError(f"Failed to parse EvaluationReport: {err or 'LLM output was truncated or unparseable'}")
+            report = parsed_res
             from app.agent.utils import extract_cost
             total_cost = extract_cost(result)
             if not report.interview_score:

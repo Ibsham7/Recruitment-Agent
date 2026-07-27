@@ -22,33 +22,38 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     base_prompt = JD_MATCHER_PROMPTS.get(eval_mode, JD_MATCHER_PROMPTS["default"])
     system_prompt = base_prompt + f"\n\nJOB DESCRIPTION:\n{jd}"
 
-    # Send the full structured profile, including raw_cv_text so the LLM can extract additional details
+    # Include profile dict with raw_cv_text capped at 2000 chars to ensure accurate scoring without token bloat
     profile_dict = profile.model_dump()
+    raw_cv = profile_dict.get("raw_cv_text", "")
+    if len(raw_cv) > 2000:
+        profile_dict["raw_cv_text"] = raw_cv[:2000] + "... [truncated]"
     
     max_retries = 3
-    result = None
-    cost = 0.0
     
-    async def invoke_model(tier, system_prompt, human_content):
-        m = get_model(tier, max_tokens=4000)
+    async def invoke_model(tier, system_prompt, candidate_dict):
+        # Keep strictly on 'fast' tier with max_tokens=None for ultra low cost (~$0.0003) and no output truncation
+        m = get_model(tier, max_tokens=None)
         sm = m.with_structured_output(ScreeningResult, method="json_schema", include_raw=True)
+        human_content = f"CANDIDATE PROFILE (JSON):\n{json.dumps(candidate_dict, indent=2)}"
+        
         for attempt in range(max_retries):
             try:
                 response = await sm.ainvoke([
                     SystemMessage(content=system_prompt),
                     HumanMessage(content=human_content)
                 ])
-                r = response["parsed"]
+                r = response.get("parsed") if isinstance(response, dict) else None
+                if not r:
+                    parsing_err = response.get("parsing_error") if isinstance(response, dict) else None
+                    raise ValueError(f"Failed to parse ScreeningResult: {parsing_err or 'LLM output was truncated or unparseable'}")
                 c = extract_cost(response)
-                
                 return r, c
             except Exception as e:
-                print(f"  [JD Matcher] Attempt {attempt+1} failed: {e}.")
+                print(f"  [JD Matcher] Attempt {attempt+1} ({tier}) failed: {e}.")
                 if attempt == max_retries - 1:
                     raise RuntimeError(f"Failed to evaluate candidate against JD after {max_retries} attempts: {e}")
                     
-    human_content = f"CANDIDATE PROFILE (JSON):\n{json.dumps(profile_dict, indent=2)}"
-    result, cost = await invoke_model("fast", system_prompt, human_content)
+    result, cost = await invoke_model("fast", system_prompt, profile_dict)
     
     # Calculate final weighted score, penalty deductions, and decision deterministically
     from app.agent.tools.scoring import calculate_weighted_fit_score

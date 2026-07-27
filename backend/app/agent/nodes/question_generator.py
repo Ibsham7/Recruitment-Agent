@@ -40,23 +40,27 @@ Missing requirements identified during screening: {', '.join(missing_reqs)}
 
     prompt += "\nGenerate 3 targeted interview questions for this specific candidate.\n"
 
-    model = get_model("fast")
-    structured_model = model.with_structured_output(InterviewQuestionList, method="json_schema", include_raw=True)
     max_retries = 3
     questions = []
     total_cost = 0.0
     for attempt in range(max_retries):
+        model = get_model("fast", max_tokens=None)
+        structured_model = model.with_structured_output(InterviewQuestionList, method="json_schema", include_raw=True)
         try:
             result = await structured_model.ainvoke([
                 SystemMessage(content=QUESTION_GEN_SYSTEM),
                 HumanMessage(content=prompt)
             ])
-            questions = result["parsed"].questions
+            parsed_res = result.get("parsed") if isinstance(result, dict) else None
+            if not parsed_res:
+                err = result.get("parsing_error") if isinstance(result, dict) else None
+                raise ValueError(f"Failed to parse InterviewQuestionList: {err or 'LLM output was truncated or unparseable'}")
+            questions = parsed_res.questions
             from app.agent.utils import extract_cost
             total_cost = extract_cost(result)
             break
         except Exception as e:
-            print(f"  [Question Gen] Attempt {attempt+1} failed: {e}.")
+            print(f"  [Question Gen] Attempt {attempt+1} (fast) failed: {e}.")
             if attempt == max_retries - 1:
                 print(f"  [Question Gen] All {max_retries} attempts failed. Falling back to default questions.")
                 questions = [

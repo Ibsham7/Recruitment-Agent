@@ -23,11 +23,9 @@ def get_model(tier: str = "smart", max_tokens: int = None) -> ChatOpenAI:
     fast   → google/gemini-2.5-flash-lite: Using a non-reasoning, cost-effective model for fast and bulk extraction tasks.
     """
     kwargs = {"seed": 42, "top_p": 0.01}
-    # Disable internal reasoning tokens for routine tasks to save costs, but keep for evaluations
     if tier != "smart":
         kwargs["extra_body"] = {"include_reasoning": False}
-        kwargs["max_tokens"] = max_tokens if max_tokens is not None else 2000  # Default 2000 unless overridden
-    elif max_tokens is not None:
+    if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
         
     return ChatOpenAI(

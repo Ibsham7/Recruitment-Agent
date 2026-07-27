@@ -158,22 +158,26 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         profile_data = pre_parsed_profile
     else:
         # Not found, parse via LLM
-        model = get_model("fast")
-        structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
         max_retries = 3
         profile_data = None
         for attempt in range(max_retries):
+            model = get_model("fast", max_tokens=None)
+            structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
             try:
                 result = await structured_model.ainvoke([
                     SystemMessage(content=CV_PARSER_SYSTEM),
                     HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
                 ])
+                parsed_res = result.get("parsed") if isinstance(result, dict) else None
+                if not parsed_res:
+                    err = result.get("parsing_error") if isinstance(result, dict) else None
+                    raise ValueError(f"Failed to parse CandidateProfileOutput: {err or 'LLM output was truncated or unparseable'}")
                 from app.agent.utils import extract_cost
                 total_cost += extract_cost(result)
-                profile_data = result["parsed"].model_dump()
+                profile_data = parsed_res.model_dump()
                 break
             except Exception as e:
-                print(f"  [CV Parser] Attempt {attempt+1} failed: {e}.")
+                print(f"  [CV Parser] Attempt {attempt+1} (fast) failed: {e}.")
                 if attempt == max_retries - 1:
                     raise RuntimeError(f"Failed to parse CV after {max_retries} attempts due to LLM failure: {e}")
     
