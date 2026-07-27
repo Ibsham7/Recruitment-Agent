@@ -1,10 +1,38 @@
 import asyncio
+import os
+import contextlib
+from urllib.parse import urlparse, urlunparse
 from typing import Any, cast
+from psycopg import AsyncConnection
+from psycopg.rows import dict_row
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
 from app.database import prisma
 from prisma import Json
 from .graph import build_recruitment_graph
 from app.dev_logger import log_event, log_error
 from app.agent.state import RecruitmentState
+
+@contextlib.asynccontextmanager
+async def get_checkpointer(cp=None):
+    if cp:
+        yield cp
+    else:
+        raw_db_url = os.environ.get("DATABASE_URL") or os.environ.get("DIRECT_URL")
+        if raw_db_url:
+            parsed = urlparse(raw_db_url)
+            db_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+        else:
+            db_url = ""
+        if db_url:
+            async with await AsyncConnection.connect(
+                db_url, autocommit=True, prepare_threshold=None, row_factory=dict_row
+            ) as conn:
+                new_cp = AsyncPostgresSaver(conn)
+                await new_cp.setup()
+                yield new_cp
+        else:
+            yield None
 
 async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str, checkpointer=None):
     # Load existing profile if it's cached
@@ -37,22 +65,6 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             if hasattr(candidate.campaign, "evaluationStrictness"):
                 evaluation_strictness = candidate.campaign.evaluationStrictness
             
-    import os
-    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-    import contextlib
-    
-    @contextlib.asynccontextmanager
-    async def get_checkpointer(cp=None):
-        if cp:
-            yield cp
-        else:
-            db_url = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
-            if db_url:
-                db_url = db_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
-            async with AsyncPostgresSaver.from_conn_string(db_url) as new_cp:
-                await new_cp.setup()
-                yield new_cp
-    
     async with get_checkpointer(checkpointer) as active_checkpointer:
         graph = build_recruitment_graph(checkpointer=active_checkpointer)
         config = {"configurable": {"thread_id": candidate_id}}
@@ -107,11 +119,11 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             
     if final_state:
         if interrupt_value == "hold_for_review":
-            status = "review"
-        elif interrupt_value:
-            status = "interviewing"
+            status = "screening_hold"
+        elif interrupt_value or final_state.get("pipeline_status") == "shortlisted":
+            status = "shortlisted"
         else:
-            status = final_state.get("pipeline_status", "review")
+            status = final_state.get("pipeline_status", "shortlisted")
         
         update_data = {"status": status}
             
@@ -200,11 +212,89 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                 await prisma.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)
     elif interrupt_value:
         # Fallback if no final_state but interrupted
-        fallback_status = "review" if interrupt_value == "hold_for_review" else "interviewing"
+        fallback_status = "screening_hold" if interrupt_value == "hold_for_review" else "shortlisted"
         await prisma.candidate.update(
             where={"id": candidate_id},
             data={"status": fallback_status}
         )
+async def _run_evaluator_background(candidate_id: str, candidate: Any, transcript_list: list):
+    try:
+        import json
+        from app.agent.schemas import CandidateProfile, ScreeningResult, ScoreBreakdown, InterviewTranscript, InterviewQuestion
+        profile_data = candidate.resume.structuredProfile if candidate.resume and candidate.resume.structuredProfile else {}
+        if isinstance(profile_data, str):
+            profile_data = json.loads(profile_data)
+        candidate_profile = CandidateProfile(**profile_data) if profile_data else CandidateProfile(name=candidate.name or "Candidate")
+
+        fit_score_val = int(round(candidate.fitScore)) if candidate.fitScore is not None else 0
+        screening_result = ScreeningResult(
+            fit_score=fit_score_val,
+            score_breakdown=ScoreBreakdown(
+                required_skills_score=fit_score_val,
+                experience_score=fit_score_val,
+                nice_to_have_score=fit_score_val,
+                trajectory_score=fit_score_val,
+            ),
+            must_have=[],
+            nice_to_have=[],
+            experience_assessment=candidate.evaluation.summary if candidate.evaluation else "",
+            reasoning_summary=candidate.evaluation.summary if candidate.evaluation else "",
+            decision="advance"
+        )
+
+        questions_asked = []
+        answers_given = []
+        temp_q = None
+        for turn in transcript_list:
+            if turn.get("role") in ["ai", "interviewer"]:
+                temp_q = turn.get("message", "")
+            elif turn.get("role") == "candidate" and temp_q:
+                questions_asked.append(InterviewQuestion(question=temp_q, category="Technical", what_to_look_for="Relevance and technical depth"))
+                answers_given.append(turn.get("message", ""))
+                temp_q = None
+
+        it_obj = InterviewTranscript(
+            questions_asked=questions_asked,
+            answers_given=answers_given,
+            current_question_index=len(questions_asked)
+        )
+
+        eval_state = {
+            "candidate_profile": candidate_profile,
+            "screening_result": screening_result,
+            "job_description": candidate.campaign.jobDescription if candidate.campaign else "",
+            "interview_transcript": it_obj,
+            "jd_matcher_prompt_variant": candidate.campaign.evaluationStrictness if candidate.campaign else "moderate"
+        }
+
+        from app.agent.nodes.evaluator import evaluator_node
+        eval_res = await evaluator_node(eval_state)
+        report = eval_res.get("evaluation_report")
+
+        if report:
+            await prisma.evaluation.update(
+                where={"candidateId": candidate_id},
+                data={
+                    "overallScore": report.overall_score,
+                    "technicalScore": report.technical_score,
+                    "communicationScore": report.communication_score,
+                    "culturalFitScore": report.cultural_fit_score,
+                    "recommendation": report.recommendation,
+                    "summary": report.summary,
+                    "strengths": report.strengths,
+                    "concerns": report.concerns,
+                    "chainOfThought": report.chain_of_thought,
+                }
+            )
+            await prisma.candidate.update(
+                where={"id": candidate_id},
+                data={
+                    "apiCost": candidate.apiCost + eval_res.get("total_cost", 0.0)
+                }
+            )
+    except Exception as e:
+        print(f"[Interview] Evaluator background task failed for {candidate_id}: {e}")
+
 async def process_interview_answer(candidate_id: str, answer_text: str):
     """
     Processes candidate answer submission for an active interview session.
@@ -232,16 +322,21 @@ async def process_interview_answer(candidate_id: str, answer_text: str):
         raw_transcript = json.loads(raw_transcript)
     transcript_list = list(raw_transcript)
 
-    # Filter AI questions asked so far
-    ai_turns = [t for t in transcript_list if isinstance(t, dict) and t.get("role") in ["ai", "interviewer"]]
-    curr_q_idx = len(ai_turns)
+    # Filter main AI questions asked so far (excluding follow-up probes)
+    main_ai_turns = [
+        t for t in transcript_list 
+        if isinstance(t, dict) 
+        and t.get("role") in ["ai", "interviewer"] 
+        and not str(t.get("message", "")).startswith("[Follow-up]")
+    ]
+    curr_q_idx = len(main_ai_turns)
 
     # Ensure the first AI question turn is recorded if transcript is empty
     if len(transcript_list) == 0 and len(raw_questions) > 0:
         first_q = raw_questions[0]
         q_text = first_q.get("question") if isinstance(first_q, dict) else str(first_q)
         transcript_list.append({"role": "ai", "message": q_text, "time": now_str})
-        ai_turns = [transcript_list[0]]
+        main_ai_turns = [transcript_list[0]]
         curr_q_idx = 1
 
     # Record candidate answer
@@ -252,7 +347,7 @@ async def process_interview_answer(candidate_id: str, answer_text: str):
     probe_already_asked = False
     if len(transcript_list) >= 3:
         prev_turn = transcript_list[-3]
-        if isinstance(prev_turn, dict) and "[Follow-up]" in prev_turn.get("message", ""):
+        if isinstance(prev_turn, dict) and "[Follow-up]" in str(prev_turn.get("message", "")):
             probe_already_asked = True
 
     if len(words) < 20 and not probe_already_asked and curr_q_idx <= len(raw_questions):
@@ -289,85 +384,17 @@ async def process_interview_answer(candidate_id: str, answer_text: str):
         )
         return
 
-    # All questions answered! Run Evaluator Node
+    # All questions answered! Set candidate status to review and run background evaluator
     await prisma.evaluation.update(
         where={"candidateId": candidate_id},
         data={"interviewTranscript": Json(transcript_list)}
     )
-
-    from app.agent.schemas import CandidateProfile, ScreeningResult, ScoreBreakdown, InterviewTranscript, InterviewQuestion
-    profile_data = candidate.resume.structuredProfile if candidate.resume and candidate.resume.structuredProfile else {}
-    if isinstance(profile_data, str):
-        profile_data = json.loads(profile_data)
-    candidate_profile = CandidateProfile(**profile_data) if profile_data else CandidateProfile(name=candidate.name or "Candidate")
-
-    fit_score_val = int(round(candidate.fitScore)) if candidate.fitScore is not None else 0
-    screening_result = ScreeningResult(
-        fit_score=fit_score_val,
-        score_breakdown=ScoreBreakdown(
-            required_skills_score=fit_score_val,
-            experience_score=fit_score_val,
-            nice_to_have_score=fit_score_val,
-            trajectory_score=fit_score_val,
-        ),
-        must_have=[],
-        nice_to_have=[],
-        experience_assessment=candidate.evaluation.summary or "",
-        reasoning_summary=candidate.evaluation.summary or "",
-        decision="advance"
+    await prisma.candidate.update(
+        where={"id": candidate_id},
+        data={"status": "interview_completed"}
     )
-
-    questions_asked = []
-    answers_given = []
-    temp_q = None
-    for turn in transcript_list:
-        if turn.get("role") in ["ai", "interviewer"]:
-            temp_q = turn.get("message", "")
-        elif turn.get("role") == "candidate" and temp_q:
-            questions_asked.append(InterviewQuestion(question=temp_q, category="Technical", what_to_look_for="Relevance and technical depth"))
-            answers_given.append(turn.get("message", ""))
-            temp_q = None
-
-    it_obj = InterviewTranscript(
-        questions_asked=questions_asked,
-        answers_given=answers_given,
-        current_question_index=len(questions_asked)
-    )
-
-    eval_state = {
-        "candidate_profile": candidate_profile,
-        "screening_result": screening_result,
-        "job_description": candidate.campaign.jobDescription if candidate.campaign else "",
-        "interview_transcript": it_obj,
-        "jd_matcher_prompt_variant": candidate.campaign.evaluationStrictness if candidate.campaign else "moderate"
-    }
-
-    from app.agent.nodes.evaluator import evaluator_node
-    eval_res = await evaluator_node(eval_state)
-    report = eval_res.get("evaluation_report")
-
-    if report:
-        await prisma.evaluation.update(
-            where={"candidateId": candidate_id},
-            data={
-                "overallScore": report.overall_score,
-                "technicalScore": report.technical_score,
-                "communicationScore": report.communication_score,
-                "culturalFitScore": report.cultural_fit_score,
-                "recommendation": report.recommendation,
-                "summary": report.summary,
-                "strengths": report.strengths,
-                "concerns": report.concerns,
-                "chainOfThought": report.chain_of_thought,
-            }
-        )
-        await prisma.candidate.update(
-            where={"id": candidate_id},
-            data={
-                "status": "review",
-                "apiCost": candidate.apiCost + eval_res.get("total_cost", 0.0)
-            }
-        )
+    import asyncio
+    asyncio.create_task(_run_evaluator_background(candidate_id, candidate, transcript_list))
 
 async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None):
     candidate = await prisma.candidate.find_unique(where={"id": candidate_id})
@@ -376,21 +403,6 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
         return
 
     from langgraph.types import Command
-    import os
-    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-    import contextlib
-    
-    @contextlib.asynccontextmanager
-    async def get_checkpointer(cp=None):
-        if cp:
-            yield cp
-        else:
-            db_url = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
-            if db_url:
-                db_url = db_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
-            async with AsyncPostgresSaver.from_conn_string(db_url) as new_cp:
-                await new_cp.setup()
-                yield new_cp
     
     async with get_checkpointer(checkpointer) as active_checkpointer:
         graph = build_recruitment_graph(checkpointer=active_checkpointer)
@@ -421,11 +433,11 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
     
     if final_state:
         if interrupt_value == "hold_for_review":
-            status = "review"
-        elif interrupt_value:
-            status = "interviewing"
+            status = "screening_hold"
+        elif interrupt_value or final_state.get("pipeline_status") == "shortlisted":
+            status = "shortlisted"
         else:
-            status = final_state.get("pipeline_status", "review")
+            status = final_state.get("pipeline_status", "shortlisted")
         
         update_data = {"status": status}
             
@@ -513,7 +525,7 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
             else:
                 await prisma.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)
     elif interrupt_value:
-        fallback_status = "review" if interrupt_value == "hold_for_review" else "interviewing"
+        fallback_status = "screening_hold" if interrupt_value == "hold_for_review" else "shortlisted"
         await prisma.candidate.update(
             where={"id": candidate_id},
             data={"status": fallback_status}
@@ -531,9 +543,35 @@ async def generate_on_demand_questions(candidate_id: str):
     if not candidate:
         raise ValueError(f"Candidate {candidate_id} not found")
         
-    # If questions already generated in evaluation record, return them directly
+    # If questions already generated in evaluation record, ensure status is interviewing & transcript initialized
     if candidate.evaluation and candidate.evaluation.interviewQuestions:
-        return candidate.evaluation.interviewQuestions
+        questions_json = candidate.evaluation.interviewQuestions
+        if isinstance(questions_json, str):
+            import json
+            questions_json = json.loads(questions_json)
+
+        transcript = candidate.evaluation.interviewTranscript or []
+        if isinstance(transcript, str):
+            import json
+            transcript = json.loads(transcript)
+
+        if not transcript and questions_json:
+            first_q = questions_json[0]
+            q1_text = first_q.get("question") if isinstance(first_q, dict) else str(first_q)
+            from datetime import datetime
+            transcript = [{"role": "ai", "message": q1_text, "time": datetime.now().strftime("%I:%M %p")}]
+            await prisma.evaluation.update(
+                where={"candidateId": candidate_id},
+                data={"interviewTranscript": Json(transcript)}
+            )
+
+        if candidate.status in ["invited", "shortlisted"]:
+            await prisma.candidate.update(
+                where={"id": candidate_id},
+                data={"status": "interviewing"}
+            )
+            
+        return questions_json
 
     import json
     from app.agent.schemas import CandidateProfile, ScreeningResult, ScoreBreakdown

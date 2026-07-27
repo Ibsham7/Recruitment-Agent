@@ -36,7 +36,7 @@ model Candidate {
   name            String
   email           String?
   phone           String?
-  status          String      @default("pending") // pending, rejected, interviewing, review, finalized
+  status          String      @default("pending") // pending, screening, screening_hold, shortlisted, invited, interviewing, interview_completed, finalized, rejected
   fitScore        Float?
   decision        String?     // final decision by recruiter: approve, reject, hold
   rejectionReason String?

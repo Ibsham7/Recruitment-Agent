@@ -49,7 +49,7 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
         setAccessValid(true);
 
         // If candidate already in progress or completed, load full candidate details directly
-        if (data.status === "interviewing" || data.status === "review" || data.status === "complete") {
+        if (data.status === "interviewing" || data.status === "interview_completed" || data.status === "review" || data.status === "complete") {
           const candRes = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}`);
           if (candRes.ok) {
             const candData = await candRes.json();
@@ -130,13 +130,17 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
       });
 
       if (!res.ok) throw new Error("Failed to submit answer");
+      const candData = await res.json();
 
       setAnswer("");
-      // Refresh candidate data to pick up next question or completed status
-      const candRes = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}`);
-      if (candRes.ok) {
-        const candData = await candRes.json();
+      if (candData && candData.id) {
         setCandidate(candData);
+      } else {
+        const candRes = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}`);
+        if (candRes.ok) {
+          const freshData = await candRes.json();
+          setCandidate(freshData);
+        }
       }
     } catch (err: any) {
       setError(err.message || "Something went wrong while submitting your answer.");

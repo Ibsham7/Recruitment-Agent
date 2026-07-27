@@ -1,29 +1,44 @@
 import { useParams, useNavigate, Link } from "react-router";
 import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
 import { hexToRgba, getGlass, scoreColor } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/api";
 
-const STAGE_CONFIG: Record<CandidateStage, { label: string; color: string }> = {
-  pending:      { label: "Pending Screening", color: "#808090" },
+const STAGE_CONFIG: Record<string, { label: string; color: string }> = {
   screening:    { label: "AI Screening",      color: "#EAB308" },
+  shortlisted:  { label: "Shortlisted",       color: "#40A060" },
   interviewing: { label: "Interviewing",      color: "#4088C0" },
-  shortlisted:  { label: "AI Shortlisted",    color: "#40A060" },
-  review:       { label: "In Review",         color: "#9040C0" },
-  finalized:    { label: "Finalized",         color: "#40C080" },
-  complete:     { label: "Completed",         color: "#10B981" },
+  review:       { label: "Interview Review",  color: "#9040C0" },
+  finalized:    { label: "Finalized",         color: "#10B981" },
   rejected:     { label: "Rejected",          color: "#C04040" },
 };
 
 function CandidateGridCard({ candidate, theme: t, G }: { candidate: Candidate; theme: Theme; G: ReturnType<typeof getGlass> }) {
-  const recMap = { shortlist: { text: t.numPos, label: "✓ Shortlist" }, reject: { text: t.numNeg, label: "✗ Reject" }, pending: { text: t.numMid, label: "⋯ Pending" } };
-  const recommendation = (candidate.recommendation || "pending").toLowerCase();
-  const rec = recMap[recommendation as keyof typeof recMap] || { text: t.numMid, label: `? ${candidate.recommendation}` };
+  const isScreening = candidate.status === 'pending' || candidate.status === 'screening';
+  
+  const statusBadgeMap: Record<string, { text: string; label: string }> = { 
+    shortlisted:          { text: "#40A060", label: "✓ Shortlisted" }, 
+    invited:              { text: "#EAB308", label: "✉ Invited" },
+    interviewing:         { text: "#4088C0", label: "💬 Interviewing" },
+    interview_completed:  { text: "#9040C0", label: "★ Evaluation Ready" },
+    review:               { text: "#9040C0", label: "★ Evaluation Ready" },
+    finalized:            { text: "#10B981", label: "✓ Finalized" },
+    complete:             { text: "#10B981", label: "✓ Finalized" },
+    rejected:             { text: "#C04040", label: "✗ Rejected" },
+    screening_hold:       { text: "#EAB308", label: "⏸ Screening Hold" },
+    pending:              { text: t.numMid,  label: "⋯ Screening" },
+    screening:            { text: t.numMid,  label: "⋯ Screening" }
+  };
+  
+  const currentStatus = candidate.status || "pending";
+  const badge = statusBadgeMap[currentStatus] || { text: t.numMid, label: currentStatus };
   let score = candidate.score || candidate.fitScore || 0;
-  // Format to 2 decimal places if it's a float
   score = typeof score === 'number' && score % 1 !== 0 ? Number(score.toFixed(2)) : score;
   
+  const displayName = candidate.name && candidate.name !== "Unknown Candidate" ? candidate.name : null;
+
   return (
     <Link to={`/candidate/${candidate.id}`} className="w-full rounded-3xl p-5 text-left transition-all duration-300 flex flex-col justify-between h-full group" style={{ ...G.card, position: 'relative', overflow: 'hidden' }}
       onMouseEnter={(e) => { 
@@ -44,28 +59,44 @@ function CandidateGridCard({ candidate, theme: t, G }: { candidate: Candidate; t
 
       <div className="flex items-start justify-between mb-5">
         <div className="flex-1 min-w-0 pr-4">
-          <div className="text-lg font-semibold truncate transition-colors group-hover:text-opacity-90" style={{ color: t.txtPrimary }}>{candidate.name}</div>
-          <div className="text-sm mt-1 truncate" style={{ color: t.txtMuted }}>{candidate.currentRole || "Candidate"}</div>
+          <div className="text-lg font-semibold truncate transition-colors group-hover:text-opacity-90 flex items-center gap-2" style={{ color: t.txtPrimary }}>
+            {isScreening && <Loader2 size={16} className="animate-spin flex-shrink-0 text-amber-500" />}
+            <span className="truncate">{displayName || "Extracting Name..."}</span>
+          </div>
+          <div className="text-sm mt-1 truncate flex items-center gap-1.5" style={{ color: t.txtMuted }}>
+            {isScreening ? (
+              <span className="text-amber-500 font-medium text-xs flex items-center gap-1">
+                Parsing candidate profile...
+              </span>
+            ) : (
+              candidate.currentRole || "Candidate"
+            )}
+          </div>
         </div>
         <div className="flex-shrink-0 flex items-center justify-center w-14 h-14 rounded-full border-2" 
              style={{ 
                borderColor: hexToRgba(scoreColor(score, t), 0.3),
                background: hexToRgba(scoreColor(score, t), 0.1) 
              }}>
-          <span className="text-2xl font-bold leading-none" style={{ fontFamily: "'Fraunces',serif", color: scoreColor(score, t) }}>{score}</span>
+          {isScreening && score === 0 ? (
+            <Loader2 size={20} className="animate-spin text-amber-500" />
+          ) : (
+            <span className="text-2xl font-bold leading-none" style={{ fontFamily: "'Fraunces',serif", color: scoreColor(score, t) }}>{score}</span>
+          )}
         </div>
       </div>
       
       <div className="mt-auto pt-4 border-t" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
         <div className="flex items-center justify-between">
           <span className="text-xs truncate max-w-[55%]" style={{ color: t.txtGhost }}>{candidate.experience || "No experience listed"}</span>
-          <span className="text-xs font-semibold px-2.5 py-1.5 rounded-lg" 
+          <span className="text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1" 
                 style={{ 
-                  color: rec.text, 
-                  background: hexToRgba(rec.text, 0.15), 
-                  border: `1px solid ${hexToRgba(rec.text, 0.25)}` 
+                  color: badge.text, 
+                  background: hexToRgba(badge.text, 0.15), 
+                  border: `1px solid ${hexToRgba(badge.text, 0.25)}` 
                 }}>
-            {rec.label}
+            {isScreening && <Loader2 size={11} className="animate-spin" />}
+            {badge.label}
           </span>
         </div>
       </div>
@@ -82,7 +113,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
-  const [activeStage, setActiveStage] = useState<CandidateStage>("pending");
+  const [activeStage, setActiveStage] = useState<CandidateStage>("screening");
 
   const handleRetryFailed = async () => {
     if (!id) return;
@@ -116,8 +147,8 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
         if (campaignData && isMounted) {
           const cands = candidatesData || [];
           const total = cands.length;
-          const processed = cands.filter((c: any) => c.status !== 'pending' && c.status !== 'screening').length;
-          const shortlisted = cands.filter((c: any) => c.status === 'shortlisted' || c.status === 'complete' || c.status === 'finalized').length;
+          const processed = cands.filter((c: any) => !['pending', 'screening'].includes(c.status)).length;
+          const shortlisted = cands.filter((c: any) => ['shortlisted', 'invited', 'interviewing', 'interview_completed', 'finalized', 'complete'].includes(c.status)).length;
           
           setCampaign({
             ...campaignData,
@@ -128,14 +159,31 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
             location: campaignData.location || 'Remote'
           });
           
-          const mappedCands = cands.map((c: any) => ({
-            ...c,
-            score: c.fitScore || c.evaluation?.overallScore || 0,
-            recommendation: c.decision || c.evaluation?.recommendation || 'pending',
-            stage: c.status as CandidateStage,
-            currentRole: c.structuredProfile?.currentRole || "",
-            experience: c.structuredProfile?.experience || ""
-          }));
+          const mappedCands = cands.map((c: any) => {
+            let stage: CandidateStage = "screening";
+            if (['pending', 'screening', 'screening_hold'].includes(c.status)) {
+              stage = "screening";
+            } else if (['shortlisted', 'invited'].includes(c.status)) {
+              stage = "shortlisted";
+            } else if (c.status === 'interviewing') {
+              stage = "interviewing";
+            } else if (['interview_completed', 'review'].includes(c.status)) {
+              stage = "review";
+            } else if (['finalized', 'complete'].includes(c.status)) {
+              stage = "finalized";
+            } else if (c.status === 'rejected') {
+              stage = "rejected";
+            }
+
+            return {
+              ...c,
+              score: c.fitScore || c.evaluation?.overallScore || 0,
+              recommendation: c.decision || c.evaluation?.recommendation || 'pending',
+              stage,
+              currentRole: c.structuredProfile?.currentRole || "",
+              experience: c.structuredProfile?.experience || ""
+            };
+          });
           
           setCandidates(mappedCands);
         }
@@ -183,9 +231,10 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
     return <div className="flex items-center justify-center h-full text-lg" style={{ color: t.txtMuted }}>Campaign not found.</div>;
   }
 
-  const allStages: CandidateStage[] = ["pending", "screening", "interviewing", "shortlisted", "review", "complete", "finalized", "rejected"];
+  const allStages: CandidateStage[] = ["screening", "shortlisted", "interviewing", "review", "finalized", "rejected"];
   const stages = allStages;
   const progress = campaign.total && campaign.total > 0 ? Math.round(((campaign.processed || 0) / campaign.total) * 100) : 0;
+  const isProcessing = campaign.total && campaign.total > 0 ? campaign.processed! < campaign.total : false;
   
   const activeCandidates = candidates
     .filter((c) => c.stage === activeStage)
@@ -209,7 +258,10 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
               <div className="h-1.5 rounded-full overflow-hidden" style={{ width: "240px", background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.3) }}>
                 <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${progress}%`, backgroundColor: t.progressFill, boxShadow: `0 0 10px ${hexToRgba(t.progressFill, 0.6)}` }} />
               </div>
-              <span className="text-xs font-medium" style={{ color: t.txtSecondary }}>{campaign.processed} / {campaign.total} Processed</span>
+              <span className="text-xs font-medium flex items-center gap-1.5" style={{ color: t.txtSecondary }}>
+                {isProcessing && <Loader2 size={12} className="animate-spin text-amber-500" />}
+                {campaign.processed} / {campaign.total} Processed
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-10">

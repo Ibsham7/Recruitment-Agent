@@ -1,9 +1,10 @@
 import { useRef, useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { Filter, Plus, ChevronRight, Calendar } from "lucide-react";
+import { Filter, Plus, ChevronRight, Calendar, Loader2 } from "lucide-react";
 import { Theme, Campaign } from "../../lib/types";
 import { hexToRgb, hexToRgba, getGlass } from "../../lib/theme";
 import { apiFetch } from "../../lib/api";
+import { supabase } from "../../lib/supabase";
 
 import { ParticleCard, GlobalSpotlight } from "../../components/common/MagicBento";
 
@@ -14,6 +15,7 @@ function CampaignCard({ campaign, theme: t, G, glowColor }: { campaign: Campaign
   const processed = campaign.processed || 0;
   const shortlisted = campaign.shortlisted || 0;
   const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
+  const isProcessing = total > 0 && processed < total;
   
   return (
     <Link to={`/pipeline/${campaign.id}`} style={{ textDecoration: 'none', display: 'block' }}>
@@ -32,11 +34,18 @@ function CampaignCard({ campaign, theme: t, G, glowColor }: { campaign: Campaign
         <ChevronRight size={14} style={{ color: t.txtGhost, marginTop: "2px" }} />
       </div>
       <div className="mb-4">
-        <div className="flex justify-between text-[10px] mb-1.5" style={{ color: t.txtMuted }}>
-          <span>AI Processing</span><span>{processed}/{total} CVs</span>
+        <div className="flex justify-between items-center text-[10px] mb-1.5" style={{ color: t.txtMuted }}>
+          <span className="flex items-center gap-1.5">
+            AI Processing
+            {isProcessing && <Loader2 size={11} className="animate-spin text-amber-500" />}
+          </span>
+          <span className="flex items-center gap-1">
+            {isProcessing && <Loader2 size={10} className="animate-spin" style={{ color: t.accentPrimary }} />}
+            {processed}/{total} CVs
+          </span>
         </div>
         <div className="h-1.5 rounded-full overflow-hidden" style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.25) }}>
-          <div className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: t.progressFill, boxShadow: `0 0 8px ${hexToRgba(t.progressFill, 0.45)}` }} />
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: t.progressFill, boxShadow: `0 0 8px ${hexToRgba(t.progressFill, 0.45)}` }} />
         </div>
       </div>
       <div className="flex items-center gap-5 pt-3.5" style={{ borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.30)}` }}>
@@ -70,6 +79,9 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
   const totalShortlisted = campaigns.reduce((acc, c) => acc + (c.shortlisted || 0), 0);
 
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: any = null;
+
     async function fetchCampaigns() {
       try {
         // Fetch campaigns and their candidates count from backend
@@ -78,11 +90,11 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
         const campaignsData = await res.json();
         
         // Process aggregate counts from related candidates
-        if (campaignsData) {
+        if (campaignsData && isMounted) {
           const processedCampaigns = campaignsData.map((c: any) => {
             const total = c.candidates?.length || 0;
-            const processed = c.candidates?.filter((cand: any) => cand.status !== 'pending').length || 0;
-            const shortlisted = c.candidates?.filter((cand: any) => cand.status === 'shortlisted').length || 0;
+            const processed = c.candidates?.filter((cand: any) => cand.status !== 'pending' && cand.status !== 'screening').length || 0;
+            const shortlisted = c.candidates?.filter((cand: any) => cand.status === 'shortlisted' || cand.status === 'complete' || cand.status === 'finalized').length || 0;
             
             return {
               ...c,
@@ -99,11 +111,36 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
       } catch (err) {
         console.error("Error fetching campaigns:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
     
     fetchCampaigns();
+
+    // Supabase Realtime subscription to Candidate table changes for live dashboard updates
+    const channel = supabase
+      .channel('dashboard-candidate-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Candidate',
+        },
+        () => {
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            if (isMounted) fetchCampaigns();
+          }, 1000);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const stats = [

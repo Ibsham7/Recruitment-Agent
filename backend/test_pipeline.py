@@ -13,14 +13,15 @@ async def main():
         return
 
     c = cands[0]
-    print(f"Triggering pipeline for {c.id} - {c.resumePath}")
+    print(f"Triggering pipeline for {c.id} - {c.cvUrl}")
     
     camp = await prisma.campaign.find_unique(where={'id': c.campaignId})
     jd = camp.jobDescription if camp else "Software Engineer"
     
     try:
-        await start_candidate_pipeline(c.id, c.resumePath, jd)
-        print("Pipeline execution finished successfully.")
+        if c.cvUrl:
+            await start_candidate_pipeline(c.id, c.cvUrl, jd)
+            print("Pipeline execution finished successfully.")
     except Exception as e:
         print(f"Pipeline failed: {e}")
         
@@ -28,7 +29,7 @@ async def main():
 
 import sys
 
-if sys.platform == 'win32':
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-asyncio.run(main())
+if __name__ == "__main__":
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.run(main())

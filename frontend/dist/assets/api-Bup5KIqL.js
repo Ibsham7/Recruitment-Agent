@@ -1,1 +1,0 @@
-import{s as o}from"./index-B3qhqxqU.js";async function c(t,e={}){const{data:{session:n}}=await o.auth.getSession(),s=n?.access_token,a=new Headers(e.headers||{});return s&&a.set("Authorization",`Bearer ${s}`),fetch(t,{...e,headers:a})}export{c as a};

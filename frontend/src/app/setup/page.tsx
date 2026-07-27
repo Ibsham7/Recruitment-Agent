@@ -47,7 +47,6 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
   const [dragging, setDragging] = useState(false);
   const [strictness, setStrictness] = useState<"lenient" | "moderate" | "strict">("moderate");
   const [enableInterviews, setEnableInterviews] = useState(true);
-  const [interviewConfig, setInterviewConfig] = useState("");
   const [hardFilters, setHardFilters] = useState<{type: string, value: string, penalty: string}[]>([]);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -213,7 +212,6 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
           resumes: fileUrls,
           hardFiltersConfig: hardFilters,
           enableInterviews,
-          interviewConfig,
           strictness
         })
       });
@@ -276,13 +274,6 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
               </div>
             </div>
 
-            <div className="rounded-2xl p-5 space-y-4" style={G.card}>
-              <div>
-                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>Interview Focus & Custom Questions (Optional)</div>
-                <div className="text-xs mt-1 mb-2" style={{ color: t.txtSecondary }}>Specify topics or specific questions for candidate technical interviews on the /interviews portal</div>
-                <textarea value={interviewConfig} onChange={(e) => setInterviewConfig(e.target.value)} rows={3} placeholder="e.g. Ask the candidate to explain their most complex React project. Focus heavily on system design and cultural fit..." className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none resize-none leading-relaxed" style={fieldStyle} />
-              </div>
-            </div>
 
             <div className="rounded-2xl p-5 space-y-4" style={G.card}>
               <div className="flex items-center justify-between">

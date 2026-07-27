@@ -19,7 +19,7 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from app.agent.api import start_candidate_pipeline, resume_pipeline, generate_on_demand_questions
+from app.agent.api import start_candidate_pipeline, resume_pipeline, generate_on_demand_questions, process_interview_answer
 from app.database import prisma
 from app.agent.embeddings import _distill_jd_async, get_embedding_async
 from app.security import verify_jwt
@@ -30,17 +30,26 @@ from fastapi import Depends
 from arq import create_pool
 from arq.connections import RedisSettings
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+def _get_redis_settings() -> RedisSettings:
+    url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    settings = RedisSettings.from_dsn(url)
+    settings.conn_timeout = 10
+    settings.conn_retries = 5
+    return settings
 
 async def lifespan(app: FastAPI):
     # Startup: Connect to the database and Redis Queue
     await prisma.connect()
-    app.state.redis = await create_pool(RedisSettings.from_dsn(REDIS_URL))
+    app.state.redis = await create_pool(_get_redis_settings())
     yield
     # Shutdown: Disconnect from the database and Redis Queue
     await prisma.disconnect()
-    app.state.redis.close()
-    await app.state.redis.wait_closed()
+    if hasattr(app.state.redis, "aclose"):
+        await app.state.redis.aclose()
+    elif hasattr(app.state.redis, "close"):
+        res = app.state.redis.close()
+        if asyncio.iscoroutine(res):
+            await res
 
 app = FastAPI(title="Recruitment Agent API", lifespan=lifespan)
 
@@ -154,6 +163,22 @@ async def retry_failed_candidates(id: str, request: Request, user: dict = Depend
         
     return {"status": "success", "message": f"Queued {retried_count} candidates for retry", "count": retried_count}
 
+class CampaignInterviewConfigUpdate(BaseModel):
+    interviewConfig: Optional[str] = None
+
+@app.patch("/api/campaigns/{id}/interview-config")
+async def update_campaign_interview_config(id: str, config_data: CampaignInterviewConfigUpdate, user: dict = Depends(verify_jwt)):
+    campaign = await prisma.campaign.find_first(where={"id": id, "userId": user.get("sub")})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+        
+    updated = await prisma.campaign.update(
+        where={"id": id},
+        data={"interviewConfig": config_data.interviewConfig}
+    )
+    return {"status": "success", "campaignId": updated.id, "interviewConfig": updated.interviewConfig}
+
+
 @app.get("/")
 async def root():
     return {"status": "ok", "message": "Recruitment Agent API is running"}
@@ -202,9 +227,10 @@ class InterviewAnswer(BaseModel):
     answer: str
 
 @app.post("/api/candidates/{id}/interview/answer")
-async def submit_interview_answer(id: str, answer_data: InterviewAnswer, request: Request):
-    await request.app.state.redis.enqueue_job('resume_pipeline_task', id, answer_data.answer)
-    return {"status": "success", "message": "Answer submitted"}
+async def submit_interview_answer(id: str, answer_data: InterviewAnswer):
+    await process_interview_answer(id, answer_data.answer)
+    updated_cand = await get_candidate(id)
+    return updated_cand
 
 class HumanReview(BaseModel):
     decision: str # approve, reject, hold
@@ -212,18 +238,56 @@ class HumanReview(BaseModel):
 @app.post("/api/candidates/{id}/review")
 async def submit_human_review(id: str, review_data: HumanReview, request: Request, user: dict = Depends(verify_jwt)):
     try:
-        status_update = "complete" if review_data.decision != "approve" and review_data.decision != "override" else "interviewing"
-        await prisma.candidate.update(
-            where={"id": id},
-            data={
-                "status": status_update,
-                "decision": review_data.decision
-            }
-        )
-        # Resume the paused LangGraph thread so execution advances correctly
-        resume_val = "override" if review_data.decision in ["approve", "override"] else "reject"
-        await request.app.state.redis.enqueue_job('resume_pipeline_task', id, resume_val)
-        return {"status": "success", "message": "Review submitted and pipeline resumed"}
+        cand = await prisma.candidate.find_unique(where={"id": id})
+        if not cand:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+
+        decision = review_data.decision.lower()
+        
+        # Screening Hold stage (pre-interview resume hold)
+        if cand.status in ["screening_hold", "pending", "screening"]:
+            if decision in ["approve", "override"]:
+                status_update = "shortlisted"
+                resume_val = "override"
+            elif decision == "reject":
+                status_update = "rejected"
+                resume_val = "reject"
+            else: # hold
+                status_update = "screening_hold"
+                resume_val = "hold"
+                
+            await prisma.candidate.update(
+                where={"id": id},
+                data={
+                    "status": status_update,
+                    "decision": decision,
+                    "rejectionReason": "Rejected during initial resume screening review" if decision == "reject" else cand.rejectionReason
+                }
+            )
+            # Only resume paused LangGraph thread if decision is approve or reject
+            if decision in ["approve", "override", "reject"]:
+                await request.app.state.redis.enqueue_job('resume_pipeline_task', id, resume_val)
+        else:
+            # Post-interview review or final decision stage (interview_completed / review)
+            if decision in ["approve", "override"]:
+                status_update = "finalized"
+            elif decision == "reject":
+                status_update = "rejected"
+            else:
+                status_update = "interview_completed"
+                
+            await prisma.candidate.update(
+                where={"id": id},
+                data={
+                    "status": status_update,
+                    "decision": decision,
+                    "rejectionReason": "Rejected post-interview review" if decision == "reject" else cand.rejectionReason
+                }
+            )
+            
+        return {"status": "success", "message": f"Review submitted for candidate ({decision})"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -289,8 +353,13 @@ async def get_candidate(id: str):
                 if isinstance(last_turn, dict) and last_turn.get("role") in ["ai", "interviewer"]:
                     cand_dict["currentQuestion"] = last_turn.get("message")
                 else:
-                    ai_turns = [t for t in transcript if isinstance(t, dict) and t.get("role") in ["ai", "interviewer"]]
-                    curr_idx = len(ai_turns)
+                    main_ai_turns = [
+                        t for t in transcript 
+                        if isinstance(t, dict) 
+                        and t.get("role") in ["ai", "interviewer"] 
+                        and not str(t.get("message", "")).startswith("[Follow-up]")
+                    ]
+                    curr_idx = len(main_ai_turns)
                     if curr_idx < len(iq):
                         q_item = iq[curr_idx]
                         cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)

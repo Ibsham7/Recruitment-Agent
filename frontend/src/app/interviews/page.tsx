@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Theme } from "../../lib/types";
 import { getGlass, hexToRgba, hexToRgb } from "../../lib/theme";
 import { apiFetch } from "../../lib/api";
-import { Mail, CheckCircle2, Clock, Loader2, Filter, Search, Send, ShieldAlert, Sparkles, UserCheck, X, MessageSquare, Brain, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Mail, CheckCircle2, Clock, Loader2, Filter, Search, Send, ShieldAlert, Sparkles, UserCheck, X, MessageSquare, Brain, ThumbsUp, ThumbsDown, Sliders } from "lucide-react";
 import { ParticleCard, GlobalSpotlight } from "../../components/common/MagicBento";
 
 interface InterviewCandidate {
@@ -32,42 +32,84 @@ interface InterviewCandidate {
   };
 }
 
+interface CampaignItem {
+  id: string;
+  title: string;
+  interviewConfig?: string | null;
+}
+
+const PRESET_FOCUS_TEMPLATES = [
+  {
+    label: "System Design & Scalability",
+    text: "Focus heavily on distributed system architecture, caching strategies (Redis), database indexing/scaling, and microservices resilience."
+  },
+  {
+    label: "Frontend & Performance",
+    text: "Ask candidate to explain state management in complex React applications, rendering optimization, Lighthouse performance scores, and CSS modern layouts."
+  },
+  {
+    label: "AI & LLM Orchestration",
+    text: "Focus on experience with LangChain/LangGraph, prompt engineering, RAG pipelines, vector embeddings, and fallback/tool-calling reliability."
+  },
+  {
+    label: "Problem Solving & Live Coding",
+    text: "Deep-dive on live coding problem-solving methodology, clean code principles, automated unit testing, and debugging edge cases."
+  }
+];
+
 export default function InterviewsPage({ theme: t }: { theme: Theme }) {
   const G = getGlass(t);
   const gridRef = useRef<HTMLDivElement>(null);
   const glow = hexToRgb(t.accentPrimary);
 
   const [candidates, setCandidates] = useState<InterviewCandidate[]>([]);
-  const [campaigns, setCampaigns] = useState<{ id: string; title: string }[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [inspectingCandidate, setInspectingCandidate] = useState<InterviewCandidate | null>(null);
+
+  // Interview Configuration Modal state
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [configCampaignId, setConfigCampaignId] = useState<string>("");
+  const [configText, setConfigText] = useState<string>("");
+  const [savingConfig, setSavingConfig] = useState(false);
 
   // Filters
   const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Sending state
+  // Sending & reviewing state
   const [sending, setSending] = useState(false);
+  const [sendingIds, setSendingIds] = useState<string[]>([]);
+  const [reviewingAction, setReviewingAction] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const fetchCandidates = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/interviews/candidates`);
-      if (res.ok) {
-        const data = await res.json();
-        setCandidates(data);
+      const [candRes, campRes] = await Promise.all([
+        apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/interviews/candidates`),
+        apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`)
+      ]);
 
-        // Extract unique campaigns
-        const campMap = new Map<string, string>();
-        data.forEach((c: InterviewCandidate) => {
-          if (c.campaignId && c.campaignTitle) {
-            campMap.set(c.campaignId, c.campaignTitle);
-          }
-        });
-        setCampaigns(Array.from(campMap.entries()).map(([id, title]) => ({ id, title })));
+      if (candRes.ok) {
+        const data = await candRes.json();
+        setCandidates(data);
+      }
+
+      if (campRes.ok) {
+        const campData = await campRes.json();
+        const loadedCamps: CampaignItem[] = campData.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          interviewConfig: c.interviewConfig || null,
+        }));
+        setCampaigns(loadedCamps);
+        if (loadedCamps.length > 0 && !configCampaignId) {
+          setConfigCampaignId(loadedCamps[0].id);
+          setConfigText(loadedCamps[0].interviewConfig || "");
+        }
       }
     } catch (err) {
       console.error("Failed to fetch interview candidates:", err);
@@ -79,6 +121,48 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
   useEffect(() => {
     fetchCandidates();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isConfigModalOpen) {
+          setIsConfigModalOpen(false);
+        } else if (inspectingCandidate) {
+          setInspectingCandidate(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [inspectingCandidate, isConfigModalOpen]);
+
+  const handleSelectConfigCampaign = (campId: string) => {
+    setConfigCampaignId(campId);
+    const found = campaigns.find(c => c.id === campId);
+    setConfigText(found?.interviewConfig || "");
+  };
+
+  const handleSaveInterviewConfig = async () => {
+    if (!configCampaignId) return;
+    setSavingConfig(true);
+    try {
+      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${configCampaignId}/interview-config`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interviewConfig: configText }),
+      });
+      if (!res.ok) throw new Error("Failed to update interview configuration");
+      
+      const updatedCampTitle = campaigns.find(c => c.id === configCampaignId)?.title || "campaign";
+      setToastMessage(`Interview focus and custom questions saved for "${updatedCampTitle}"!`);
+      setIsConfigModalOpen(false);
+      await fetchCandidates();
+    } catch (err: any) {
+      setToastMessage(`Error: ${err.message || "Failed to save configuration"}`);
+    } finally {
+      setSavingConfig(false);
+    }
+  };
 
   // Filter candidates
   const filteredCandidates = candidates.filter((c) => {
@@ -113,6 +197,7 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
     if (idsToSend.length === 0) return;
 
     setSending(true);
+    setSendingIds(idsToSend);
     setToastMessage(null);
 
     try {
@@ -132,11 +217,13 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
       setToastMessage(`Error: ${err.message || "Failed to send invitations"}`);
     } finally {
       setSending(false);
+      setSendingIds([]);
       setTimeout(() => setToastMessage(null), 6000);
     }
   };
 
   const handleRecruiterReview = async (candidateId: string, decision: "approve" | "hold" | "reject") => {
+    setReviewingAction(decision);
     try {
       const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidateId}/review`, {
         method: "POST",
@@ -149,6 +236,8 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
       await fetchCandidates();
     } catch (err: any) {
       setToastMessage(`Error: ${err.message || "Failed to submit decision"}`);
+    } finally {
+      setReviewingAction(null);
     }
   };
 
@@ -156,15 +245,18 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
     shortlisted: { label: "Ready to Invite", bg: hexToRgba(t.accentPrimary, 0.15), fg: t.accentPrimary },
     invited: { label: "Invitation Sent", bg: hexToRgba("#eab308", 0.15), fg: "#eab308" },
     interviewing: { label: "Interview In Progress", bg: hexToRgba("#3b82f6", 0.15), fg: "#3b82f6" },
-    review: { label: "Awaiting Review", bg: hexToRgba("#a855f7", 0.15), fg: "#a855f7" },
-    complete: { label: "Completed", bg: hexToRgba(t.numPos, 0.15), fg: t.numPos },
+    interview_completed: { label: "Evaluation Ready", bg: hexToRgba("#a855f7", 0.15), fg: "#a855f7" },
+    review: { label: "Evaluation Ready", bg: hexToRgba("#a855f7", 0.15), fg: "#a855f7" },
+    screening_hold: { label: "Screening Hold", bg: hexToRgba("#eab308", 0.15), fg: "#eab308" },
     finalized: { label: "Finalized", bg: hexToRgba(t.numPos, 0.2), fg: t.numPos },
+    complete: { label: "Finalized", bg: hexToRgba(t.numPos, 0.2), fg: t.numPos },
+    rejected: { label: "Rejected", bg: hexToRgba(t.numNeg, 0.15), fg: t.numNeg },
   };
 
   const countShortlisted = candidates.filter((c) => c.status === "shortlisted").length;
   const countInvited = candidates.filter((c) => c.status === "invited").length;
   const countInterviewing = candidates.filter((c) => c.status === "interviewing").length;
-  const countCompleted = candidates.filter((c) => ["review", "complete", "finalized"].includes(c.status)).length;
+  const countCompleted = candidates.filter((c) => ["interview_completed", "review", "complete", "finalized"].includes(c.status)).length;
 
   return (
     <div ref={gridRef} className="bento-section p-8 min-h-screen">
@@ -184,22 +276,43 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
           </p>
         </div>
 
-        {/* Action Button */}
-        {selectedIds.length > 0 && (
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => handleSendInvitations()}
-            disabled={sending}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-semibold transition-all shadow-lg cursor-pointer"
+            onClick={() => {
+              if (campaigns.length > 0 && !configCampaignId) {
+                setConfigCampaignId(campaigns[0].id);
+                setConfigText(campaigns[0].interviewConfig || "");
+              }
+              setIsConfigModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer hover:opacity-90 active:scale-95"
             style={{
-              background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.8)})`,
-              color: t.accentText,
-              boxShadow: `0 4px 20px ${hexToRgba(t.accentPrimary, 0.4)}`,
+              background: hexToRgba(t.accentPrimary, 0.12),
+              border: `1px solid ${hexToRgba(t.accentPrimary, 0.35)}`,
+              color: t.accentPrimary,
             }}
           >
-            {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            Send Invitations ({selectedIds.length} Selected)
+            <Sliders size={15} />
+            Interview Configuration
           </button>
-        )}
+
+          {selectedIds.length > 0 && (
+            <button
+              onClick={() => handleSendInvitations()}
+              disabled={sending}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-semibold transition-all shadow-lg cursor-pointer"
+              style={{
+                background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.8)})`,
+                color: t.accentText,
+                boxShadow: `0 4px 20px ${hexToRgba(t.accentPrimary, 0.4)}`,
+              }}
+            >
+              {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              Send Invitations ({selectedIds.length} Selected)
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Notification Toast */}
@@ -332,14 +445,19 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
               handleSendInvitations(shortlistedIds);
             }}
             disabled={sending}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
               background: hexToRgba(t.accentPrimary, 0.15),
               border: `1px solid ${hexToRgba(t.accentPrimary, 0.35)}`,
               color: t.accentPrimary,
             }}
           >
-            <Mail size={14} /> Invite All Shortlisted ({filteredCandidates.filter((c) => c.status === "shortlisted").length})
+            {sending && sendingIds.some(id => filteredCandidates.some(c => c.id === id && c.status === "shortlisted")) ? (
+              <Loader2 size={14} className="animate-spin text-amber-400" />
+            ) : (
+              <Mail size={14} />
+            )}
+            Invite All Shortlisted ({filteredCandidates.filter((c) => c.status === "shortlisted").length})
           </button>
         )}
       </div>
@@ -380,6 +498,7 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
                 const isSelected = selectedIds.includes(c.id);
                 const badge = statusBadges[c.status] || { label: c.status, bg: hexToRgba(t.bgCard, 0.3), fg: t.txtMuted };
                 const intScore = c.evaluation?.overallScore;
+                const isRowSending = sendingIds.includes(c.id);
 
                 return (
                   <tr
@@ -425,14 +544,24 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
                           <button
                             onClick={() => handleSendInvitations([c.id])}
                             disabled={sending}
-                            className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer"
+                            className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
                             style={{
                               background: hexToRgba(t.accentPrimary, 0.15),
                               border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}`,
                               color: t.accentPrimary,
                             }}
                           >
-                            {c.status === "invited" ? "Resend Invite" : "Send Invite"}
+                            {isRowSending ? (
+                              <>
+                                <Loader2 size={12} className="animate-spin text-amber-400" />
+                                <span>{c.status === "invited" ? "Resending..." : "Sending..."}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Mail size={12} />
+                                <span>{c.status === "invited" ? "Resend Invite" : "Send Invite"}</span>
+                              </>
+                            )}
                           </button>
                         ) : null}
                         <button
@@ -458,163 +587,224 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
 
       {/* Candidate Interview Detail Modal Drawer */}
       {inspectingCandidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6" 
+          style={{ background: t.isDark ? "rgba(3, 3, 7, 0.82)" : "rgba(15, 15, 25, 0.6)", backdropFilter: "blur(12px)" }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="eval-modal-title"
+          onClick={() => setInspectingCandidate(null)}
+        >
           <div
-            className="w-full max-w-4xl max-h-[90vh] rounded-3xl p-8 overflow-y-auto shadow-2xl flex flex-col justify-between relative animate-in fade-in zoom-in-95 duration-200"
-            style={{ ...G.card, background: t.bgApp, border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}` }}
+            className="w-full max-w-4xl max-h-[92vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden relative animate-in fade-in zoom-in-95 duration-200"
+            style={{ 
+              background: t.isDark ? t.bgSurface : t.bgCard, 
+              border: `1px solid ${hexToRgba(t.accentPrimary, 0.35)}`,
+              boxShadow: t.isDark ? `0 20px 50px rgba(0,0,0,0.6), 0 0 30px ${hexToRgba(t.accentPrimary, 0.15)}` : "0 20px 50px rgba(0,0,0,0.15)"
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button */}
-            <button
-              onClick={() => setInspectingCandidate(null)}
-              className="absolute top-6 right-6 p-2 rounded-full hover:opacity-70 transition-opacity cursor-pointer"
-              style={{ color: t.txtMuted, background: hexToRgba(t.bgCard, 0.3) }}
+            {/* Sticky Header Bar */}
+            <div 
+              className="shrink-0 flex items-center justify-between p-6 border-b z-10" 
+              style={{ 
+                borderColor: hexToRgba(t.txtPrimary, 0.1),
+                background: hexToRgba(t.isDark ? t.bgSurface : t.bgCard, 0.95),
+                backdropFilter: "blur(8px)"
+              }}
             >
-              <X size={18} />
-            </button>
-
-            {/* Header */}
-            <div className="mb-6">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: t.accentPrimary }}>
-                <Sparkles size={14} /> Technical Evaluation Inspection
-              </div>
-              <h2 className="text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
-                {inspectingCandidate.name}
-              </h2>
-              <p className="text-xs" style={{ color: t.txtMuted }}>
-                {inspectingCandidate.email || "No email"} · Position: {inspectingCandidate.campaignTitle}
-              </p>
-            </div>
-
-            {/* Metrics Breakdown Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              {[
-                { label: "Overall Interview Score", value: inspectingCandidate.evaluation?.overallScore, color: t.numHero },
-                { label: "Technical Score", value: inspectingCandidate.evaluation?.technicalScore, color: t.accentPrimary },
-                { label: "Communication Score", value: inspectingCandidate.evaluation?.communicationScore, color: t.numPos },
-                { label: "Cultural Fit Score", value: inspectingCandidate.evaluation?.culturalFitScore, color: "#a855f7" },
-              ].map((m) => (
-                <div key={m.label} className="p-4 rounded-2xl" style={G.cardWarm}>
-                  <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: t.txtMuted }}>
-                    {m.label}
-                  </div>
-                  <div className="text-2xl font-bold" style={{ fontFamily: "'Fraunces', serif", color: m.color }}>
-                    {m.value !== undefined && m.value !== null ? `${Math.round(m.value)}/100` : "--"}
-                  </div>
+              <div>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-1" style={{ color: t.accentPrimary }}>
+                  <Sparkles size={14} /> Technical Evaluation Inspection
                 </div>
-              ))}
-            </div>
-
-            {/* AI Summary & Recommendation */}
-            {inspectingCandidate.evaluation?.summary && (
-              <div className="mb-6 p-5 rounded-2xl" style={G.card}>
-                <div className="text-xs font-semibold uppercase tracking-widest mb-2 flex items-center gap-2" style={{ color: t.accentPrimary }}>
-                  <Brain size={14} /> AI Evaluator Assessment
+                <div className="flex items-center gap-3">
+                  <h2 id="eval-modal-title" className="text-xl md:text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
+                    {inspectingCandidate.name}
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary, border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}` }}>
+                    {inspectingCandidate.status}
+                  </span>
                 </div>
-                <p className="text-xs leading-relaxed" style={{ color: t.txtBody }}>
-                  {inspectingCandidate.evaluation.summary}
+                <p className="text-xs font-medium mt-0.5" style={{ color: t.txtSecondary }}>
+                  {inspectingCandidate.email || "No email provided"} · Position: <span style={{ color: t.txtPrimary }}>{inspectingCandidate.campaignTitle}</span>
                 </p>
               </div>
-            )}
 
-            {/* Strengths & Concerns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="p-5 rounded-2xl" style={G.card}>
-                <div className="text-xs font-semibold uppercase tracking-widest mb-3 flex items-center gap-1.5" style={{ color: t.numPos }}>
-                  <ThumbsUp size={14} /> Technical Strengths
-                </div>
-                {inspectingCandidate.evaluation?.strengths && inspectingCandidate.evaluation.strengths.length > 0 ? (
-                  <ul className="space-y-1.5 text-xs" style={{ color: t.txtBody }}>
-                    {inspectingCandidate.evaluation.strengths.map((s, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="text-green-500 font-bold">•</span>
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs italic" style={{ color: t.txtGhost }}>No specific strengths highlighted.</p>
-                )}
-              </div>
-
-              <div className="p-5 rounded-2xl" style={G.card}>
-                <div className="text-xs font-semibold uppercase tracking-widest mb-3 flex items-center gap-1.5" style={{ color: t.numNeg }}>
-                  <ThumbsDown size={14} /> Key Concerns
-                </div>
-                {inspectingCandidate.evaluation?.concerns && inspectingCandidate.evaluation.concerns.length > 0 ? (
-                  <ul className="space-y-1.5 text-xs" style={{ color: t.txtBody }}>
-                    {inspectingCandidate.evaluation.concerns.map((c, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="text-red-500 font-bold">•</span>
-                        <span>{c}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs italic" style={{ color: t.txtGhost }}>No major concerns recorded.</p>
-                )}
-              </div>
+              {/* Close Button - Always Visible at Top Right */}
+              <button
+                onClick={() => setInspectingCandidate(null)}
+                aria-label="Close modal"
+                className="p-2.5 rounded-full transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0"
+                style={{ color: t.txtSecondary, background: hexToRgba(t.txtPrimary, 0.08), border: `1px solid ${hexToRgba(t.txtPrimary, 0.12)}` }}
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            {/* Q&A Transcript View */}
-            <div className="mb-6">
-              <div className="text-xs font-semibold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: t.txtPrimary }}>
-                <MessageSquare size={14} style={{ color: t.accentPrimary }} /> Live Interview Q&A Transcript
-              </div>
-              <div className="p-4 rounded-2xl max-h-60 overflow-y-auto space-y-3" style={G.card}>
-                {inspectingCandidate.evaluation?.interviewTranscript && inspectingCandidate.evaluation.interviewTranscript.length > 0 ? (
-                  inspectingCandidate.evaluation.interviewTranscript.map((turn, idx) => {
-                    const isAi = turn.role === "ai" || turn.role === "interviewer";
-                    return (
-                      <div key={idx} className={`flex ${isAi ? "justify-start" : "justify-end"}`}>
-                        <div
-                          className="max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed"
-                          style={{
-                            background: isAi ? hexToRgba(t.bgCard, t.isDark ? 0.4 : 0.8) : hexToRgba(t.accentPrimary, 0.18),
-                            border: `1px solid ${hexToRgba(isAi ? t.bgCard : t.accentPrimary, 0.3)}`,
-                            color: t.txtBody,
-                          }}
-                        >
-                          <div className="font-semibold text-[10px] uppercase tracking-wider mb-1" style={{ color: isAi ? t.accentPrimary : t.numPos }}>
-                            {isAi ? "AI Technical Interviewer" : inspectingCandidate.name}
-                          </div>
-                          <p>{turn.message}</p>
-                        </div>
+            {/* Scrollable Body Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Metrics Breakdown Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                {[
+                  { label: "Overall Score", value: inspectingCandidate.evaluation?.overallScore, color: t.numHero },
+                  { label: "Technical Score", value: inspectingCandidate.evaluation?.technicalScore, color: t.accentPrimary },
+                  { label: "Communication", value: inspectingCandidate.evaluation?.communicationScore, color: t.numPos },
+                  { label: "Cultural Fit", value: inspectingCandidate.evaluation?.culturalFitScore, color: t.accentBadge },
+                ].map((m) => {
+                  const formattedVal = m.value !== undefined && m.value !== null ? Math.round(m.value) : null;
+                  return (
+                    <div 
+                      key={m.label} 
+                      className="p-4 rounded-2xl flex flex-col justify-between transition-all"
+                      style={{ 
+                        background: hexToRgba(t.bgPage, t.isDark ? 0.5 : 0.6), 
+                        border: `1px solid ${hexToRgba(t.txtPrimary, 0.08)}`,
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)"
+                      }}
+                    >
+                      <div className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: t.txtSecondary }}>
+                        {m.label}
                       </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-xs text-center py-6" style={{ color: t.txtGhost }}>
-                    No interview transcript recorded yet for this candidate.
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-extrabold" style={{ fontFamily: "'Fraunces', serif", color: m.color }}>
+                          {formattedVal !== null ? formattedVal : "--"}
+                        </span>
+                        {formattedVal !== null && (
+                          <span className="text-xs font-semibold" style={{ color: t.txtMuted }}>/100</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* AI Summary Assessment */}
+              {inspectingCandidate.evaluation?.summary && (
+                <div className="p-5 rounded-2xl" style={{ background: hexToRgba(t.accentPrimary, 0.05), border: `1px solid ${hexToRgba(t.accentPrimary, 0.2)}` }}>
+                  <div className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2" style={{ color: t.accentPrimary }}>
+                    <Brain size={15} /> AI Evaluator Assessment
+                  </div>
+                  <p className="text-xs md:text-sm leading-relaxed font-normal" style={{ color: t.txtPrimary }}>
+                    {inspectingCandidate.evaluation.summary}
                   </p>
-                )}
+                </div>
+              )}
+
+              {/* Strengths & Concerns Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Technical Strengths */}
+                <div className="p-5 rounded-2xl flex flex-col" style={{ background: hexToRgba(t.bgPage, t.isDark ? 0.4 : 0.5), border: `1px solid ${hexToRgba(t.numPos, 0.25)}` }}>
+                  <div className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: t.numPos }}>
+                    <ThumbsUp size={15} /> Technical Strengths
+                  </div>
+                  {inspectingCandidate.evaluation?.strengths && inspectingCandidate.evaluation.strengths.length > 0 ? (
+                    <ul className="space-y-2 text-xs md:text-sm" style={{ color: t.txtPrimary }}>
+                      {inspectingCandidate.evaluation.strengths.map((s, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5">
+                          <span className="font-bold text-base leading-none" style={{ color: t.numPos }}>✓</span>
+                          <span className="leading-snug">{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs italic" style={{ color: t.txtMuted }}>No specific strengths highlighted.</p>
+                  )}
+                </div>
+
+                {/* Key Concerns */}
+                <div className="p-5 rounded-2xl flex flex-col" style={{ background: hexToRgba(t.bgPage, t.isDark ? 0.4 : 0.5), border: `1px solid ${hexToRgba(t.numNeg, 0.25)}` }}>
+                  <div className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: t.numNeg }}>
+                    <ThumbsDown size={15} /> Key Concerns
+                  </div>
+                  {inspectingCandidate.evaluation?.concerns && inspectingCandidate.evaluation.concerns.length > 0 ? (
+                    <ul className="space-y-2 text-xs md:text-sm" style={{ color: t.txtPrimary }}>
+                      {inspectingCandidate.evaluation.concerns.map((c, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5">
+                          <span className="font-bold text-base leading-none" style={{ color: t.numNeg }}>⚠</span>
+                          <span className="leading-snug">{c}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs italic" style={{ color: t.txtMuted }}>No major concerns recorded.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Transcript Log */}
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: t.txtPrimary }}>
+                  <MessageSquare size={15} style={{ color: t.accentPrimary }} /> Live Interview Q&A Transcript
+                </div>
+                <div className="p-4 rounded-2xl max-h-80 overflow-y-auto space-y-3" style={{ background: hexToRgba(t.bgPage, t.isDark ? 0.6 : 0.7), border: `1px solid ${hexToRgba(t.txtPrimary, 0.1)}` }}>
+                  {inspectingCandidate.evaluation?.interviewTranscript && inspectingCandidate.evaluation.interviewTranscript.length > 0 ? (
+                    inspectingCandidate.evaluation.interviewTranscript.map((turn, idx) => {
+                      const isAi = turn.role === "ai" || turn.role === "interviewer";
+                      return (
+                        <div key={idx} className={`flex ${isAi ? "justify-start" : "justify-end"}`}>
+                          <div
+                            className="max-w-[85%] p-3.5 rounded-2xl text-xs md:text-sm leading-relaxed shadow-sm"
+                            style={{
+                              background: isAi ? hexToRgba(t.accentPrimary, 0.12) : hexToRgba(t.bgCard, t.isDark ? 0.8 : 1),
+                              border: `1px solid ${hexToRgba(isAi ? t.accentPrimary : t.txtPrimary, 0.2)}`,
+                              color: t.txtPrimary,
+                            }}
+                          >
+                            <div className="font-bold text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5" style={{ color: isAi ? t.accentPrimary : t.numPos }}>
+                              {isAi ? "🤖 AI Technical Interviewer" : `👤 ${inspectingCandidate.name}`}
+                            </div>
+                            <p className="font-normal">{turn.message}</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-center py-8" style={{ color: t.txtMuted }}>
+                      No interview transcript recorded yet for this candidate.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Footer Recruiter Actions */}
-            <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: hexToRgba(t.bgCard, 0.3) }}>
-              <div className="text-xs" style={{ color: t.txtMuted }}>
-                Final Decision Status: <strong style={{ color: t.txtPrimary }}>{inspectingCandidate.status.toUpperCase()}</strong>
+            {/* Sticky Recruiter Action Footer */}
+            <div 
+              className="shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4 p-5 border-t z-10" 
+              style={{ 
+                borderColor: hexToRgba(t.txtPrimary, 0.1),
+                background: hexToRgba(t.isDark ? t.bgSurface : t.bgCard, 0.95),
+                backdropFilter: "blur(8px)"
+              }}
+            >
+              <div className="text-xs font-medium" style={{ color: t.txtSecondary }}>
+                Final Decision: <span className="font-bold text-sm uppercase ml-1" style={{ color: t.txtPrimary }}>{inspectingCandidate.status}</span>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button
                   onClick={() => handleRecruiterReview(inspectingCandidate.id, "hold")}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all"
-                  style={{ background: hexToRgba(t.bgCard, 0.4), color: t.txtPrimary, border: `1px solid ${hexToRgba(t.bgCard, 0.5)}` }}
+                  disabled={reviewingAction !== null}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: hexToRgba(t.txtPrimary, 0.08), color: t.txtPrimary, border: `1px solid ${hexToRgba(t.txtPrimary, 0.18)}` }}
                 >
+                  {reviewingAction === "hold" ? <Loader2 size={14} className="animate-spin" /> : null}
                   Hold
                 </button>
                 <button
                   onClick={() => handleRecruiterReview(inspectingCandidate.id, "reject")}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all"
-                  style={{ background: hexToRgba(t.numNeg, 0.15), color: t.numNeg, border: `1px solid ${t.numNeg}` }}
+                  disabled={reviewingAction !== null}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: hexToRgba(t.numNeg, 0.15), color: t.numNeg, border: `1px solid ${hexToRgba(t.numNeg, 0.4)}` }}
                 >
+                  {reviewingAction === "reject" ? <Loader2 size={14} className="animate-spin" /> : null}
                   Reject Candidate
                 </button>
                 <button
                   onClick={() => handleRecruiterReview(inspectingCandidate.id, "approve")}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all"
-                  style={{ background: t.accentPrimary, color: t.accentText, boxShadow: `0 4px 16px ${hexToRgba(t.accentPrimary, 0.3)}` }}
+                  disabled={reviewingAction !== null}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer hover:opacity-90 active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: t.accentPrimary, color: t.accentText, boxShadow: `0 4px 16px ${hexToRgba(t.accentPrimary, 0.35)}` }}
                 >
+                  {reviewingAction === "approve" ? <Loader2 size={14} className="animate-spin" /> : null}
                   Approve Candidate
                 </button>
               </div>
@@ -624,6 +814,190 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
         </div>
       )}
 
+      {/* Campaign-Specific Interview Configuration Modal */}
+      {isConfigModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6"
+          style={{ background: t.isDark ? "rgba(3, 3, 7, 0.82)" : "rgba(15, 15, 25, 0.6)", backdropFilter: "blur(12px)" }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="config-modal-title"
+          onClick={() => setIsConfigModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden relative animate-in fade-in zoom-in-95 duration-200"
+            style={{
+              background: t.isDark ? t.bgSurface : t.bgCard,
+              border: `1px solid ${hexToRgba(t.accentPrimary, 0.35)}`,
+              boxShadow: t.isDark ? `0 20px 50px rgba(0,0,0,0.6), 0 0 30px ${hexToRgba(t.accentPrimary, 0.15)}` : "0 20px 50px rgba(0,0,0,0.15)"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Sticky Header Bar */}
+            <div
+              className="shrink-0 flex items-center justify-between p-6 border-b z-10"
+              style={{
+                borderColor: hexToRgba(t.txtPrimary, 0.1),
+                background: hexToRgba(t.isDark ? t.bgSurface : t.bgCard, 0.95),
+                backdropFilter: "blur(8px)"
+              }}
+            >
+              <div>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-1" style={{ color: t.accentPrimary }}>
+                  <Sliders size={14} /> Campaign Settings
+                </div>
+                <h2 id="config-modal-title" className="text-xl md:text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
+                  Interview Focus & Custom Questions
+                </h2>
+                <p className="text-xs font-medium mt-0.5" style={{ color: t.txtSecondary }}>
+                  Specify topics or specific questions for candidate technical interviews on the /interviews portal
+                </p>
+              </div>
+
+              {/* Close Button - Always Visible at Top Right */}
+              <button
+                onClick={() => setIsConfigModalOpen(false)}
+                aria-label="Close configuration modal"
+                className="p-2.5 rounded-full transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0"
+                style={{ color: t.txtSecondary, background: hexToRgba(t.txtPrimary, 0.08), border: `1px solid ${hexToRgba(t.txtPrimary, 0.12)}` }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Scrollable Body Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Campaign Selector */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider block mb-2" style={{ color: t.txtPrimary }}>
+                  Select Campaign
+                </label>
+                <select
+                  value={configCampaignId}
+                  onChange={(e) => handleSelectConfigCampaign(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer"
+                  style={{
+                    background: hexToRgba(t.bgPage, t.isDark ? 0.5 : 0.8),
+                    border: `1px solid ${hexToRgba(t.accentPrimary, 0.35)}`,
+                    color: t.txtPrimary
+                  }}
+                >
+                  {campaigns.length === 0 ? (
+                    <option value="">No campaigns available</option>
+                  ) : (
+                    campaigns.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title} {c.interviewConfig ? "✓ (Configured)" : "(Default)"}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* Quick Preset Focus Templates */}
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center justify-between" style={{ color: t.txtSecondary }}>
+                  <span>Quick Focus Presets</span>
+                  <span className="text-[10px] lowercase font-normal" style={{ color: t.txtMuted }}>click to append template</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {PRESET_FOCUS_TEMPLATES.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setConfigText((prev) => (prev ? `${prev.trim()}\n${preset.text}` : preset.text));
+                      }}
+                      className="text-left p-3 rounded-xl border text-xs transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                      style={{
+                        background: hexToRgba(t.accentPrimary, 0.06),
+                        borderColor: hexToRgba(t.accentPrimary, 0.2),
+                        color: t.txtPrimary
+                      }}
+                    >
+                      <div className="font-semibold mb-0.5" style={{ color: t.accentPrimary }}>+ {preset.label}</div>
+                      <div className="text-[10px] line-clamp-1 opacity-75" style={{ color: t.txtSecondary }}>{preset.text}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Textarea for Interview Focus & Custom Questions */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-wider" style={{ color: t.txtPrimary }}>
+                    Interview Focus & Custom Questions (Optional)
+                  </label>
+                  <span className="text-[10px] font-medium" style={{ color: t.txtMuted }}>
+                    {configText.length} characters
+                  </span>
+                </div>
+                <textarea
+                  value={configText}
+                  onChange={(e) => setConfigText(e.target.value)}
+                  rows={5}
+                  placeholder="e.g. Ask the candidate to explain their most complex React project. Focus heavily on system design and cultural fit..."
+                  className="w-full rounded-2xl p-4 text-xs md:text-sm focus:outline-none resize-none leading-relaxed"
+                  style={{
+                    background: hexToRgba(t.bgPage, t.isDark ? 0.6 : 0.9),
+                    border: `1px solid ${hexToRgba(t.txtPrimary, 0.15)}`,
+                    color: t.txtPrimary
+                  }}
+                />
+              </div>
+
+              {/* Information Note */}
+              <div className="p-4 rounded-xl text-xs flex items-start gap-3" style={{ background: hexToRgba(t.accentPrimary, 0.08), border: `1px solid ${hexToRgba(t.accentPrimary, 0.2)}` }}>
+                <Sparkles size={16} className="shrink-0 mt-0.5" style={{ color: t.accentPrimary }} />
+                <p style={{ color: t.txtSecondary }}>
+                  When candidates belonging to this campaign initiate their technical interview, the AI Question Generator will prioritize these focus areas and custom topics.
+                </p>
+              </div>
+            </div>
+
+            {/* Sticky Recruiter Action Footer */}
+            <div
+              className="shrink-0 flex items-center justify-between p-5 border-t z-10"
+              style={{
+                borderColor: hexToRgba(t.txtPrimary, 0.1),
+                background: hexToRgba(t.isDark ? t.bgSurface : t.bgCard, 0.95),
+                backdropFilter: "blur(8px)"
+              }}
+            >
+              <button
+                onClick={() => setConfigText("")}
+                type="button"
+                className="text-xs font-semibold px-3 py-2 rounded-lg transition-colors cursor-pointer hover:opacity-80"
+                style={{ color: t.txtMuted }}
+              >
+                Clear Rules
+              </button>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsConfigModalOpen(false)}
+                  disabled={savingConfig}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer hover:opacity-90"
+                  style={{ background: hexToRgba(t.txtPrimary, 0.08), color: t.txtPrimary, border: `1px solid ${hexToRgba(t.txtPrimary, 0.18)}` }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveInterviewConfig}
+                  disabled={savingConfig || !configCampaignId}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: t.accentPrimary, color: t.accentText, boxShadow: `0 4px 16px ${hexToRgba(t.accentPrimary, 0.35)}` }}
+                >
+                  {savingConfig ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />}
+                  Save Configuration
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+

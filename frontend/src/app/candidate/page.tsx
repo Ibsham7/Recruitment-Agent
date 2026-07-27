@@ -230,7 +230,8 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               try {
                 const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "hold" }) });
                 if (!res.ok) throw new Error("Failed to submit");
-                setCandidate({ ...candidate, recommendation: "hold", status: "review" });
+                const nextStatus = candidate.status === 'screening_hold' ? 'screening_hold' : 'interview_completed';
+                setCandidate({ ...candidate, recommendation: "hold", status: nextStatus as any });
               } catch (e) { alert("Failed to submit"); }
             }}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium" style={{ ...G.card, color: t.txtSecondary }}><Pause size={11} /> Hold</button>
@@ -253,7 +254,8 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
               try {
                 const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidate.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve" }) });
                 if (!res.ok) throw new Error("Failed to submit");
-                setCandidate({ ...candidate, recommendation: "approve", status: "finalized" });
+                const nextStatus = candidate.status === 'screening_hold' ? 'shortlisted' : 'finalized';
+                setCandidate({ ...candidate, recommendation: "approve", status: nextStatus as any });
               } catch (e) { alert("Failed to submit"); }
             }}
             className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-semibold transition-all"

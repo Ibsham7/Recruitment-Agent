@@ -1,6 +1,7 @@
 import os
 import sys
 import asyncio
+from urllib.parse import urlparse, urlunparse
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -15,6 +16,7 @@ from app.agent.api import start_candidate_pipeline, resume_pipeline
 from app.database import prisma
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg_pool import AsyncConnectionPool
+from psycopg.rows import dict_row
 from app.agent.state import RecruitmentState
 from arq.cron import cron
 from app.sweeper import run_all_sweepers
@@ -26,17 +28,23 @@ async def startup(ctx):
     """
     await prisma.connect()
     
-    db_url = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
-    if db_url:
-        db_url = db_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
+    raw_db_url = os.environ.get("DATABASE_URL") or os.environ.get("DIRECT_URL")
+    if raw_db_url:
+        parsed = urlparse(raw_db_url)
+        # Strip query parameters (e.g. pgbouncer=true, connection_limit=1) for psycopg
+        db_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+    else:
+        db_url = ""
         
     pool = AsyncConnectionPool(
         conninfo=db_url,
-        max_size=20,
+        min_size=1,
+        max_size=5,
         open=False,
         kwargs={
             "autocommit": True,
-            "prepare_threshold": 0,
+            "prepare_threshold": None,
+            "row_factory": dict_row,
         },
     )
     await pool.open()
@@ -66,8 +74,13 @@ async def resume_pipeline_task(ctx, candidate_id: str, resume_data: str):
     """
     await resume_pipeline(candidate_id, resume_data, checkpointer=ctx.get('checkpointer'))
 
-# Setup Redis Connection
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+def _get_redis_settings() -> RedisSettings:
+    url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    settings = RedisSettings.from_dsn(url)
+    settings.conn_timeout = 10
+    settings.conn_retries = 5
+    return settings
+
 MAX_CONCURRENT_PIPELINES = int(os.getenv("MAX_CONCURRENT_PIPELINES", "3"))
 
 class WorkerSettings:
@@ -79,7 +92,7 @@ class WorkerSettings:
     cron_jobs = [
         cron(run_all_sweepers, hour={2, 14}, minute=0) # Run at 2 AM and 2 PM
     ]
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
+    redis_settings = _get_redis_settings()
     on_startup = startup
     on_shutdown = shutdown
     max_jobs = MAX_CONCURRENT_PIPELINES

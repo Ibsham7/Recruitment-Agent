@@ -1,0 +1,1 @@
+import{s as o}from"./index-2TK2-8Cg.js";async function c(t,e={}){const{data:{session:n}}=await o.auth.getSession(),s=n?.access_token,a=new Headers(e.headers||{});return s&&a.set("Authorization",`Bearer ${s}`),fetch(t,{...e,headers:a})}export{c as a};
