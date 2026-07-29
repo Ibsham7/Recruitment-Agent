@@ -82,8 +82,8 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
 
   const uploadToCloudinaryWithProgress = (taskId: string, file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
-      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
+      const cloudName = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
+      const uploadPreset = (import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "").trim();
       
       if (!cloudName || !uploadPreset) {
         const errorMsg = "Cloudinary upload credentials missing (VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET).";
@@ -96,7 +96,8 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
       setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploading', progress: 0 } : t));
 
       const xhr = new XMLHttpRequest();
-      const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
+      // Use auto resource_type so Cloudinary automatically handles images, pdfs, docx, doc, and raw text files
+      const url = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
       
       xhr.open("POST", url, true);
 
@@ -118,8 +119,16 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
             reject(new Error("Failed to parse Cloudinary response"));
           }
         } else {
+          let errDetail = `Upload failed (${xhr.status})`;
+          try {
+            const errRes = JSON.parse(xhr.responseText);
+            if (errRes.error?.message) {
+              errDetail = errRes.error.message;
+            }
+          } catch (e) {}
+          console.error("Cloudinary error:", errDetail);
           setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
-          reject(new Error("Upload failed"));
+          reject(new Error(errDetail));
         }
       };
 
@@ -310,16 +319,16 @@ A strong mathematical foundation in vector calculus and linear algebra.`);
         <div className="space-y-5">
           <div>
             <h2 className="text-2xl font-semibold mb-1" style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary }}>Upload candidate CVs</h2>
-            <p className="text-sm" style={{ color: t.txtSecondary }}>Upload PDFs — the AI will begin screening immediately.</p>
+            <p className="text-sm" style={{ color: t.txtSecondary }}>Upload PDFs, DOC, DOCX, or TXT files — the AI will begin screening immediately.</p>
           </div>
           
-          <input type="file" multiple accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileSelect} />
+          <input type="file" multiple accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" className="hidden" ref={fileInputRef} onChange={handleFileSelect} />
           
           <div onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={handleFileDrop} onClick={() => fileInputRef.current?.click()}
             className="rounded-2xl p-12 text-center cursor-pointer transition-all border-2 border-dashed"
             style={{ borderColor: dragging ? hexToRgba(t.accentPrimary, 0.55) : hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.30), background: dragging ? hexToRgba(t.accentPrimary, 0.07) : hexToRgba(t.bgCard, t.isDark ? 0.06 : 0.22) }}>
             <Upload size={26} className="mx-auto mb-3" style={{ color: t.txtGhost }} />
-            <div className="text-sm font-medium" style={{ color: t.txtPrimary }}>Drop PDF files here</div>
+            <div className="text-sm font-medium" style={{ color: t.txtPrimary }}>Drop CV files (PDF, DOC, DOCX, TXT) here</div>
             <div className="text-xs mt-0.5" style={{ color: t.txtMuted }}>or click to browse — up to 100 files</div>
           </div>
           

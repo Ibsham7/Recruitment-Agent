@@ -13,3 +13,4 @@ psycopg-pool
 arq
 redis
 pymupdf
+python-docx

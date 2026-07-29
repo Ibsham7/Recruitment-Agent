@@ -22,10 +22,86 @@ except ImportError:
     fitz = None
 
 
+from urllib.parse import urlparse
+import re
+
+def parse_file_by_format(local_path: str) -> str:
+    """Synchronous helper to parse PDF, DOCX, DOC, or TXT file into raw text."""
+    header = b""
+    try:
+        with open(local_path, "rb") as f:
+            header = f.read(8)
+    except Exception as e:
+        print(f"  [CV Parser] Error reading header: {e}")
+
+    # 1. PDF format (%PDF)
+    if header.startswith(b"%PDF"):
+        try:
+            reader = PdfReader(local_path)
+            return "\n".join([page.extract_text() or "" for page in reader.pages])
+        except Exception as e:
+            print(f"  [CV Parser] PdfReader failed: {e}")
+            return ""
+
+    # 2. DOCX format (ZIP header PK\x03\x04)
+    if header.startswith(b"PK\x03\x04"):
+        try:
+            import docx
+            doc = docx.Document(local_path)
+            full_text = [p.text for p in doc.paragraphs if p.text]
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        if cell.text:
+                            full_text.append(cell.text)
+            return "\n".join(full_text)
+        except Exception as e:
+            print(f"  [CV Parser] python-docx failed: {e}")
+        
+        try:
+            import zipfile
+            import xml.etree.ElementTree as ET
+            with zipfile.ZipFile(local_path) as z:
+                xml_content = z.read('word/document.xml')
+            tree = ET.fromstring(xml_content)
+            texts = []
+            for elem in tree.iter():
+                if elem.tag.endswith('t') and elem.text:
+                    texts.append(elem.text)
+                elif elem.tag.endswith('p'):
+                    texts.append('\n')
+            return "".join(texts)
+        except Exception as e:
+            print(f"  [CV Parser] zipfile docx parsing failed: {e}")
+            return ""
+
+    # 3. DOC format (OLE CFBF header \xd0\xcf\x11\xe0)
+    if header.startswith(b"\xd0\xcf\x11\xe0"):
+        try:
+            with open(local_path, "rb") as f:
+                content = f.read()
+            text_runs = re.findall(rb'[\x20-\x7E\t\r\n]{4,}', content)
+            decoded = [run.decode('ascii', errors='ignore') for run in text_runs]
+            filtered = [t for t in decoded if not t.startswith("Root Entry") and not t.startswith("WordDocument")]
+            return "\n".join(filtered)
+        except Exception as e:
+            print(f"  [CV Parser] DOC parsing failed: {e}")
+            return ""
+
+    # 4. Text / Fallback file
+    try:
+        with open(local_path, "r", encoding="utf-8", errors="ignore") as f:
+            return f.read()
+    except Exception as e:
+        print(f"  [CV Parser] Text reading failed: {e}")
+        return ""
+
 async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
     temp_path = None
     if filepath.startswith("http://") or filepath.startswith("https://"):
-        fd, temp_path = tempfile.mkstemp(suffix=".pdf")
+        parsed = urlparse(filepath)
+        ext = os.path.splitext(parsed.path)[1].lower() or ".pdf"
+        fd, temp_path = tempfile.mkstemp(suffix=ext)
         os.close(fd)
         max_retries = 3
         last_exception = None
@@ -36,7 +112,7 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
                     response.raise_for_status()
                     with open(temp_path, "wb") as f:
                         f.write(response.content)
-                pdf_path = temp_path
+                local_path = temp_path
                 last_exception = None
                 break
             except Exception as e:
@@ -50,19 +126,15 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
                 os.remove(temp_path)
             raise last_exception
     else:
-        pdf_path = filepath
+        local_path = filepath
 
     try:
-        def read_pdf():
-            reader = PdfReader(pdf_path)
-            return "\n".join([page.extract_text() or "" for page in reader.pages])
+        text = await asyncio.to_thread(parse_file_by_format, local_path)
         
-        text = await asyncio.to_thread(read_pdf)
-        
-        # Trigger OCR fallback if PyPDF2 extracts virtually no text
+        # Trigger OCR fallback if standard text extraction returned too little text
         if len(text.strip()) < 50:
             print("  [CV Parser] Standard text extraction failed or returned too little text. Falling back to OCR.")
-            profile_data, cost = await ocr_pdf_fallback(pdf_path)
+            profile_data, cost = await ocr_pdf_fallback(local_path)
             raw_text = json.dumps(profile_data, sort_keys=True) if profile_data else text
             return raw_text, profile_data, cost
             
@@ -70,6 +142,7 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
 
 async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float]:
     """Fallback method that converts PDF pages to images and uses a Vision model to extract directly to JSON."""
