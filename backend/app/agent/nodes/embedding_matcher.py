@@ -57,7 +57,7 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     
     # Use hash of the raw CV text for deterministic deduplication
     raw_text = profile.raw_cv_text or cv_summary
-    file_hash = hashlib.sha256(raw_text.encode('utf-8')).hexdigest()
+    file_hash = hashlib.sha256(raw_text.encode('utf-8', errors='replace')).hexdigest()
     
     cv_vector = await _get_or_create_embedding_async(file_hash, cv_summary)
     

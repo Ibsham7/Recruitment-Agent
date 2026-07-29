@@ -1,6 +1,12 @@
 import re
 import json
 
+def clean_surrogates(s: str) -> str:
+    """Sanitize string to remove unpaired UTF-16 surrogates that break UTF-8 encoding/JSON dumps."""
+    if not s:
+        return ""
+    return str(s).encode("utf-8", errors="replace").decode("utf-8")
+
 def extract_json(text: str) -> str:
     """Extract a JSON object or array from a string that might contain markdown or conversational text."""
     text = str(text).strip()

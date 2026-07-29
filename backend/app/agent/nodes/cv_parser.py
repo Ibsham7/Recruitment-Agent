@@ -10,6 +10,7 @@ from app.agent.schemas import CandidateProfile, CandidateProfileOutput
 from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import CV_PARSER_SYSTEM
+from app.agent.utils import clean_surrogates, extract_json, extract_cost
 import asyncio
 from app.database import prisma
 from typing import Tuple, Optional, Dict
@@ -130,12 +131,13 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
 
     try:
         text = await asyncio.to_thread(parse_file_by_format, local_path)
+        text = clean_surrogates(text)
         
         # Trigger OCR fallback if standard text extraction returned too little text
         if len(text.strip()) < 50:
             print("  [CV Parser] Standard text extraction failed or returned too little text. Falling back to OCR.")
             profile_data, cost = await ocr_pdf_fallback(local_path)
-            raw_text = json.dumps(profile_data, sort_keys=True) if profile_data else text
+            raw_text = clean_surrogates(json.dumps(profile_data, sort_keys=True)) if profile_data else text
             return raw_text, profile_data, cost
             
         return text, None, 0.0
@@ -205,7 +207,8 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         }
 
     raw_text, pre_parsed_profile, total_cost = await extract_pdf_text(state["cv_filepath"])
-    file_hash = hashlib.sha256(raw_text.encode('utf-8')).hexdigest()
+    raw_text = clean_surrogates(raw_text)
+    file_hash = hashlib.sha256(raw_text.encode('utf-8', errors='replace')).hexdigest()
     
     # Check global Resume cache by hash if DB is connected
     resume = None
@@ -251,18 +254,35 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             model = get_model(tier, max_tokens=token_limit)
             structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
             try:
-                result = await structured_model.ainvoke([
-                    SystemMessage(content=CV_PARSER_SYSTEM),
-                    HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
-                ])
-                parsed_res = result.get("parsed") if isinstance(result, dict) else None
-                if not parsed_res:
-                    err = result.get("parsing_error") if isinstance(result, dict) else None
-                    raise ValueError(f"Failed to parse CandidateProfileOutput: {err or 'LLM output was truncated or unparseable'}")
-                from app.agent.utils import extract_cost
-                total_cost += extract_cost(result)
-                profile_data = parsed_res.model_dump()
-                break
+                try:
+                    result = await structured_model.ainvoke([
+                        SystemMessage(content=CV_PARSER_SYSTEM),
+                        HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
+                    ])
+                    parsed_res = result.get("parsed") if isinstance(result, dict) else None
+                    if not parsed_res and isinstance(result, dict):
+                        raw_msg = result.get("raw")
+                        raw_str = raw_msg.content if hasattr(raw_msg, "content") else (str(raw_msg) if raw_msg else None)
+                        if raw_str:
+                            extracted = extract_json(raw_str)
+                            parsed_dict = json.loads(extracted)
+                            parsed_res = CandidateProfileOutput.model_validate(parsed_dict)
+                    if parsed_res:
+                        total_cost += extract_cost(result)
+                        profile_data = parsed_res.model_dump()
+                        break
+                except Exception as inner_e:
+                    print(f"  [CV Parser] Structured output attempt {attempt+1} ({tier}) failed ({inner_e}). Trying fallback raw JSON parsing...")
+                    raw_resp = await model.ainvoke([
+                        SystemMessage(content=CV_PARSER_SYSTEM + "\nOutput a single valid JSON object matching the CandidateProfileOutput schema."),
+                        HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
+                    ])
+                    extracted = extract_json(raw_resp.content)
+                    parsed_dict = json.loads(extracted)
+                    parsed_res = CandidateProfileOutput.model_validate(parsed_dict)
+                    total_cost += extract_cost(raw_resp)
+                    profile_data = parsed_res.model_dump()
+                    break
             except Exception as e:
                 print(f"  [CV Parser] Attempt {attempt+1} ({tier}, max_tokens={token_limit}) failed: {e}.")
                 if attempt == len(model_escalation) - 1:

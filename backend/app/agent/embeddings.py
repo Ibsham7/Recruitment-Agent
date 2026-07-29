@@ -19,16 +19,25 @@ async def get_embedding_async(text: str) -> list[float]:
         "model": EMBEDDING_MODEL,
         "input": text
     }
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://openrouter.ai/api/v1/embeddings",
-            headers=headers,
-            json=data
-        )
-        if response.status_code != 200:
-            raise RuntimeError(f"Failed to get embedding ({response.status_code}): {response.text}")
-        
-        return response.json()["data"][0]["embedding"]
+    timeout = httpx.Timeout(timeout=30.0, connect=15.0)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    "https://openrouter.ai/api/v1/embeddings",
+                    headers=headers,
+                    json=data
+                )
+                if response.status_code != 200:
+                    raise RuntimeError(f"Failed to get embedding ({response.status_code}): {response.text}")
+                
+                return response.json()["data"][0]["embedding"]
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPError) as e:
+            if attempt == max_retries - 1:
+                raise RuntimeError(f"Failed to get embedding after {max_retries} attempts: {e}") from e
+            import asyncio
+            await asyncio.sleep(2 ** attempt)
 
 def cosine_similarity(v1: list[float], v2: list[float]) -> float:
     a = np.array(v1)
