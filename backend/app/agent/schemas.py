@@ -89,4 +89,4 @@ class EvaluationReport(BaseModel):
     concerns: list[str]
     chain_of_thought: Optional[str] = Field(default=None, description="Step-by-step reasoning from screening")
     recommendation: str = Field(pattern="^(shortlist|reject|hold)$")
-    summary: str = Field(description="2–3 sentence overall assessment")
+    summary: str = Field(description="2–3 sentence overall assessment")

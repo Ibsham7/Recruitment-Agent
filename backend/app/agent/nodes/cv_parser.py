@@ -27,17 +27,28 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
     if filepath.startswith("http://") or filepath.startswith("https://"):
         fd, temp_path = tempfile.mkstemp(suffix=".pdf")
         os.close(fd)
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(filepath, timeout=30.0, follow_redirects=True)
-                response.raise_for_status()
-                with open(temp_path, "wb") as f:
-                    f.write(response.content)
-            pdf_path = temp_path
-        except Exception as e:
+        max_retries = 3
+        last_exception = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(filepath, timeout=30.0, follow_redirects=True)
+                    response.raise_for_status()
+                    with open(temp_path, "wb") as f:
+                        f.write(response.content)
+                pdf_path = temp_path
+                last_exception = None
+                break
+            except Exception as e:
+                last_exception = e
+                print(f"  [CV Parser] Download attempt {attempt}/{max_retries} failed for {filepath}: {e}")
+                if attempt < max_retries:
+                    await asyncio.sleep(1.5 * attempt)
+        
+        if last_exception is not None:
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
-            raise e
+            raise last_exception
     else:
         pdf_path = filepath
 
@@ -93,7 +104,7 @@ async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float]:
                 "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
             })
             
-        model = get_model("ocr")
+        model = get_model("ocr", max_tokens=8192)
         structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
         result = await structured_model.ainvoke([HumanMessage(content=content_parts)])
         print(f"  [OCR Fallback] Successfully parsed JSON via Vision OCR.")
@@ -157,11 +168,14 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         print("  [OK] Using directly parsed profile from Vision OCR.")
         profile_data = pre_parsed_profile
     else:
-        # Not found, parse via LLM
-        max_retries = 3
+        # Tiered escalation: Attempt 1 uses fast tier with full 8K token budget; Attempt 2 escalates to smart tier safety net
+        model_escalation = [
+            ("fast", 8192),
+            ("smart", 8192),
+        ]
         profile_data = None
-        for attempt in range(max_retries):
-            model = get_model("fast", max_tokens=None)
+        for attempt, (tier, token_limit) in enumerate(model_escalation):
+            model = get_model(tier, max_tokens=token_limit)
             structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
             try:
                 result = await structured_model.ainvoke([
@@ -177,9 +191,9 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                 profile_data = parsed_res.model_dump()
                 break
             except Exception as e:
-                print(f"  [CV Parser] Attempt {attempt+1} (fast) failed: {e}.")
-                if attempt == max_retries - 1:
-                    raise RuntimeError(f"Failed to parse CV after {max_retries} attempts due to LLM failure: {e}")
+                print(f"  [CV Parser] Attempt {attempt+1} ({tier}, max_tokens={token_limit}) failed: {e}.")
+                if attempt == len(model_escalation) - 1:
+                    raise RuntimeError(f"Failed to parse CV after {len(model_escalation)} attempts due to LLM failure: {e}")
     
     if not profile_data.get("name"):
         profile_data["name"] = "Unknown Candidate"

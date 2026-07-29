@@ -238,7 +238,7 @@ CV_PARSER_SYSTEM = """
 You are a CV parsing expert. Extract structured information from the CV text provided.
 
 Rules:
-- experience_calculation: Before outputting total years, write out a step-by-step breakdown (e.g. Role A 24 months, Role B 12 months)
+- experience_calculation: Keep very concise (max 15 words, e.g. Role A 24 months, Role B 12 months)
 - total_experience_years: calculate from dates if possible, estimate otherwise
 - skills: include both technical (Python, SQL) and soft (leadership, communication)
 - projects: include notable academic, personal or professional projects

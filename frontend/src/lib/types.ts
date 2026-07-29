@@ -46,6 +46,7 @@ export interface Candidate {
   email: string | null;
   phone: string | null;
   resumePath: string | null;
+  cvUrl?: string | null;
   status: CandidateStage;
   fitScore: number | null;
   decision: string | null;
