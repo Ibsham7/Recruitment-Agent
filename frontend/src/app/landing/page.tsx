@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Theme } from "../../lib/types";
 import { hexToRgba } from "../../lib/theme";
 import { ShapeGrid } from "../../components/common/ShapeGrid";
 import { PillNav } from "../../components/common/PillNav";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useScroll, useMotionValueEvent, useSpring, useTransform } from "motion/react";
 import { 
   FileText, 
   Bot, 
@@ -16,7 +16,14 @@ import {
   Layers,
   Clock,
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  Play,
+  Pause,
+  Maximize2,
+  X,
+  Lock,
+  ExternalLink,
+  ChevronRight
 } from "lucide-react";
 import TargetCursor from "../../components/common/TargetCursor";
 import TextType from "../../components/common/TextType";
@@ -28,13 +35,111 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
   const navigate = useNavigate();
   const onEnter = () => navigate("/auth");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
+
+  const processSectionRef = useRef<HTMLDivElement>(null);
+
+  const { scrollYProgress } = useScroll({
+    target: processSectionRef,
+    offset: ["start start", "end end"]
+  });
+
+  const step0Progress = useTransform(scrollYProgress, [0, 0.25], [0, 1]);
+  const step1Progress = useTransform(scrollYProgress, [0.25, 0.5], [0, 1]);
+  const step2Progress = useTransform(scrollYProgress, [0.5, 0.75], [0, 1]);
+  const step3Progress = useTransform(scrollYProgress, [0.75, 1], [0, 1]);
+  const stepProgresses = [step0Progress, step1Progress, step2Progress, step3Progress];
+
+  useMotionValueEvent(scrollYProgress, "change", (latest) => {
+    if (isAutoPlaying) return;
+    const clamped = Math.min(0.999, Math.max(0, latest));
+    const stepIndex = Math.min(
+      3,
+      Math.max(0, Math.floor(clamped * 4))
+    );
+    setActiveStep(stepIndex);
+  });
+
+  const handleStepClick = (idx: number) => {
+    setActiveStep(idx);
+    setIsAutoPlaying(false);
+    if (processSectionRef.current) {
+      const rect = processSectionRef.current.getBoundingClientRect();
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      // Target center of step's scroll zone to prevent floating-point boundary jitter
+      const stepOffset = ((idx + 0.5) / 4) * (rect.height - window.innerHeight);
+      const targetY = scrollTop + rect.top + stepOffset;
+      window.scrollTo({ top: targetY, behavior: "smooth" });
+    }
+  };
 
   const steps = [
-    { num: 1, title: "Post a Campaign", body: "Define job requirements, mandatory experience, and hard rules. hireagent sets up your screening pipeline instantly.", icon: FileText },
-    { num: 2, title: "Multi-Tier AI Funnel", body: "PyMuPDF parsing, Python hard-filter rules, pgvector semantic search, and Gemini Flash JD scoring screen applications in seconds.", icon: Bot },
-    { num: 3, title: "Asynchronous Interviews", body: "Shortlisted candidates answer 3-5 tailored technical questions addressing their specific CV gaps — anytime, anywhere.", icon: MessageSquareText },
-    { num: 4, title: "Final Scorecard & Shortlist", body: "Review Claude Sonnet transcript evaluations, multi-dimensional radar scores, and per-candidate token costs ready for decision.", icon: CheckCircle },
+    { 
+      num: 1, 
+      badge: "Step 01",
+      title: "Post a Campaign", 
+      body: "Define job requirements, mandatory experience, and custom hard rules. hireagent instantly constructs your automated screening pipeline.", 
+      icon: FileText,
+      url: "app.hireagent.ai/setup",
+      image: "/process/step-1.png",
+      tags: ["JD Parsing", "Hard-Filter Rules", "Pipeline Setup"],
+      highlight: "Zero LLM Cost Filtering"
+    },
+    { 
+      num: 2, 
+      badge: "Step 02",
+      title: "Multi-Tier AI Funnel", 
+      body: "PyMuPDF parsing, Python hard filters, pgvector semantic search (1536d), and Gemini Flash JD scoring screen applications in seconds.", 
+      icon: Bot,
+      url: "app.hireagent.ai/pipeline",
+      image: "/process/step-2.png",
+      tags: ["PyMuPDF Engine", "pgvector Semantic Search", "Gemini Flash Fit"],
+      highlight: "10x Screening Velocity"
+    },
+    { 
+      num: 3, 
+      badge: "Step 03",
+      title: "Asynchronous AI Interviews", 
+      body: "Shortlisted candidates answer 3-5 tailored technical questions designed dynamically to probe their specific CV gaps — anytime, anywhere.", 
+      icon: MessageSquareText,
+      url: "app.hireagent.ai/interview/session",
+      image: "/process/step-3.png",
+      tags: ["CV Gap Detection", "Adaptive Follow-ups", "Async Candidate Portal"],
+      highlight: "Zero Scheduling Delay"
+    },
+    { 
+      num: 4, 
+      badge: "Step 04",
+      title: "Final Scorecard & Shortlist", 
+      body: "Review Claude Sonnet transcript evaluations, multi-dimensional radar scores, per-candidate cost analytics, and make instant hiring decisions.", 
+      icon: CheckCircle,
+      url: "app.hireagent.ai/dashboard",
+      image: "/process/step-4.png",
+      tags: ["Multi-Axis Radar", "Claude Sonnet Grading", "Token Cost Tracker"],
+      highlight: "Data-Driven Hiring"
+    },
   ];
+
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+    const timer = setInterval(() => {
+      setActiveStep((prev) => (prev + 1) % steps.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [isAutoPlaying, steps.length]);
+
+  // Modal Escape key listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && fullscreenImg) {
+        setFullscreenImg(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [fullscreenImg]);
 
   const features = [
     { title: "Live Pipeline View", desc: "Kanban board across five distinct stages — Pending, Screening, Interviewing, Shortlisted, Rejected. Drag, filter, decide.", icon: LayoutGrid },
@@ -54,20 +159,44 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
 
   const faqs = [
     {
-      q: "How does the multi-tiered AI screening funnel work?",
-      a: "The pipeline uses an intelligent 4-tier funnel: hard filters (experience & tech stack), semantic vector similarity matching, objective fit scoring (0-100), and comprehensive transcript evaluations for interview finalists."
+      category: "Control & Governance",
+      q: "Will the AI make automated hiring or rejection decisions without my review?",
+      a: "No. hireagent operates as an intelligent hiring co-pilot, not an autonomous black box. While our multi-stage engine automatically screens, ranks candidates, and evaluates interviews, your hiring team retains 100% decision control. You can inspect fit scores, review full interview transcripts, manually move candidates across pipeline stages, and override any recommendation."
     },
     {
-      q: "How are automated interviews conducted and evaluated?",
-      a: "Shortlisted candidates receive a unique link to complete an asynchronous written interview. The agent generates 3-5 technical questions tailored to their CV gaps. Once completed, the system evaluates the full transcript across Technical, Communication, and Cultural Fit dimensions."
+      category: "Candidate Experience",
+      q: "What is the assessment experience like for job applicants?",
+      a: "Applicants receive a seamless, web-based interview assessment link that requires zero app downloads or login setups. Candidates answer role-specific written questions tailored to their experience at their own pace. If a response is brief, our engine adaptively asks a targeted follow-up probe to ensure candidate depth is fully captured."
     },
     {
-      q: "What makes hireagent so fast and efficient compared to traditional screening tools?",
-      a: "By filtering non-qualifying candidates early using automated hard rules and vector semantic matching before running deep evaluation algorithms, hireagent delivers up to 10× faster screening velocity and eliminates manual resume review fatigue."
+      category: "Screening & Rules",
+      q: "Can I set mandatory hard filters and custom criteria for specific roles?",
+      a: "Yes. When setting up a campaign, you configure mandatory experience thresholds, non-negotiable tech stacks, and custom hard rules. Applicants who do not meet your mandatory criteria are filtered out immediately before deep fit scoring occurs."
     },
     {
-      q: "How does hireagent handle duplicate CVs and candidate privacy?",
-      a: "Every CV upload is cryptographic SHA-256 hashed to prevent redundant processing. All candidate records, vectors, and transcripts are stored securely in PostgreSQL with Supabase JWT authentication and strict privacy policies."
+      category: "Cost & Efficiency",
+      q: "How does hireagent process high volumes of CVs so cost-effectively?",
+      a: "Instead of running full AI evaluations on every raw application upfront, hireagent uses an intelligent multi-stage cascade. Non-matching profiles and duplicates are filtered out early during initial qualification checks, reserving deep AI evaluations exclusively for viable candidates. This multi-tiered approach dramatically reduces overall processing overhead while accelerating screening."
+    },
+    {
+      category: "Objectivity & Bias",
+      q: "How does hireagent minimize bias and maintain objective candidate evaluation?",
+      a: "Our evaluation engine grades candidates strictly against job description requirements, verified skills, and structured multi-axis rubric standards (Technical Depth, Communication, and Problem-Solving). Every candidate in a campaign is judged against the exact same rules, filters, and criteria set up by your hiring team, ensuring consistent and objective evaluations."
+    },
+    {
+      category: "Security & Privacy",
+      q: "Is candidate resume and assessment data kept private and secure?",
+      a: "Yes. All data transmissions are encrypted using standard SSL/TLS, and data access is enforced with token-based authentication and account-level isolation. Your candidate profiles, resume data, and interview transcripts are strictly private to your team and isolated to your account. We never sell candidate data or share it across accounts."
+    },
+    {
+      category: "AI Interview Depth",
+      q: "Are the AI interview questions static templates or dynamically generated?",
+      a: "Questions are dynamically formulated for each campaign and candidate. The engine analyzes your job description requirements alongside the candidate's parsed resume to ask targeted questions that probe real skills and candidate background gaps, complete with live follow-up probing."
+    },
+    {
+      category: "Setup & Onboarding",
+      q: "How quickly can our team set up a hiring campaign and start screening?",
+      a: "You can launch a hiring campaign in under 5 minutes. Simply paste your job description, define your mandatory filter rules, and upload candidate resumes. hireagent parses the CVs, runs the multi-stage screening funnel, and populates your visual pipeline dashboard instantly."
     }
   ];
 
@@ -76,7 +205,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
   const gridHover = hexToRgba(t.accentPrimary, t.isDark ? 0.35 : 0.18);
 
   return (
-    <div className="relative w-full overflow-y-auto overflow-x-hidden" style={{ background: t.bgPage, color: t.txtBody, minHeight: "100vh" }}>
+    <div className="relative w-full overflow-x-clip" style={{ background: t.bgPage, color: t.txtBody, minHeight: "100vh" }}>
       <TargetCursor
         cursorColor="#ffffff"
         cursorColorOnTarget={t.accentPrimary}
@@ -209,89 +338,349 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
-      <section id="ha-process" className="w-full px-4 sm:px-8 lg:px-12 py-24 max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.1 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="text-center mb-16"
-        >
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: t.accentBadge, fontFamily: "'DM Mono',monospace" }}>Process</div>
-          <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "pre-line" }}>
-            From job post to shortlist.{"\n"}Powered by a multi-tiered funnel.
-          </h2>
-        </motion.div>
+      {/* ── HOW IT WORKS / PRODUCT PROCESS SHOWCASE WITH SCROLLMATION ───────────── */}
+      <section ref={processSectionRef} id="ha-process" className="relative z-10 w-full h-[320vh] max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 mb-28 pb-12">
+        <div className="sticky top-20 flex flex-col justify-center min-h-[calc(100vh-6rem)] py-2">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: false, amount: 0.1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="text-center mb-4"
+          >
+            <div className="text-[10px] font-semibold uppercase tracking-widest mb-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full"
+              style={{ color: t.accentBadge, background: hexToRgba(t.accentBadge, 0.10), border: `1px solid ${hexToRgba(t.accentBadge, 0.20)}`, fontFamily: "'DM Mono',monospace" }}>
+              <Sparkles size={12} /> Interactive Scrollmation & Product Workflow
+            </div>
+            <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, lineHeight: 1.15 }}>
+              From job post to shortlist. Powered by AI.
+            </h2>
+          </motion.div>
 
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: false, amount: 0.1 }}
-          variants={{
-            hidden: {
-              transition: { staggerChildren: 0.1, staggerDirection: -1 }
-            },
-            show: {
-              transition: { staggerChildren: 0.2, staggerDirection: 1 }
-            }
-          }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12"
-        >
-          {steps.map((s, i) => (
-            <motion.div
-              key={s.num}
-              variants={{
-                hidden: { opacity: 0, y: 30, transition: { duration: 0.4, ease: "easeIn" } },
-                show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
-              }}
-              className="cursor-target flex flex-col items-center group"
-            >
-              {/* Icon Container */}
-              <div className="mb-6 relative w-full flex justify-center">
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-sm"
-                  style={{
-                    background: hexToRgba(t.bgCard, t.isDark ? 0.3 : 1),
-                    border: `1px solid ${hexToRgba(t.txtPrimary, 0.1)}`,
-                    color: t.accentPrimary,
-                  }}
-                >
-                  <s.icon size={28} strokeWidth={1.5} />
-                </motion.div>
-                {/* Connecting line between icons (desktop only) */}
-                {i < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-1/2 left-[calc(50%+2rem)] w-[calc(100%-4rem)] h-[1px] -translate-y-1/2 border-t border-dashed opacity-40"
-                    style={{ borderColor: t.txtPrimary }}
-                  />
-                )}
-              </div>
+        {/* Showcase Grid: Stepper (Left) & Browser Window Mockup (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-center">
+          
+          {/* Stepper Tabs (Left - 5 cols) */}
+          <div className="lg:col-span-5 flex flex-col gap-2">
+            {/* Scroll Progress Bar (Butter-smooth GPU scaleX Motion tracking) */}
+            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
+              <motion.div 
+                className="h-full rounded-full origin-left w-full"
+                style={{ 
+                  scaleX: isAutoPlaying ? (activeStep + 1) / steps.length : scrollYProgress,
+                  background: `linear-gradient(90deg, ${t.accentPrimary}, ${t.accentBadge})` 
+                }}
+                transition={{ duration: isAutoPlaying ? 0.3 : 0 }}
+              />
+            </div>
 
-              {/* Number and Text Content */}
-              <div className="flex items-start text-left gap-4 w-full">
+            {steps.map((s, idx) => {
+              const isActive = activeStep === idx;
+              const StepIcon = s.icon;
+
+              return (
                 <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[13px] font-medium border"
+                  key={s.num}
+                  onClick={() => handleStepClick(idx)}
+                  className="cursor-target rounded-xl p-3 sm:p-3.5 border transition-all duration-300 relative overflow-hidden group"
                   style={{
-                    borderColor: hexToRgba(t.txtPrimary, 0.2),
-                    color: t.txtPrimary,
-                    fontFamily: "'DM Mono',monospace"
+                    background: isActive 
+                      ? hexToRgba(t.bgCard, t.isDark ? 0.32 : 0.92) 
+                      : hexToRgba(t.bgCard, t.isDark ? 0.08 : 0.40),
+                    borderColor: isActive 
+                      ? t.accentPrimary 
+                      : hexToRgba(t.txtPrimary, 0.08),
+                    boxShadow: isActive 
+                      ? `0 6px 20px ${hexToRgba(t.accentPrimary, 0.16)}` 
+                      : "none",
                   }}
                 >
-                  {s.num}
+                  {/* Left Accent Bar */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-1 transition-all duration-300"
+                    style={{ 
+                      opacity: isActive ? 1 : 0, 
+                      background: t.accentPrimary,
+                      transform: isActive ? "scaleY(1)" : "scaleY(0)" 
+                    }}
+                  />
+
+                  {/* Active Step Micro Progress Bar at Card Bottom (Butter-smooth GPU scaleX) */}
+                  <motion.div 
+                    className="absolute bottom-0 left-0 right-0 h-[2px] origin-left"
+                    style={{
+                      scaleX: isAutoPlaying ? (isActive ? 1 : 0) : stepProgresses[idx],
+                      background: t.accentPrimary,
+                      opacity: isActive ? 1 : 0
+                    }}
+                    transition={{ opacity: { duration: 0.2 }, scaleX: { duration: isAutoPlaying ? 0.3 : 0 } }}
+                  />
+
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-300"
+                      style={{
+                        background: isActive ? hexToRgba(t.accentPrimary, 0.18) : hexToRgba(t.txtPrimary, 0.05),
+                        color: isActive ? t.accentPrimary : t.txtSecondary,
+                      }}
+                    >
+                      <StepIcon size={16} strokeWidth={isActive ? 2 : 1.5} />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono font-medium tracking-wider" style={{ color: isActive ? t.accentPrimary : t.txtGhost }}>
+                          {s.badge}
+                        </span>
+                        <span 
+                          className="text-[9px] px-2 py-0.5 rounded-full font-semibold transition-opacity duration-300" 
+                          style={{ 
+                            background: hexToRgba(t.accentBadge, 0.15), 
+                            color: t.accentBadge,
+                            opacity: isActive ? 1 : 0.3 
+                          }}
+                        >
+                          {s.highlight}
+                        </span>
+                      </div>
+
+                      <h3 className="text-xs sm:text-sm font-semibold transition-colors" style={{ color: t.txtPrimary }}>
+                        {s.title}
+                      </h3>
+
+                      <p className="text-[11px] leading-relaxed mt-0.5 line-clamp-1" style={{ color: t.txtSecondary }}>
+                        {s.body}
+                      </p>
+
+                      {/* Feature Tags - Reflow Free CSS Grid expansion */}
+                      <div 
+                        className="grid transition-all duration-300 ease-out overflow-hidden"
+                        style={{ 
+                          gridTemplateRows: isActive ? "1fr" : "0fr",
+                          opacity: isActive ? 1 : 0,
+                          marginTop: isActive ? "0.375rem" : "0px",
+                          paddingTop: isActive ? "0.375rem" : "0px",
+                          borderTop: isActive ? `1px solid ${hexToRgba(t.txtPrimary, 0.08)}` : "1px solid transparent"
+                        }}
+                      >
+                        <div className="overflow-hidden flex flex-wrap gap-1">
+                          {s.tags.map((tag) => (
+                            <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded font-medium" style={{ background: hexToRgba(t.txtPrimary, 0.06), color: t.txtSecondary }}>
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1 mt-[2px]">
-                  <h3 className="text-base font-semibold mb-2" style={{ color: t.txtPrimary }}>{s.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: t.txtSecondary }}>{s.body}</p>
+              );
+            })}
+
+            {/* Auto Play Toggle */}
+            <div className="flex items-center justify-between px-1 pt-0.5 text-xs" style={{ color: t.txtGhost }}>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+                  className="cursor-target flex items-center gap-1 px-2.5 py-1 rounded-md border transition-colors hover:text-white text-[11px]"
+                  style={{ borderColor: hexToRgba(t.txtPrimary, 0.12), background: hexToRgba(t.bgCard, 0.2) }}
+                >
+                  {isAutoPlaying ? <Pause size={11} /> : <Play size={11} />}
+                  <span>{isAutoPlaying ? "Pause Auto-play" : "Start Auto-play"}</span>
+                </button>
+              </div>
+              <span className="text-[10px] font-mono">Step {activeStep + 1} of {steps.length}</span>
+            </div>
+          </div>
+
+          {/* Browser Window Screenshot Showcase (Right - 7 cols) */}
+          <div className="lg:col-span-7 w-full">
+            <div 
+              className="rounded-2xl border overflow-hidden shadow-2xl transition-all duration-300"
+              style={{ 
+                background: hexToRgba(t.bgCard, t.isDark ? 0.35 : 0.95), 
+                borderColor: hexToRgba(t.txtPrimary, 0.12),
+                backdropFilter: "blur(20px)"
+              }}
+            >
+              {/* Browser Header Bar */}
+              <div 
+                className="px-4 py-3 border-b flex items-center justify-between gap-4"
+                style={{ 
+                  background: hexToRgba(t.bgSurface, t.isDark ? 0.60 : 0.85),
+                  borderColor: hexToRgba(t.txtPrimary, 0.08)
+                }}
+              >
+                {/* Traffic Light Dots */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="w-3 h-3 rounded-full bg-rose-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                </div>
+
+                {/* URL Bar */}
+                <div 
+                  className="flex-1 max-w-sm px-3 py-1 rounded-lg border flex items-center gap-2 text-xs font-mono truncate"
+                  style={{ 
+                    background: hexToRgba(t.bgPage, 0.5), 
+                    borderColor: hexToRgba(t.txtPrimary, 0.08),
+                    color: t.txtSecondary 
+                  }}
+                >
+                  <Lock size={11} className="shrink-0 text-emerald-400" />
+                  <span className="truncate">{steps[activeStep].url}</span>
+                </div>
+
+                {/* Status & Maximize Action */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium" style={{ background: hexToRgba(t.accentBadge, 0.12), color: t.accentBadge }}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>App Screenshot</span>
+                  </div>
+                  <button 
+                    onClick={() => setFullscreenImg(steps[activeStep].image)}
+                    title="View full resolution screenshot"
+                    className="cursor-target p-1.5 rounded-lg border transition-colors hover:scale-105"
+                    style={{ borderColor: hexToRgba(t.txtPrimary, 0.12), color: t.txtSecondary }}
+                  >
+                    <Maximize2 size={13} />
+                  </button>
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </motion.div>
+
+              {/* Stacked Absolute Motion Parallax Screenshot Body */}
+              <div className="relative aspect-[16/10] w-full overflow-hidden bg-black/40 flex items-center justify-center group">
+                {steps.map((s, idx) => {
+                  const isActive = activeStep === idx;
+
+                  return (
+                    <motion.div
+                      key={s.num}
+                      initial={false}
+                      animate={{
+                        opacity: isActive ? 1 : 0,
+                        scale: isActive ? 1 : 0.96,
+                        y: isActive ? 0 : 16,
+                        filter: isActive ? "blur(0px)" : "blur(4px)"
+                      }}
+                      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute inset-0"
+                      style={{
+                        pointerEvents: isActive ? "auto" : "none",
+                      }}
+                    >
+                      <img 
+                        src={s.image} 
+                        alt={s.title} 
+                        className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
+                      />
+
+                      {/* Vignette Overlay */}
+                      <div 
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background: `radial-gradient(ellipse 90% 90% at 50% 50%, transparent 40%, ${hexToRgba(t.bgPage, t.isDark ? 0.35 : 0.15)} 100%)`
+                        }}
+                      />
+
+                      {/* Click-to-Expand Overlay Hint */}
+                      <div 
+                        onClick={() => setFullscreenImg(s.image)}
+                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer backdrop-blur-[2px]"
+                      >
+                        <div 
+                          className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-transform scale-95 group-hover:scale-100"
+                          style={{ background: t.accentPrimary, color: t.accentText, boxShadow: `0 4px 20px ${hexToRgba(t.accentPrimary, 0.4)}` }}
+                        >
+                          <Maximize2 size={14} /> Expand Screenshot View
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {/* Footer Bar inside Mockup */}
+              <div 
+                className="px-4 py-2.5 border-t flex items-center justify-between text-xs"
+                style={{ 
+                  background: hexToRgba(t.bgSurface, t.isDark ? 0.40 : 0.60),
+                  borderColor: hexToRgba(t.txtPrimary, 0.08),
+                  color: t.txtSecondary
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[11px]" style={{ color: t.txtGhost }}>{steps[activeStep].badge}</span>
+                  <span className="text-slate-500">·</span>
+                  <span className="font-medium" style={{ color: t.txtPrimary }}>{steps[activeStep].title}</span>
+                </div>
+
+                <button 
+                  onClick={onEnter} 
+                  className="cursor-target flex items-center gap-1 text-[11px] font-semibold transition-all hover:underline"
+                  style={{ color: t.accentPrimary }}
+                >
+                  <span>Try in App</span>
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Lightbox Modal */}
+        <AnimatePresence>
+          {fullscreenImg && (
+            <div 
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-md"
+              onClick={() => setFullscreenImg(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={{ duration: 0.25 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative max-w-5xl w-full max-h-[90vh] flex flex-col rounded-2xl overflow-hidden border shadow-2xl"
+                style={{ background: t.bgCard, borderColor: hexToRgba(t.txtPrimary, 0.15) }}
+              >
+                {/* Sticky Header */}
+                <div 
+                  className="shrink-0 z-10 px-6 py-4 border-b flex items-center justify-between"
+                  style={{ background: t.bgSurface, borderColor: hexToRgba(t.txtPrimary, 0.10) }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} style={{ color: t.accentPrimary }} />
+                    <span className="text-sm font-semibold" style={{ color: t.txtPrimary }}>
+                      {steps[activeStep].title} — Full Screenshot View
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setFullscreenImg(null)}
+                    className="p-1.5 rounded-lg border transition-colors hover:bg-white/10"
+                    style={{ borderColor: hexToRgba(t.txtPrimary, 0.12), color: t.txtPrimary }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Scroll Body */}
+                <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center bg-black/50">
+                  <img 
+                    src={fullscreenImg} 
+                    alt="Full resolution preview" 
+                    className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-lg border border-white/10"
+                  />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+        </div>
       </section>
 
       {/* ── STATS ─────────────────────────────────────────────────────────── */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 py-16" style={{ background: hexToRgba(t.bgSurface, t.isDark ? 0.70 : 0.55), borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}`, borderBottom: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}` }}>
+      <section className="relative z-20 w-full px-4 sm:px-8 lg:px-12 py-16" style={{ background: hexToRgba(t.bgSurface, t.isDark ? 0.70 : 0.55), borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}`, borderBottom: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}` }}>
         <motion.div
           initial="hidden"
           whileInView="show"
@@ -391,8 +780,8 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
           <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15 }}>
             Frequently Asked Questions
           </h2>
-          <p className="text-sm mt-3" style={{ color: t.txtSecondary }}>
-            Technical details behind hireagent's multi-tiered screening & AI interview architecture.
+          <p className="text-sm mt-3 max-w-xl mx-auto" style={{ color: t.txtSecondary }}>
+            Everything you need to know about hireagent's screening engine, candidate experience, data privacy, and recruiting workflow.
           </p>
         </motion.div>
 
@@ -417,13 +806,27 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
                   onClick={() => setOpenFaq(isOpen ? null : idx)}
                   className="w-full px-6 py-5 flex items-center justify-between text-left cursor-target"
                 >
-                  <span className="text-sm sm:text-base font-semibold pr-4" style={{ color: t.txtPrimary }}>
-                    {faq.q}
-                  </span>
+                  <div className="flex flex-col gap-1 pr-4">
+                    {faq.category && (
+                      <span 
+                        className="text-[10px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full w-fit mb-1"
+                        style={{ 
+                          color: t.accentBadge, 
+                          background: hexToRgba(t.accentBadge, 0.12),
+                          border: `1px solid ${hexToRgba(t.accentBadge, 0.20)}`
+                        }}
+                      >
+                        {faq.category}
+                      </span>
+                    )}
+                    <span className="text-sm sm:text-base font-semibold" style={{ color: t.txtPrimary }}>
+                      {faq.q}
+                    </span>
+                  </div>
                   <motion.div
                     animate={{ rotate: isOpen ? 180 : 0 }}
                     transition={{ duration: 0.2 }}
-                    className="shrink-0"
+                    className="shrink-0 ml-2"
                     style={{ color: t.accentPrimary }}
                   >
                     <ChevronDown size={20} />
