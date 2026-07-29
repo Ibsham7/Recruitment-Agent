@@ -98,6 +98,9 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
             SET "distilledJd" = $1, "jdEmbedding" = $2::vector
             WHERE id = $3
         ''', distilled_jd, str(jd_embedding), new_campaign.id)
+        from app.dev_logger import log_event
+        log_event(new_campaign.id, "JD_EMBEDDING", f"JD embedded successfully for Campaign '{new_campaign.name}' ({new_campaign.id})")
+        print(f"[JD Embedding] Distilled and embedded JD for Campaign '{new_campaign.name}' ({new_campaign.id})")
     except Exception as e:
         print(f"Warning: Failed to generate JD embedding during campaign creation: {e}")
         # The embedding_matcher_node will self-heal and generate it when the first candidate runs

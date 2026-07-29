@@ -92,6 +92,9 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
                 SET "distilledJd" = $1, "jdEmbedding" = $2::vector
                 WHERE id = $3
             ''', jd_distilled, str(jd_vector), campaign_id)
+            from app.dev_logger import log_event
+            log_event(campaign_id, "JD_EMBEDDING", f"JD embedded successfully for Campaign {campaign_id}")
+            print(f"[JD Embedding] Distilled and embedded JD for Campaign {campaign_id}")
             
     # Try querying native PGVector cosine similarity directly from database
     similarity_result = await prisma.query_raw('''
@@ -107,16 +110,10 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     else:
         similarity = cosine_similarity(cv_vector, jd_vector)
 
-    print(f"  Similarity Score: {similarity:.2f}")
+    print(f"  [Embedding Matcher] Semantic Score: {similarity:.2f}")
     
     # Read strategy from env or default to threshold
     strategy = os.getenv("EMBEDDING_STRATEGY", "threshold")
-    
-    logs = [
-        f"Embedder Input CV: {cv_summary}",
-        f"Embedder Input JD (Distilled): {jd_distilled}",
-        f"Semantic scoring worked by calculating cosine similarity between the CV and JD vectors, yielding: {similarity:.2f}"
-    ]
     
     if strategy == "threshold":
         threshold = float(os.getenv("EMBEDDING_THRESHOLD", "0.4"))
@@ -127,12 +124,12 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
                 "pipeline_status": "rejected",
                 "rejection_reason": reason,
                 "semantic_score": similarity,
-                "log": logs + [f"Embedding rejected: {reason}"]
+                "log": [f"Semantic score: {similarity:.2f} (Rejected: below threshold {threshold})"]
             }
         print("  [OK] Passed embedding threshold.")
         return {
             "semantic_score": similarity,
-            "log": logs + [f"Passed embedding threshold with score {similarity:.2f}"]
+            "log": [f"Semantic score: {similarity:.2f} (Passed threshold {threshold})"]
         }
     else:
         # Batch mode: we let everyone pass this node, but record their score.
@@ -140,5 +137,5 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
         print("  [INFO] Batch mode active. Score recorded.")
         return {
             "semantic_score": similarity,
-            "log": logs + [f"Embedding calculated (score {similarity:.2f}). Waiting for batch filter."]
+            "log": [f"Semantic score: {similarity:.2f} (Batch mode)"]
         }
