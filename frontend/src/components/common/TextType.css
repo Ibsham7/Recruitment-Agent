@@ -1,6 +1,6 @@
 .text-type {
   display: inline-block;
-  white-space: pre-wrap;
+  white-space: nowrap;
 }
 
 .text-type__cursor {
@@ -12,3 +12,4 @@
 .text-type__cursor--hidden {
   display: none;
 }
+
