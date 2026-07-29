@@ -120,7 +120,7 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-10" style={{ background: theme.bgPage }}>
         {/* Top bar */}
         <header className="h-13 flex items-center justify-between px-6 flex-shrink-0" style={G.bar}>
           <div className="flex items-center gap-2.5">
@@ -157,7 +157,7 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden" style={{ background: theme.bgPage }}>
           <Outlet />
         </main>
       </div>

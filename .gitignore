@@ -11,3 +11,4 @@ __pycache__/
 *.pyc
 .turbo/
 backend/log.txt
+frontend/dist
