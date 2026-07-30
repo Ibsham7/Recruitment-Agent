@@ -4,7 +4,7 @@ import { Theme } from "../../lib/types";
 import { hexToRgba } from "../../lib/theme";
 import { ShapeGrid } from "../../components/common/ShapeGrid";
 import { PillNav } from "../../components/common/PillNav";
-import { motion, AnimatePresence, useScroll, useMotionValueEvent, useSpring, useTransform } from "motion/react";
+import { motion, AnimatePresence, useScroll, useMotionValueEvent, useTransform } from "motion/react";
 import { 
   FileText, 
   Bot, 
@@ -22,7 +22,6 @@ import {
   Maximize2,
   X,
   Lock,
-  ExternalLink,
   ChevronRight
 } from "lucide-react";
 import TargetCursor from "../../components/common/TargetCursor";
@@ -228,7 +227,7 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
         }}
       >
         <div className="flex items-center">
-          <img src={t.isDark ? logoDarkImg : logoLightImg} alt="hireagent logo" width={148} height={48} decoding="async" fetchpriority="high" className="cursor-target max-h-9 w-auto object-contain object-left" />
+          <img src={t.isDark ? logoDarkImg : logoLightImg} alt="hireagent logo" width={148} height={48} decoding="async" fetchPriority="high" className="cursor-target max-h-9 w-auto object-contain object-left" />
         </div>
 
         <PillNav

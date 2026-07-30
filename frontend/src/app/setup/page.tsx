@@ -3,30 +3,15 @@ import { useNavigate } from "react-router";
 import { 
   Check, 
   Upload, 
-  FileText, 
   CheckCircle, 
-  Loader2, 
-  XCircle, 
+  Loader2,
   RefreshCw, 
-  Briefcase, 
-  Sliders, 
-  Sparkles, 
-  ShieldCheck, 
-  ShieldAlert, 
   Trash2, 
   Plus, 
   ArrowRight, 
   ArrowLeft, 
-  RotateCcw, 
-  Info,
-  FileCheck,
-  Zap,
-  Target,
-  Layers,
-  Cpu,
-  CheckCircle2,
-  HelpCircle,
-  FileCode
+  RotateCcw,
+  AlertTriangle
 } from "lucide-react";
 import { Theme } from "../../lib/types";
 import { hexToRgba, getGlass } from "../../lib/theme";
@@ -38,6 +23,19 @@ interface UploadTask {
   status: 'pending' | 'uploading' | 'success' | 'error';
   progress: number;
   url?: string;
+  errorReason?: string;
+}
+
+function validateFile(file: File): { isError: boolean; reason?: string } {
+  if (file.size === 0) {
+    return { isError: true, reason: "Empty file (0 B)" };
+  }
+  const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
+  const ext = "." + (file.name.split('.').pop() || "").toLowerCase();
+  if (!allowedExtensions.includes(ext)) {
+    return { isError: true, reason: `Unsupported file type (${ext || 'unknown'})` };
+  }
+  return { isError: false };
 }
 
 const DEFAULT_TITLE = "AI Engineer (Applied ML & Agentic Systems)";
@@ -114,37 +112,54 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
     e.preventDefault();
     setDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const newTasks: UploadTask[] = Array.from(e.dataTransfer.files).map(f => ({
-        id: Math.random().toString(36).substring(2, 9),
-        file: f,
-        status: 'pending',
-        progress: 0
-      }));
+      const newTasks: UploadTask[] = Array.from(e.dataTransfer.files).map(f => {
+        const val = validateFile(f);
+        return {
+          id: Math.random().toString(36).substring(2, 9),
+          file: f,
+          status: val.isError ? 'error' : 'pending',
+          progress: 0,
+          errorReason: val.reason
+        };
+      });
       setUploadTasks((prev) => [...prev, ...newTasks]);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newTasks: UploadTask[] = Array.from(e.target.files).map(f => ({
-        id: Math.random().toString(36).substring(2, 9),
-        file: f,
-        status: 'pending',
-        progress: 0
-      }));
+      const newTasks: UploadTask[] = Array.from(e.target.files).map(f => {
+        const val = validateFile(f);
+        return {
+          id: Math.random().toString(36).substring(2, 9),
+          file: f,
+          status: val.isError ? 'error' : 'pending',
+          progress: 0,
+          errorReason: val.reason
+        };
+      });
       setUploadTasks((prev) => [...prev, ...newTasks]);
     }
+    if (e.target) e.target.value = '';
   };
 
   const uploadToCloudinaryWithProgress = (taskId: string, file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
+      const val = validateFile(file);
+      if (val.isError) {
+        const errorMsg = val.reason || "Invalid file.";
+        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', progress: 0, errorReason: errorMsg } : t));
+        reject(new Error(errorMsg));
+        return;
+      }
+
       const cloudName = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
       const uploadPreset = (import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "").trim();
       
       if (!cloudName || !uploadPreset) {
         const errorMsg = "Cloudinary upload credentials missing (VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET).";
         console.error(errorMsg);
-        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', progress: 0 } : t));
+        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', progress: 0, errorReason: "Cloudinary config missing" } : t));
         reject(new Error(errorMsg));
         return;
       }
@@ -170,7 +185,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
             setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'success', progress: 100, url: response.secure_url } : t));
             resolve(response.secure_url);
           } catch (err) {
-            setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
+            setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: "Invalid server response" } : t));
             reject(new Error("Failed to parse Cloudinary response"));
           }
         } else {
@@ -182,13 +197,13 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
             }
           } catch (e) {}
           console.error("Cloudinary error:", errDetail);
-          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
+          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: errDetail } : t));
           reject(new Error(errDetail));
         }
       };
 
       xhr.onerror = () => {
-        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
+        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: "Network upload error" } : t));
         reject(new Error("Network error during upload"));
       };
 
@@ -202,6 +217,16 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
   const onComplete = async () => {
     if (!title || !jd || uploadTasks.length === 0) return;
+
+    // Filter only valid (non-error and non-0 B) tasks for upload
+    const currentTasks = uploadTasksRef.current;
+    const validCurrentTasks = currentTasks.filter(t => t.status !== 'error' && t.file.size > 0);
+    
+    if (validCurrentTasks.length === 0) {
+      alert("No valid CVs available to process. Please remove problematic files or add valid resumes.");
+      return;
+    }
+
     setUploading(true);
     
     try {
@@ -229,8 +254,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
       }
       setDbWakingUp(false);
 
-      const currentTasks = uploadTasksRef.current;
-      const tasksToUpload = currentTasks.filter(t => t.status === 'pending' || t.status === 'error');
+      const activeTasks = uploadTasksRef.current;
+      const tasksToUpload = activeTasks.filter(t => (t.status === 'pending' || t.status === 'error') && t.file.size > 0);
       
       const newlyUploadedUrls: Record<string, string> = {};
       if (tasksToUpload.length > 0) {
@@ -253,12 +278,10 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
         });
       }
 
-      const fileUrls = currentTasks.map(t => {
-        if (t.status === 'success' && t.url) return t.url;
-        return newlyUploadedUrls[t.id];
-      });
+      const validSuccessfulTasks = uploadTasksRef.current.filter(t => t.status === 'success' || newlyUploadedUrls[t.id]);
+      const fileUrls = validSuccessfulTasks.map(t => t.url || newlyUploadedUrls[t.id]).filter((url): url is string => Boolean(url));
 
-      if (fileUrls.some(url => !url)) {
+      if (fileUrls.length === 0) {
         setUploading(false);
         return;
       }
@@ -303,6 +326,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
   const wordCount = jd.trim() ? jd.trim().split(/\s+/).length : 0;
   const totalFileSize = uploadTasks.reduce((acc, task) => acc + task.file.size, 0);
+  const problematicTasks = uploadTasks.filter(t => t.status === 'error' || t.file.size === 0);
+  const validTasks = uploadTasks.filter(t => t.status !== 'error' && t.file.size > 0);
 
   return (
     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
@@ -377,9 +402,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               {/* Job Title Input */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: t.txtMuted }}>
-                    <Briefcase size={14} style={{ color: t.accentPrimary }} />
-                    <span>Job Title</span>
+                  <label className="text-xs font-bold uppercase tracking-wider block" style={{ color: t.txtMuted }}>
+                    Job Title
                   </label>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded" 
                     style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}>
@@ -401,9 +425,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               {/* Job Description Textarea */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: t.txtMuted }}>
-                    <FileText size={14} style={{ color: t.accentPrimary }} />
-                    <span>Job Description & Role Requirements</span>
+                  <label className="text-xs font-bold uppercase tracking-wider block" style={{ color: t.txtMuted }}>
+                    Job Description & Role Requirements
                   </label>
                   <div className="flex items-center gap-3">
                     <span className="text-[11px] font-medium" style={{ color: t.txtMuted }}>
@@ -431,9 +454,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               {/* Evaluation Strictness */}
               <div className="pt-3 border-t space-y-3" style={{ borderColor: hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.35) }}>
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: t.txtMuted }}>
-                    <Sliders size={14} style={{ color: t.accentPrimary }} />
-                    <span>Evaluation Strictness Level</span>
+                  <label className="text-xs font-bold uppercase tracking-wider block" style={{ color: t.txtMuted }}>
+                    Evaluation Strictness Level
                   </label>
                   <span className="text-xs capitalize font-bold px-2.5 py-0.5 rounded-full" 
                     style={{ background: hexToRgba(t.accentPrimary, 0.18), color: t.accentPrimary }}>
@@ -447,16 +469,13 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
                       key={level}
                       type="button"
                       onClick={() => setStrictness(level)}
-                      className="py-2.5 px-3 rounded-lg text-xs font-bold capitalize transition-all flex items-center justify-center gap-2"
+                      className="py-2.5 px-3 rounded-lg text-xs font-bold capitalize transition-all flex items-center justify-center"
                       style={{
                         background: strictness === level ? t.accentPrimary : "transparent",
                         color: strictness === level ? t.accentText : t.txtSecondary,
                         boxShadow: strictness === level ? `0 2px 10px ${hexToRgba(t.accentPrimary, 0.35)}` : "none"
                       }}
                     >
-                      {level === "lenient" && <Sparkles size={14} />}
-                      {level === "moderate" && <Sliders size={14} />}
-                      {level === "strict" && <ShieldCheck size={14} />}
                       <span>{level}</span>
                     </button>
                   ))}
@@ -472,9 +491,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               <div className="pt-3 border-t space-y-3" style={{ borderColor: hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.35) }}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: t.txtMuted }}>
-                      <ShieldAlert size={14} style={{ color: t.accentPrimary }} />
-                      <span>Hard Filters & Score Deductions</span>
+                    <div className="text-xs font-bold uppercase tracking-wider block" style={{ color: t.txtMuted }}>
+                      Hard Filters & Score Deductions
                     </div>
                     <div className="text-xs mt-0.5 font-medium" style={{ color: t.txtSecondary }}>
                       {hardFilters.length === 0 ? "No hard filters defined (Optional)" : `${hardFilters.length} rule${hardFilters.length === 1 ? '' : 's'} active`}
@@ -532,8 +550,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
           <div className="lg:col-span-5 xl:col-span-4 space-y-6">
             {/* Live Campaign Preview Card */}
             <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
-              <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-                <Target size={18} style={{ color: t.accentPrimary }} />
+              <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
                 <h3 className="text-sm font-bold tracking-wide uppercase" style={{ color: t.txtPrimary }}>
                   Live Campaign Overview
                 </h3>
@@ -550,8 +567,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <div className="p-3 rounded-xl border" style={{ background: hexToRgba(t.bgPage, 0.4), borderColor: hexToRgba(t.txtGhost, 0.15) }}>
                     <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.txtMuted }}>JD Quality</div>
-                    <div className="font-bold text-xs mt-1 flex items-center gap-1" style={{ color: wordCount >= 100 ? t.numPos : '#f59e0b' }}>
-                      {wordCount >= 100 ? <CheckCircle2 size={13} /> : <Info size={13} />}
+                    <div className="font-bold text-xs mt-1" style={{ color: wordCount >= 100 ? t.numPos : '#f59e0b' }}>
                       {wordCount >= 100 ? "Comprehensive" : "Brief (<100 words)"}
                     </div>
                   </div>
@@ -575,8 +591,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
             {/* AI Screening Engine Capabilities */}
             <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
-              <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-                <Cpu size={18} style={{ color: t.accentPrimary }} />
+              <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
                 <h3 className="text-sm font-bold tracking-wide uppercase" style={{ color: t.txtPrimary }}>
                   AI Screening Workflow
                 </h3>
@@ -626,9 +641,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
             {/* Best Practices Tip Box */}
             <div className="rounded-2xl p-4 sm:p-5 border space-y-2" style={{ background: hexToRgba(t.accentPrimary, 0.08), borderColor: hexToRgba(t.accentPrimary, 0.25) }}>
-              <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: t.accentPrimary }}>
-                <HelpCircle size={15} />
-                <span>Tips for High AI Accuracy</span>
+              <div className="text-xs font-bold uppercase tracking-wider" style={{ color: t.accentPrimary }}>
+                Tips for High AI Accuracy
               </div>
               <p className="text-[11px] leading-relaxed" style={{ color: t.txtSecondary }}>
                 Provide clear sections for <strong>Key Responsibilities</strong> and <strong>Required Qualifications</strong> in your JD to help the AI distinguish between mandatory vs. nice-to-have skills.
@@ -688,16 +702,46 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               </div>
             </div>
 
+            {/* Problematic CVs Alert Banner */}
+            {problematicTasks.length > 0 && (
+              <div 
+                className="rounded-2xl p-4 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all shadow-md"
+                style={{ background: hexToRgba('#ef4444', 0.12), borderColor: hexToRgba('#ef4444', 0.4) }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: hexToRgba('#ef4444', 0.2), color: '#ef4444' }}>
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-extrabold text-red-500 flex items-center gap-1.5">
+                      <span>{problematicTasks.length} {problematicTasks.length === 1 ? 'Problematic Resume Detected' : 'Problematic Resumes Detected'}</span>
+                    </div>
+                    <div className="text-[11px] text-red-400/90 mt-0.5 font-medium">
+                      Contains empty (0 B) or invalid files. Remove them to launch campaign smoothly.
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setUploadTasks(prev => prev.filter(t => t.status !== 'error' && t.file.size > 0))}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 self-end sm:self-auto shadow-sm hover:opacity-90 active:scale-95"
+                  style={{ background: '#ef4444', color: '#ffffff' }}
+                >
+                  <Trash2 size={13} />
+                  <span>Remove {problematicTasks.length === 1 ? 'Problematic CV' : 'All Problematic CVs'}</span>
+                </button>
+              </div>
+            )}
+
             {/* Queued Files Card */}
             {uploadTasks.length > 0 && (
               <div className="rounded-2xl p-5 sm:p-6 space-y-4" style={G.card}>
                 <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-                  <div className="flex items-center gap-2">
-                    <FileCheck size={16} style={{ color: t.accentPrimary }} />
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: t.txtMuted }}>
-                      {uploadTasks.length} {uploadTasks.length === 1 ? 'File' : 'Files'} Queued ({formatFileSize(totalFileSize)})
-                    </span>
-                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: t.txtMuted }}>
+                    {uploadTasks.length} {uploadTasks.length === 1 ? 'File' : 'Files'} Queued ({formatFileSize(totalFileSize)})
+                  </span>
                   <button 
                     onClick={() => setUploadTasks([])} 
                     className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1 transition-colors"
@@ -707,60 +751,86 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
                 </div>
 
                 <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                  {uploadTasks.map((task) => (
-                    <div 
-                      key={task.id} 
-                      className="relative overflow-hidden flex items-center gap-3 rounded-xl px-3.5 py-3 border transition-all" 
-                      style={{ 
-                        background: hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.6),
-                        borderColor: task.status === 'error' ? hexToRgba('#ef4444', 0.5) : hexToRgba(t.txtGhost, 0.18) 
-                      }}
-                    >
-                      {(task.status === 'uploading' || task.status === 'success') && (
-                        <div 
-                          className="absolute top-0 left-0 h-full transition-all duration-300 ease-out" 
-                          style={{ 
-                            width: `${task.progress}%`, 
-                            background: hexToRgba(task.status === 'success' ? t.numPos : t.accentPrimary, 0.12),
-                            zIndex: 0
-                          }} 
-                        />
-                      )}
-                      
-                      <div className="relative z-10 flex items-center w-full gap-3">
-                        <FileText size={16} style={{ color: t.accentPrimary }} />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold truncate" style={{ color: t.txtPrimary }}>{task.file.name}</div>
-                          <div className="text-[10px]" style={{ color: t.txtMuted }}>{formatFileSize(task.file.size)}</div>
-                        </div>
+                  {uploadTasks.map((task) => {
+                    const isProblematic = task.status === 'error' || task.file.size === 0;
+                    return (
+                      <div 
+                        key={task.id} 
+                        className="relative overflow-hidden flex items-center gap-3 rounded-xl px-3.5 py-3 border transition-all" 
+                        style={{ 
+                          background: isProblematic ? hexToRgba('#ef4444', 0.08) : hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.6),
+                          borderColor: isProblematic ? hexToRgba('#ef4444', 0.5) : hexToRgba(t.txtGhost, 0.18) 
+                        }}
+                      >
+                        {(task.status === 'uploading' || task.status === 'success') && (
+                          <div 
+                            className="absolute top-0 left-0 h-full transition-all duration-300 ease-out" 
+                            style={{ 
+                              width: `${task.progress}%`, 
+                              background: hexToRgba(task.status === 'success' ? t.numPos : t.accentPrimary, 0.12),
+                              zIndex: 0
+                            }} 
+                          />
+                        )}
                         
-                        {task.status === 'pending' && <span className="text-[10px] font-bold" style={{ color: t.txtMuted }}>Ready</span>}
-                        {task.status === 'uploading' && <span className="text-[10px] font-bold" style={{ color: t.accentPrimary }}>{task.progress}%</span>}
-                        {task.status === 'success' && <CheckCircle size={16} style={{ color: t.numPos }} />}
-                        {task.status === 'error' && (
-                          <div className="flex items-center gap-2">
-                            <XCircle size={16} className="text-red-500" />
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); uploadToCloudinaryWithProgress(task.id, task.file).catch(() => {}); }} 
-                              className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-bold transition-colors"
-                              style={{ border: `1px solid ${hexToRgba('#ef4444', 0.4)}`, color: '#ef4444', background: hexToRgba('#ef4444', 0.1) }}
-                            >
-                              <RefreshCw size={10} /> Retry
-                            </button>
+                        <div className="relative z-10 flex items-center w-full gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold truncate" style={{ color: isProblematic ? '#ef4444' : t.txtPrimary }}>
+                              {task.file.name}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px]" style={{ color: isProblematic ? hexToRgba('#ef4444', 0.8) : t.txtMuted }}>
+                                {formatFileSize(task.file.size)}
+                              </span>
+                              {isProblematic && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1">
+                                  <AlertTriangle size={9} />
+                                  {task.errorReason || (task.file.size === 0 ? "Empty file (0 B)" : "Problematic file")}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
-                        {task.status !== 'uploading' && (
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setUploadTasks(prev => prev.filter(t => t.id !== task.id)); }} 
-                            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors" 
-                            style={{ color: t.txtMuted }}
-                          >
-                            ✕
-                          </button>
-                        )}
+                          
+                          {task.status === 'pending' && !isProblematic && <span className="text-[10px] font-bold" style={{ color: t.txtMuted }}>Ready</span>}
+                          {task.status === 'uploading' && <span className="text-[10px] font-bold" style={{ color: t.accentPrimary }}>{task.progress}%</span>}
+                          {task.status === 'success' && <CheckCircle size={16} style={{ color: t.numPos }} />}
+                          
+                          {isProblematic && (
+                            <div className="flex items-center gap-1.5">
+                              {task.file.size > 0 && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); uploadToCloudinaryWithProgress(task.id, task.file).catch(() => {}); }} 
+                                  className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-bold transition-colors"
+                                  style={{ border: `1px solid ${hexToRgba('#ef4444', 0.4)}`, color: '#ef4444', background: hexToRgba('#ef4444', 0.1) }}
+                                >
+                                  <RefreshCw size={10} /> Retry
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setUploadTasks(prev => prev.filter(t => t.id !== task.id)); }}
+                                className="text-[10px] px-2 py-0.5 rounded font-bold transition-colors flex items-center gap-1 hover:bg-red-500/30"
+                                style={{ border: `1px solid ${hexToRgba('#ef4444', 0.4)}`, color: '#ef4444', background: hexToRgba('#ef4444', 0.15) }}
+                                title="Remove this problematic file"
+                              >
+                                <Trash2 size={10} /> Remove
+                              </button>
+                            </div>
+                          )}
+
+                          {!isProblematic && task.status !== 'uploading' && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setUploadTasks(prev => prev.filter(t => t.id !== task.id)); }} 
+                              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors" 
+                              style={{ color: t.txtMuted }}
+                              title="Remove file"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -779,13 +849,13 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
               <button 
                 onClick={onComplete} 
-                disabled={uploadTasks.length === 0 || uploading} 
+                disabled={validTasks.length === 0 || uploading} 
                 className="flex-1 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.005]"
                 style={{ 
-                  background: uploadTasks.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})` : hexToRgba(t.bgCard, 0.2), 
-                  color: uploadTasks.length > 0 ? t.accentText : t.txtGhost, 
-                  boxShadow: uploadTasks.length > 0 ? `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` : "none", 
-                  cursor: uploadTasks.length > 0 && !uploading ? "pointer" : "not-allowed" 
+                  background: validTasks.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})` : hexToRgba(t.bgCard, 0.2), 
+                  color: validTasks.length > 0 ? t.accentText : t.txtGhost, 
+                  boxShadow: validTasks.length > 0 ? `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` : "none", 
+                  cursor: validTasks.length > 0 && !uploading ? "pointer" : "not-allowed" 
                 }}
               >
                 {uploading ? (
@@ -796,7 +866,13 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
                   ) : (
                     <><Loader2 size={16} className="animate-spin" /> Launching Campaign...</>
                   )
-                ) : uploadTasks.some(t => t.status === 'error') ? "Retry Failed Uploads" : "Launch AI Campaign"}
+                ) : problematicTasks.length > 0 && validTasks.length === 0 ? (
+                  "Remove Problematic Files to Proceed"
+                ) : problematicTasks.length > 0 ? (
+                  `Launch AI Campaign (${validTasks.length} Valid ${validTasks.length === 1 ? 'CV' : 'CVs'})`
+                ) : (
+                  "Launch AI Campaign"
+                )}
               </button>
             </div>
           </div>
@@ -805,8 +881,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
           <div className="lg:col-span-5 xl:col-span-4 space-y-6">
             {/* Batch Upload Summary Card */}
             <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
-              <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-                <Layers size={18} style={{ color: t.accentPrimary }} />
+              <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
                 <h3 className="text-sm font-bold tracking-wide uppercase" style={{ color: t.txtPrimary }}>
                   Batch Upload Status
                 </h3>
@@ -835,8 +910,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
             {/* AI Evaluation Pipeline Card */}
             <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
-              <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-                <Sparkles size={18} style={{ color: t.accentPrimary }} />
+              <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
                 <h3 className="text-sm font-bold tracking-wide uppercase" style={{ color: t.txtPrimary }}>
                   What Happens Next?
                 </h3>
@@ -844,9 +918,12 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
               <div className="space-y-3.5 text-xs">
                 <div className="flex items-start gap-3">
-                  <FileCode size={16} className="mt-0.5 shrink-0" style={{ color: t.accentPrimary }} />
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
+                    style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}>
+                    1
+                  </div>
                   <div>
-                    <div className="font-bold" style={{ color: t.txtPrimary }}>1. Resume Storage & Parsing</div>
+                    <div className="font-bold" style={{ color: t.txtPrimary }}>Resume Storage & Parsing</div>
                     <div className="text-[11px] mt-0.5 leading-normal" style={{ color: t.txtMuted }}>
                       Resumes are uploaded to encrypted cloud storage and extracted into structured candidate profiles.
                     </div>
@@ -854,9 +931,12 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <ShieldAlert size={16} className="mt-0.5 shrink-0" style={{ color: t.accentPrimary }} />
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
+                    style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}>
+                    2
+                  </div>
                   <div>
-                    <div className="font-bold" style={{ color: t.txtPrimary }}>2. Hard Filter Verification</div>
+                    <div className="font-bold" style={{ color: t.txtPrimary }}>Hard Filter Verification</div>
                     <div className="text-[11px] mt-0.5 leading-normal" style={{ color: t.txtMuted }}>
                       Candidate profiles are evaluated against configured mandatory skills and experience limits.
                     </div>
@@ -864,9 +944,12 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Cpu size={16} className="mt-0.5 shrink-0" style={{ color: t.accentPrimary }} />
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
+                    style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}>
+                    3
+                  </div>
                   <div>
-                    <div className="font-bold" style={{ color: t.txtPrimary }}>3. LLM Candidate Scoring</div>
+                    <div className="font-bold" style={{ color: t.txtPrimary }}>LLM Candidate Scoring</div>
                     <div className="text-[11px] mt-0.5 leading-normal" style={{ color: t.txtMuted }}>
                       AI reasoning model generates detailed candidate breakdown, skill overlap scores, and interview question suggestions.
                     </div>
@@ -909,7 +992,6 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
               {hardFilters.length === 0 ? (
                 <div className="text-center py-6 space-y-2">
-                  <Info size={28} className="mx-auto" style={{ color: t.txtMuted }} />
                   <div className="text-xs font-medium" style={{ color: t.txtSecondary }}>No filters configured.</div>
                   <p className="text-[11px] max-w-xs mx-auto leading-normal" style={{ color: t.txtMuted }}>
                     Define mandatory skills or min experience thresholds to penalize or reject unqualified applicants automatically.

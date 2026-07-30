@@ -110,6 +110,8 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
     jobs_to_enqueue = []
     
     for resume_url in campaign.resumes:
+        if not resume_url or not isinstance(resume_url, str) or not resume_url.strip():
+            continue
         filename = resume_url.split("/")[-1]
         name = filename.split(".")[0] if "." in filename else "Unknown Candidate"
         cand_id = str(uuid.uuid4())
