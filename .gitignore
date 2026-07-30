@@ -12,3 +12,4 @@ __pycache__/
 .turbo/
 backend/log.txt
 frontend/dist
+.agents/

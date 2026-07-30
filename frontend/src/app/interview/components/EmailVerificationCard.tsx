@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
 import { MailCheck, ShieldAlert, Loader2 } from "lucide-react";
@@ -21,6 +22,8 @@ export function EmailVerificationCard({
   error,
   onStartAssessment,
 }: EmailVerificationCardProps) {
+  const [agreed, setAgreed] = useState(false);
+
   return (
     <div
       className="space-y-6 text-left p-6 rounded-2xl"
@@ -49,7 +52,7 @@ export function EmailVerificationCard({
           value={emailInput}
           onChange={(e) => setEmailInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !startingAssessment && emailInput.trim()) {
+            if (e.key === "Enter" && !startingAssessment && emailInput.trim() && agreed) {
               onStartAssessment();
             }
           }}
@@ -78,6 +81,45 @@ export function EmailVerificationCard({
         </ul>
       </div>
 
+      {/* Controlled Consent Checkbox */}
+      <label
+        className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors"
+        style={{
+          background: hexToRgba(t.bgSurface, 0.4),
+          borderColor: agreed ? hexToRgba(t.accentPrimary, 0.6) : hexToRgba(t.txtMuted, 0.2),
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+        />
+        <span className="text-xs leading-relaxed" style={{ color: t.txtSecondary }}>
+          I have read and agree to the{" "}
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline font-semibold"
+            style={{ color: t.accentPrimary }}
+          >
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline font-semibold"
+            style={{ color: t.accentPrimary }}
+          >
+            Privacy Policy
+          </a>
+          . I consent to automated AI assessment processing.
+        </span>
+      </label>
+
       {error && (
         <div
           className="p-3 rounded-xl text-xs flex items-center gap-2"
@@ -94,7 +136,7 @@ export function EmailVerificationCard({
 
       <button
         onClick={onStartAssessment}
-        disabled={startingAssessment || !emailInput.trim()}
+        disabled={startingAssessment || !emailInput.trim() || !agreed}
         className="w-full py-3.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
         style={{
           background: t.accentPrimary,

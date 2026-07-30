@@ -15,6 +15,8 @@ export interface SignupFormProps {
   setPassword: (val: string) => void;
   confirm: string;
   setConfirm: (val: string) => void;
+  agreedToTerms: boolean;
+  setAgreedToTerms: (val: boolean) => void;
   showPw: boolean;
   setShowPw: React.Dispatch<React.SetStateAction<boolean>>;
   showConfirm: boolean;
@@ -36,6 +38,8 @@ export function SignupForm({
   setPassword,
   confirm,
   setConfirm,
+  agreedToTerms,
+  setAgreedToTerms,
   showPw,
   setShowPw,
   showConfirm,
@@ -104,18 +108,40 @@ export function SignupForm({
         />
       </div>
 
+      <div className="flex items-start gap-2.5 px-1 my-0.5">
+        <input
+          id="recruiter-consent-checkbox"
+          type="checkbox"
+          checked={agreedToTerms}
+          onChange={(e) => setAgreedToTerms(e.target.checked)}
+          className="mt-0.5 rounded border-gray-300 cursor-pointer"
+          style={{ accentColor: t.accentPrimary }}
+          required
+        />
+        <label htmlFor="recruiter-consent-checkbox" className="text-xs leading-tight select-none cursor-pointer" style={{ color: t.txtMuted }}>
+          I agree to the{" "}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium underline hover:opacity-80" style={{ color: t.accentPrimary }}>
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium underline hover:opacity-80" style={{ color: t.accentPrimary }}>
+            Privacy Policy
+          </a>.
+        </label>
+      </div>
+
       <ErrorContainer theme={t} error={error} />
 
       <button
         type="submit"
-        disabled={loading}
-        className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 mt-1"
+        disabled={loading || !agreedToTerms}
+        className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 mt-1 transition-all"
         style={{
           background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.78)})`,
           color: t.accentText,
           boxShadow: `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}`,
-          opacity: loading ? 0.75 : 1,
-          cursor: loading ? "not-allowed" : "pointer",
+          opacity: loading || !agreedToTerms ? 0.55 : 1,
+          cursor: loading || !agreedToTerms ? "not-allowed" : "pointer",
         }}
       >
         {loading && (

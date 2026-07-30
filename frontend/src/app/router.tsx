@@ -14,6 +14,8 @@ const PipelinePage = lazy(() => import("./pipeline/page"));
 const CandidatePage = lazy(() => import("./candidate/page"));
 const InterviewPage = lazy(() => import("./interview/page"));
 const InterviewsPage = lazy(() => import("./interviews/page"));
+const PrivacyPage = lazy(() => import("./privacy/page"));
+const TermsPage = lazy(() => import("./terms/page"));
 const NotFoundPage = lazy(() => import("./not-found"));
 
 function PageLoader({ theme }: { theme: Theme }) {
@@ -69,6 +71,22 @@ export function AppRouter() {
       element: (
         <Suspense fallback={<PageLoader theme={theme} />}>
           <InterviewPage theme={theme} />
+        </Suspense>
+      ),
+    },
+    {
+      path: "/privacy",
+      element: (
+        <Suspense fallback={<PageLoader theme={theme} />}>
+          <PrivacyPage theme={theme} />
+        </Suspense>
+      ),
+    },
+    {
+      path: "/terms",
+      element: (
+        <Suspense fallback={<PageLoader theme={theme} />}>
+          <TermsPage theme={theme} />
         </Suspense>
       ),
     },

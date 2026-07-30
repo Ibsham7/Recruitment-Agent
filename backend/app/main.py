@@ -384,6 +384,8 @@ class StartInterviewRequest(BaseModel):
     token: str
     email: str
     consent: bool
+    termsVersionAgreed: Optional[str] = "v1.0"
+    privacyPolicyVersionAgreed: Optional[str] = "v1.0"
 
 @app.post("/api/interviews/send-invitations")
 async def send_interview_invitations(req: SendInvitationsRequest, user: dict = Depends(verify_jwt)):
@@ -468,7 +470,7 @@ async def start_candidate_interview(id: str, req: StartInterviewRequest):
     and advances candidate status to 'interviewing'.
     """
     if not req.consent:
-        raise HTTPException(status_code=400, detail="Consent is required to start assessment")
+        raise HTTPException(status_code=422, detail="Explicit consent to Terms of Service and Privacy Policy is required to proceed with assessment.")
         
     token_data = verify_interview_token(req.token)
     if token_data["candidate_id"] != id:
@@ -486,7 +488,17 @@ async def start_candidate_interview(id: str, req: StartInterviewRequest):
     
     if cand_email and cand_email != input_email:
         raise HTTPException(status_code=403, detail="Specified email does not match the invitation email for this assessment.")
-        
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    await prisma.candidate.update(
+        where={"id": id},
+        data={
+            "consentGivenAt": now,
+            "termsVersionAgreed": req.termsVersionAgreed or "v1.0",
+            "privacyPolicyVersionAgreed": req.privacyPolicyVersionAgreed or "v1.0"
+        }
+    )
+
     await generate_on_demand_questions(id)
     
     updated_cand = await get_candidate(id)

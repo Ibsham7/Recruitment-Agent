@@ -44,16 +44,20 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider mb-4" style={{ color: t.txtPrimary, fontFamily: "'DM Mono',monospace" }}>Security & Data</h4>
           <ul className="space-y-2.5 text-xs" style={{ color: t.txtSecondary }}>
-            <li><a href="#" className="hover:underline">Candidate Data Privacy</a></li>
-            <li><a href="#" className="hover:underline">Secure JWT Authentication</a></li>
-            <li><a href="#" className="hover:underline">Automatic CV Deduplication</a></li>
+            <li><a href="/privacy" className="hover:underline">Candidate Data Privacy</a></li>
+            <li><a href="/terms" className="hover:underline">Terms of Service</a></li>
+            <li><a href="/privacy#sec-subprocessors" className="hover:underline">Data Sub-Processors</a></li>
           </ul>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]" style={{ borderColor: hexToRgba(t.txtBody, 0.06), color: t.txtGhost, fontFamily: "'DM Mono',monospace" }}>
         <span>© 2026 hireagent. All rights reserved.</span>
-        <span>Automated AI candidate screening & interview engine.</span>
+        <div className="flex items-center gap-4">
+          <a href="/privacy" className="hover:underline">Privacy Policy</a>
+          <span>•</span>
+          <a href="/terms" className="hover:underline">Terms of Service</a>
+        </div>
       </div>
     </footer>
   );

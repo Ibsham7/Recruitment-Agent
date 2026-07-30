@@ -46,6 +46,11 @@ model Candidate {
   invitedAt       DateTime?
   invitationToken String?
   
+  // R3 Compliance & Consent Fields
+  consentGivenAt             DateTime?
+  termsVersionAgreed         String?
+  privacyPolicyVersionAgreed String?
+  
   resumeId        String?
   resume          Resume?     @relation(fields: [resumeId], references: [id])
   

@@ -115,6 +115,8 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
           token,
           email: emailInput.trim(),
           consent: true,
+          termsVersionAgreed: "v1.0",
+          privacyPolicyVersionAgreed: "v1.0",
         }),
       });
 

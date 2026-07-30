@@ -12,6 +12,7 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,6 +26,10 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
 
     if (!isLogin && password !== confirm) {
       setError("Passwords do not match.");
+      return;
+    }
+    if (!isLogin && !agreedToTerms) {
+      setError("You must agree to the Terms of Service and Privacy Policy to create an account.");
       return;
     }
     if (password.length < 6) {
@@ -47,7 +52,12 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
           email,
           password,
           options: {
-            data: { full_name: name },
+            data: {
+              full_name: name,
+              consent_given_at: new Date().toISOString(),
+              terms_version: "v1.0",
+              privacy_policy_version: "v1.0",
+            },
           },
         });
         if (signUpError) throw signUpError;
@@ -102,6 +112,8 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
             setPassword={setPassword}
             confirm={confirm}
             setConfirm={setConfirm}
+            agreedToTerms={agreedToTerms}
+            setAgreedToTerms={setAgreedToTerms}
             showPw={showPw}
             setShowPw={setShowPw}
             showConfirm={showConfirm}
@@ -113,6 +125,16 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
             onSwitchMode={onSwitch}
           />
         )}
+
+        <div className="mt-6 text-center text-xs flex items-center justify-center gap-3" style={{ color: t.txtMuted }}>
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:underline transition-colors" style={{ color: t.accentPrimary }}>
+            Terms of Service
+          </a>
+          <span>•</span>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline transition-colors" style={{ color: t.accentPrimary }}>
+            Privacy Policy
+          </a>
+        </div>
       </div>
     </div>
   );
