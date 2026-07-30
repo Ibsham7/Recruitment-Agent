@@ -13,6 +13,7 @@ import {
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
 import { landingFaqs, getFaqCategoryIcon } from "../landingData";
+import { FaqQuestionWizardModal } from "./FaqQuestionWizardModal";
 
 interface FaqSectionProps {
   theme: Theme;
@@ -22,6 +23,8 @@ interface FaqSectionProps {
 export function FaqSection({ theme: t, onEnter }: FaqSectionProps) {
   const [faqSearchQuery, setFaqSearchQuery] = useState<string>("");
   const [openFaqs, setOpenFaqs] = useState<number[]>([]);
+  const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
+
 
   const filteredFaqs = landingFaqs.filter((faq) => {
     const query = faqSearchQuery.toLowerCase().trim();
@@ -308,18 +311,27 @@ export function FaqSection({ theme: t, onEnter }: FaqSectionProps) {
 
         <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
           <button
-            onClick={onEnter}
-            className="cursor-target px-5 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+            id="faq-get-started-btn"
+            onClick={() => setIsWizardOpen(true)}
+            className="cursor-target px-5 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5"
             style={{
               background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`,
               color: t.accentText,
               boxShadow: `0 4px 16px ${hexToRgba(t.accentPrimary, 0.35)}`
             }}
           >
-            Get Started →
+            Get Started & Research Questions →
           </button>
         </div>
       </motion.div>
+
+      {/* Interactive FAQ Question & Knowledge Discovery Wizard Modal */}
+      <FaqQuestionWizardModal 
+        isOpen={isWizardOpen} 
+        onClose={() => setIsWizardOpen(false)} 
+        theme={t} 
+      />
     </section>
+
   );
 }

@@ -518,6 +518,130 @@ async def get_interview_candidates(campaignId: Optional[str] = None, status: Opt
         
     return result
 
+# ── FAQ QUESTION & KNOWLEDGE DISCOVERY ENDPOINTS ─────────────────────────────
+
+class FaqQuestionCreate(BaseModel):
+    category: str
+    question: str
+    contextDetails: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+    candidateVolume: Optional[str] = None
+    urgency: Optional[str] = "medium"
+    name: str
+    email: str
+    preferredContact: Optional[str] = "email"
+
+class FaqSearchQuery(BaseModel):
+    query: str
+    category: Optional[str] = None
+
+# Pre-populated Knowledge Base Items for instant research during question drafting
+FAQ_KNOWLEDGE_BASE = [
+    {
+        "id": "kb-1",
+        "category": "Screening Engine",
+        "title": "Multi-Criteria Resume & Profile Evaluation Engine",
+        "snippet": "hireagent utilizes LLM embeddings and deterministic hard filters to evaluate candidates against custom job descriptions with configurable strictness levels (lenient, moderate, strict).",
+        "tags": ["Screening", "Algorithms", "Scoring", "Strictness"]
+    },
+    {
+        "id": "kb-2",
+        "category": "Interview Workflows",
+        "title": "Dynamic Voice & Text Conversational Assessments",
+        "snippet": "Candidates receive securely tokenized invitations to complete interactive video/audio or text assessments. Questions adapt in real-time based on candidate responses.",
+        "tags": ["Interviews", "Adaptive Questions", "Candidate Experience"]
+    },
+    {
+        "id": "kb-3",
+        "category": "Data Privacy & Security",
+        "title": "SOC2 & GDPR Enterprise Privacy Standards",
+        "snippet": "All candidate data and resume embeddings are encrypted at rest and in transit. Supabase Row-Level Security (RLS) guarantees complete tenant isolation.",
+        "tags": ["Security", "GDPR", "Encryption", "RLS"]
+    },
+    {
+        "id": "kb-4",
+        "category": "System Integration & API",
+        "title": "ATS Synchronization & Custom Webhook Hooks",
+        "snippet": "Integrate seamlessly with Greenhouse, Lever, Workday, and custom backend systems via REST API endpoints and webhooks for status callbacks.",
+        "tags": ["API", "ATS", "Webhooks", "Integration"]
+    },
+    {
+        "id": "kb-5",
+        "category": "Enterprise Onboarding",
+        "title": "High-Volume Pipeline Automation & SLA",
+        "snippet": "Built for scale, hireagent processes thousands of applicants concurrently with distributed queue workers and dedicated priority infrastructure.",
+        "tags": ["Enterprise", "High-Volume", "SLA", "Workers"]
+    }
+]
+
+@app.post("/api/faqs/questions")
+async def create_faq_question(data: FaqQuestionCreate):
+    """Store a user's submitted question from the multi-step FAQ wizard in PostgreSQL."""
+    if not data.question or not data.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+    if not data.email or "@" not in data.email:
+        raise HTTPException(status_code=400, detail="Valid email address is required")
+    if not data.name or not data.name.strip():
+        raise HTTPException(status_code=400, detail="Name is required")
+
+    question_record = await prisma.faqquestion.create(
+        data={
+            "category": data.category or "General",
+            "question": data.question.strip(),
+            "contextDetails": data.contextDetails.strip() if data.contextDetails else None,
+            "company": data.company.strip() if data.company else None,
+            "role": data.role.strip() if data.role else None,
+            "candidateVolume": data.candidateVolume or "1-50 candidates/mo",
+            "urgency": data.urgency or "medium",
+            "name": data.name.strip(),
+            "email": data.email.strip().lower(),
+            "preferredContact": data.preferredContact or "email",
+            "status": "pending",
+        }
+    )
+    return question_record
+
+@app.get("/api/faqs/questions")
+async def list_faq_questions(status: Optional[str] = None, category: Optional[str] = None):
+    """Retrieve submitted FAQ questions from PostgreSQL."""
+    where_filter: dict = {}
+    if status:
+        where_filter["status"] = status
+    if category:
+        where_filter["category"] = category
+
+    questions = await prisma.faqquestion.find_many(
+        where=where_filter,
+        order={"createdAt": "desc"}
+    )
+    return questions
+
+@app.post("/api/faqs/search-knowledge")
+async def search_faq_knowledge(body: FaqSearchQuery):
+    """Search existing FAQs and knowledge topics for live research in the wizard."""
+    query = (body.query or "").strip().lower()
+    cat_filter = (body.category or "").strip().lower()
+
+    matches = []
+    for item in FAQ_KNOWLEDGE_BASE:
+        # Category filter check
+        if cat_filter and cat_filter not in item["category"].lower():
+            continue
+
+        # Search match check
+        if not query:
+            matches.append(item)
+        else:
+            in_title = query in item["title"].lower()
+            in_snippet = query in item["snippet"].lower()
+            in_tags = any(query in tag.lower() for tag in item["tags"])
+            if in_title or in_snippet or in_tags:
+                matches.append(item)
+
+    return {"results": matches, "count": len(matches)}
+
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+
 

@@ -110,3 +110,26 @@ model CandidateAnalytics {
   @@index([campaignId])
 }
 
+model FaqQuestion {
+  id               String   @id @default(uuid())
+  category         String   // e.g., Screening Engine, Interview Workflows, Data Privacy, System Integration, Enterprise Onboarding
+  question         String
+  contextDetails   String?
+  company          String?
+  role             String?
+  candidateVolume  String?  // e.g., 1-50, 50-500, 500+ candidates/mo
+  urgency          String   @default("medium") // low, medium, high, critical
+  name             String
+  email            String
+  preferredContact String   @default("email") // email, call, async
+  status           String   @default("pending") // pending, answered, archived
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([email])
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+}
+
+

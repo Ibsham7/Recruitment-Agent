@@ -1,4 +1,6 @@
 import { Theme } from "./types";
+export type { Theme };
+
 
 export function hexToRgb(hex: string): string {
   const h = hex.replace("#", "");
