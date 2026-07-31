@@ -241,6 +241,50 @@ The application decouples processing using **ARQ (Async Redis Queue)** backed by
 
 ---
 
+## 📄 Interview Flow: Short Answers vs. Long Answers
+
+The system dynamically adapts the interview based on the length of the candidate's response to prevent redundant probing.
+
+```mermaid
+flowchart TD
+    [Candidate Start] ──> POST /start-interview
+                          │
+                          ▼
+                 LLM generates 3 Questions
+                 Saved to Evaluation.interviewQuestions: [Q1, Q2, Q3]
+                 Initializes interviewTranscript with Q1
+                          │
+                          ▼
+                 Frontend receives Candidate payload with Q1
+                          │
+  ┌───────────────────────┴────────────────────────┐
+  │ Candidate types Answer 1 & submits             │
+  └───────────────────────┬────────────────────────┘
+                          │
+                          ▼
+                 POST /interview/answer
+                          │
+     ┌────────────────────┴────────────────────┐
+     │ Backend inspects Answer 1              │
+     │ Is Answer 1 < 20 words?                │
+     └───────────┬────────────────┬────────────┘
+                 │                │
+            YES  │                │ NO
+                 ▼                ▼
+     Calls LLM immediately    Selects Q2 from 
+     for Adaptive Probe       interviewQuestions
+     "[Follow-up] ..."                │
+                 │                    │
+                 └────────┬───────────┘
+                          │
+                          ▼
+                 Appends turn to interviewTranscript in DB
+                 Returns calculated `currentQuestion` to Frontend
+```
+
+---
+
+
 ## 📁 Repository Structure
 
 ```text

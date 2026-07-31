@@ -298,8 +298,8 @@ async def _run_evaluator_background(candidate_id: str, candidate: Any, transcrip
 async def process_interview_answer(candidate_id: str, answer_text: str):
     """
     Processes candidate answer submission for an active interview session.
-    Updates interview transcript, handles adaptive probing, and triggers evaluator node
-    when all questions are completed.
+    Updates interview transcript, handles non-blocking adaptive probing,
+    and advances or completes assessment when all questions are answered.
     """
     candidate = await prisma.candidate.find_unique(
         where={"id": candidate_id},
@@ -309,92 +309,91 @@ async def process_interview_answer(candidate_id: str, answer_text: str):
         print(f"[Interview] Candidate {candidate_id} or evaluation not found")
         return
 
+    if candidate.status == "interview_completed":
+        print(f"[Interview] Candidate {candidate_id} has already completed interview")
+        return
+
     import json
     from datetime import datetime
+    from prisma.Json import Json
     now_str = datetime.now().strftime("%I:%M %p")
 
     raw_questions = candidate.evaluation.interviewQuestions or []
     if isinstance(raw_questions, str):
         raw_questions = json.loads(raw_questions)
+    if not isinstance(raw_questions, list):
+        raw_questions = []
 
     raw_transcript = candidate.evaluation.interviewTranscript or []
     if isinstance(raw_transcript, str):
         raw_transcript = json.loads(raw_transcript)
     transcript_list = list(raw_transcript)
 
-    # Filter main AI questions asked so far (excluding follow-up probes)
-    main_ai_turns = [
-        t for t in transcript_list 
-        if isinstance(t, dict) 
-        and t.get("role") in ["ai", "interviewer"] 
-        and not str(t.get("message", "")).startswith("[Follow-up]")
-    ]
-    curr_q_idx = len(main_ai_turns)
+    # 1. Count candidate responses so far
+    cand_turns = [t for t in transcript_list if isinstance(t, dict) and t.get("role") == "candidate"]
+    curr_ans_idx = len(cand_turns)  # Index of question currently being answered
 
-    # Ensure the first AI question turn is recorded if transcript is empty
+    # Get question text being answered
+    q_obj = raw_questions[curr_ans_idx] if curr_ans_idx < len(raw_questions) else (raw_questions[-1] if raw_questions else {})
+    q_text = q_obj.get("question") if isinstance(q_obj, dict) else str(q_obj)
+
+    # Ensure initial AI question is in transcript if transcript was completely empty
     if len(transcript_list) == 0 and len(raw_questions) > 0:
         first_q = raw_questions[0]
-        q_text = first_q.get("question") if isinstance(first_q, dict) else str(first_q)
-        transcript_list.append({"role": "ai", "message": q_text, "time": now_str})
-        main_ai_turns = [transcript_list[0]]
-        curr_q_idx = 1
+        q1_text = first_q.get("question") if isinstance(first_q, dict) else str(first_q)
+        transcript_list.append({"role": "ai", "message": q1_text, "time": now_str})
 
     # Record candidate answer
     transcript_list.append({"role": "candidate", "message": answer_text, "time": now_str})
 
-    # Check for adaptive probing: if answer is short (< 20 words) and probe not asked for this question yet
+    # Check for adaptive probing: if answer is short (< 20 words) and probe not generated yet for this interview
     words = answer_text.strip().split()
-    probe_already_asked = False
-    if len(transcript_list) >= 3:
-        prev_turn = transcript_list[-3]
-        if isinstance(prev_turn, dict) and "[Follow-up]" in str(prev_turn.get("message", "")):
-            probe_already_asked = True
+    probe_already_exists = any(
+        isinstance(q, dict) and str(q.get("question", "")).startswith("[Follow-up]")
+        for q in raw_questions
+    )
 
-    if len(words) < 20 and not probe_already_asked and curr_q_idx <= len(raw_questions):
-        current_q_obj = raw_questions[curr_q_idx - 1] if curr_q_idx - 1 < len(raw_questions) else raw_questions[-1]
-        q_text = current_q_obj.get("question") if isinstance(current_q_obj, dict) else str(current_q_obj)
-        
-        from app.agent.nodes.interviewer import generate_followup_probe
-        probe_question = await generate_followup_probe(q_text, answer_text)
-        
-        transcript_list.append({
-            "role": "ai",
-            "message": f"[Follow-up] {probe_question}",
-            "time": now_str
-        })
-        
-        await prisma.evaluation.update(
-            where={"candidateId": candidate_id},
-            data={"interviewTranscript": Json(transcript_list)}
-        )
-        return
+    probe_added = False
+    if len(words) < 20 and not probe_already_exists and curr_ans_idx < 3:
+        try:
+            from app.agent.nodes.interviewer import generate_followup_probe
+            probe_question = await generate_followup_probe(q_text, answer_text)
+            if probe_question:
+                new_probe_q = {
+                    "question": f"[Follow-up] {probe_question}",
+                    "topic": "Clarification",
+                    "difficulty": "Adaptive"
+                }
+                raw_questions.append(new_probe_q)
+                probe_added = True
+        except Exception as e:
+            print(f"[Interview] Error generating follow-up probe: {e}")
 
-    # If next question exists, ask next question
-    if curr_q_idx < len(raw_questions):
-        next_q_obj = raw_questions[curr_q_idx]
+    # Next AI question to log into transcript for audit/display
+    next_cand_turn_idx = curr_ans_idx + 1
+    if next_cand_turn_idx < len(raw_questions):
+        next_q_obj = raw_questions[next_cand_turn_idx]
         next_q_text = next_q_obj.get("question") if isinstance(next_q_obj, dict) else str(next_q_obj)
-        transcript_list.append({
-            "role": "ai",
-            "message": next_q_text,
-            "time": now_str
-        })
-        await prisma.evaluation.update(
-            where={"candidateId": candidate_id},
-            data={"interviewTranscript": Json(transcript_list)}
-        )
-        return
+        transcript_list.append({"role": "ai", "message": next_q_text, "time": now_str})
 
-    # All questions answered! Set candidate status to review and run background evaluator
+    # Save to Evaluation table in Prisma
+    eval_update: dict = {"interviewTranscript": Json(transcript_list)}
+    if probe_added:
+        eval_update["interviewQuestions"] = Json(raw_questions)
+
     await prisma.evaluation.update(
         where={"candidateId": candidate_id},
-        data={"interviewTranscript": Json(transcript_list)}
+        data=eval_update
     )
-    await prisma.candidate.update(
-        where={"id": candidate_id},
-        data={"status": "interview_completed"}
-    )
-    import asyncio
-    asyncio.create_task(_run_evaluator_background(candidate_id, candidate, transcript_list))
+
+    # Check if all questions (including any added probes) have been answered
+    if next_cand_turn_idx >= len(raw_questions):
+        await prisma.candidate.update(
+            where={"id": candidate_id},
+            data={"status": "interview_completed"}
+        )
+        import asyncio
+        asyncio.create_task(_run_evaluator_background(candidate_id, candidate, transcript_list))
 
 async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None):
     candidate = await prisma.candidate.find_unique(where={"id": candidate_id})

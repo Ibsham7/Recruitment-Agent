@@ -30,12 +30,42 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
   const [candidate, setCandidate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [startingAssessment, setStartingAssessment] = useState(false);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
 
   // Form inputs
   const [emailInput, setEmailInput] = useState("");
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Safely parse questions list and transcript list from candidate evaluation
+  const rawQuestions = candidate?.evaluation?.interviewQuestions;
+  const questionsList: any[] = Array.isArray(rawQuestions)
+    ? rawQuestions
+    : typeof rawQuestions === "string"
+    ? (() => { try { return JSON.parse(rawQuestions); } catch { return []; } })()
+    : [];
+
+  const rawTranscript = candidate?.evaluation?.interviewTranscript;
+  const transcriptList: any[] = Array.isArray(rawTranscript)
+    ? rawTranscript
+    : typeof rawTranscript === "string"
+    ? (() => { try { return JSON.parse(rawTranscript); } catch { return []; } })()
+    : [];
+
+  // Sync local question index with transcript candidate responses for seamless re-entry / page refresh
+  useEffect(() => {
+    if (candidate) {
+      const candidateTurns = transcriptList.filter(
+        (t: any) => typeof t === "object" && t?.role === "candidate"
+      ).length;
+      if (candidate.answeredCount !== undefined) {
+        setCurrentQuestionIdx(candidate.answeredCount);
+      } else if (candidateTurns > 0) {
+        setCurrentQuestionIdx(candidateTurns);
+      }
+    }
+  }, [candidate?.id, candidate?.answeredCount]);
 
   // Step 1: Verify token access on load
   useEffect(() => {
@@ -82,7 +112,7 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
 
     verifyAccess();
 
-    // Supabase realtime channel for updates
+    // Supabase realtime channel for updates (safely preserves evaluation & current index)
     if (id) {
       const channel = supabase
         .channel(`candidate_${id}`)
@@ -127,6 +157,7 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
 
       const candData = await res.json();
       setCandidate(candData);
+      setCurrentQuestionIdx(0);
     } catch (err: any) {
       setError(err.message || "Email verification failed.");
     } finally {
@@ -134,34 +165,36 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     }
   };
 
-  // Step 3: Handle Submit Answer
+  // Step 3: Handle Submit Answer with network error protection and fast submission guard
   const handleSubmitAnswer = async () => {
-    if (!answer.trim()) return;
+    if (!answer.trim() || submitting) return;
     setSubmitting(true);
     setError("");
+
+    const submittedAnswer = answer;
+    setAnswer(""); // Immediately clear text field for smooth responsiveness
 
     try {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}/interview/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer }),
+        body: JSON.stringify({ answer: submittedAnswer }),
       });
 
-      if (!res.ok) throw new Error("Failed to submit answer");
-      const candData = await res.json();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to submit answer. Please try again.");
+      }
 
-      setAnswer("");
+      const candData = await res.json();
       if (candData && candData.id) {
         setCandidate(candData);
-      } else {
-        const candRes = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}`);
-        if (candRes.ok) {
-          const freshData = await candRes.json();
-          setCandidate(freshData);
-        }
       }
+      setCurrentQuestionIdx((prev) => prev + 1);
     } catch (err: any) {
-      setError(err.message || "Something went wrong while submitting your answer.");
+      // Preserve candidate's typed answer on network or server error so work is not lost
+      setAnswer(submittedAnswer);
+      setError(err.message || "Something went wrong while submitting your answer. Please retry.");
     } finally {
       setSubmitting(false);
     }
@@ -186,9 +219,26 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
 
   const campaignTitle = accessMeta?.campaignTitle || candidate?.campaign?.title || "Candidate Evaluation";
   const candidateName = accessMeta?.candidateName || candidate?.name || "Candidate";
-  const isComplete = candidate?.status === "review" || candidate?.status === "complete" || candidate?.status === "finalized";
+  const isComplete =
+    candidate?.status === "interview_completed" ||
+    candidate?.status === "review" ||
+    candidate?.status === "complete" ||
+    candidate?.status === "finalized";
+
   const isInterviewing = candidate?.status === "interviewing";
   const currentStep = isComplete ? 3 : candidate ? 2 : 1;
+
+  // Active question extraction
+  const currentQObj = questionsList[currentQuestionIdx] || (questionsList.length > 0 ? questionsList[questionsList.length - 1] : null);
+  const currentQText =
+    typeof currentQObj === "object" && currentQObj?.question
+      ? currentQObj.question
+      : typeof currentQObj === "string"
+      ? currentQObj
+      : candidate?.currentQuestion || "Please provide your detailed answer to the technical assessment question.";
+
+  const currentQTopic = typeof currentQObj === "object" ? currentQObj?.topic : candidate?.currentTopic || candidate?.topic;
+  const currentQDiff = typeof currentQObj === "object" ? currentQObj?.difficulty : candidate?.difficulty;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: t.bgPage }}>
@@ -232,9 +282,11 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
 
             <QuestionRenderer
               theme={t}
-              questionText={candidate.currentQuestion || "Please provide your detailed answer to the technical assessment question."}
-              topic={candidate.currentTopic || candidate.topic}
-              difficulty={candidate.difficulty}
+              questionText={currentQText}
+              topic={currentQTopic}
+              difficulty={currentQDiff}
+              questionIndex={currentQuestionIdx + 1}
+              totalQuestions={questionsList.length || 3}
             />
 
             <LiveAnswerCard
@@ -252,4 +304,5 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     </div>
   );
 }
+
 

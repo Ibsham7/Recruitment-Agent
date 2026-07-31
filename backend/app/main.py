@@ -348,31 +348,36 @@ async def get_candidate(id: str):
         cand_dict["structuredProfile"] = None
         cand_dict["rawCvText"] = None
 
-    # Dynamically resolve currentQuestion for interview workflow
+    # Dynamically resolve interview questions, answered count & active currentQuestion
     if cand_dict.get("evaluation") and cand_dict["evaluation"].get("interviewQuestions"):
         iq = cand_dict["evaluation"]["interviewQuestions"]
+        if isinstance(iq, str):
+            import json
+            try:
+                iq = json.loads(iq)
+            except Exception:
+                iq = []
+            cand_dict["evaluation"]["interviewQuestions"] = iq
+
+        transcript = cand_dict["evaluation"].get("interviewTranscript") or []
+        if isinstance(transcript, str):
+            import json
+            try:
+                transcript = json.loads(transcript)
+            except Exception:
+                transcript = []
+            cand_dict["evaluation"]["interviewTranscript"] = transcript
+
         if isinstance(iq, list) and len(iq) > 0:
-            transcript = cand_dict["evaluation"].get("interviewTranscript") or []
-            if isinstance(transcript, list) and len(transcript) > 0:
-                last_turn = transcript[-1]
-                if isinstance(last_turn, dict) and last_turn.get("role") in ["ai", "interviewer"]:
-                    cand_dict["currentQuestion"] = last_turn.get("message")
-                else:
-                    main_ai_turns = [
-                        t for t in transcript 
-                        if isinstance(t, dict) 
-                        and t.get("role") in ["ai", "interviewer"] 
-                        and not str(t.get("message", "")).startswith("[Follow-up]")
-                    ]
-                    curr_idx = len(main_ai_turns)
-                    if curr_idx < len(iq):
-                        q_item = iq[curr_idx]
-                        cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
-                    else:
-                        q_item = iq[-1]
-                        cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
+            cand_turns = [t for t in transcript if isinstance(t, dict) and t.get("role") == "candidate"]
+            answered_count = len(cand_turns)
+            cand_dict["answeredCount"] = answered_count
+
+            if answered_count < len(iq):
+                q_item = iq[answered_count]
+                cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
             else:
-                q_item = iq[0]
+                q_item = iq[-1]
                 cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
 
     return cand_dict
