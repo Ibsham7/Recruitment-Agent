@@ -1,19 +1,21 @@
 import { useParams } from "react-router";
 import { useState, useEffect } from "react";
-import { Theme, Campaign, Candidate, CandidateStage } from "../../lib/types";
+import { Theme, CandidateStage } from "../../lib/types";
 import { getGlass } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/api";
 import { ALL_STAGES } from "./constants";
 import { PipelineHeader, PipelineStageTabs, CandidateGrid } from "./components";
 
+import { queryClient } from "../queryClient";
+import { usePipeline, getPipelineQueryKey } from "../../lib/hooks/usePipeline";
+import { CAMPAIGNS_QUERY_KEY } from "../../lib/hooks/useCampaigns";
+
 export default function PipelinePage({ theme: t }: { theme: Theme }) {
   const { id } = useParams<{ id: string }>();
   const G = getGlass(t);
-  
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const { campaign, candidates, isLoading, invalidatePipeline } = usePipeline(id);
   const [retrying, setRetrying] = useState(false);
   const [activeStage, setActiveStage] = useState<CandidateStage>("screening");
 
@@ -27,7 +29,8 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
       if (!res.ok) throw new Error("Failed to retry candidates");
       const data = await res.json();
       alert(`Successfully queued ${data.count} candidates for retry.`);
-      window.location.reload();
+      await queryClient.invalidateQueries({ queryKey: getPipelineQueryKey(id) });
+      await queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY });
     } catch (err) {
       console.error(err);
       alert("Error retrying candidates.");
@@ -37,68 +40,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
   };
 
   useEffect(() => {
-    let isMounted = true;
-    async function fetchData() {
-      if (!id) return;
-      try {
-        const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${id}`);
-        if (!res.ok) throw new Error("Failed to fetch campaign data");
-        const campaignData = await res.json();
-        const candidatesData = campaignData.candidates || [];
-
-        if (campaignData && isMounted) {
-          const cands = candidatesData || [];
-          const total = cands.length;
-          const processed = cands.filter((c: any) => !['pending', 'screening'].includes(c.status)).length;
-          const shortlisted = cands.filter((c: any) => ['shortlisted', 'invited', 'interviewing', 'interview_completed', 'finalized', 'complete'].includes(c.status)).length;
-          
-          setCampaign({
-            ...campaignData,
-            total,
-            processed,
-            shortlisted,
-            status: campaignData.status || 'active',
-            location: campaignData.location || 'Remote'
-          });
-          
-          const mappedCands = cands.map((c: any) => {
-            let stage: CandidateStage = "screening";
-            if (['pending', 'screening', 'screening_hold'].includes(c.status)) {
-              stage = "screening";
-            } else if (['shortlisted', 'invited'].includes(c.status)) {
-              stage = "shortlisted";
-            } else if (c.status === 'interviewing') {
-              stage = "interviewing";
-            } else if (['interview_completed', 'review'].includes(c.status)) {
-              stage = "review";
-            } else if (['finalized', 'complete'].includes(c.status)) {
-              stage = "finalized";
-            } else if (c.status === 'rejected') {
-              stage = "rejected";
-            }
-
-            return {
-              ...c,
-              score: c.fitScore || c.evaluation?.overallScore || 0,
-              recommendation: c.decision || c.evaluation?.recommendation || 'pending',
-              stage,
-              currentRole: c.structuredProfile?.currentRole || "",
-              experience: c.structuredProfile?.experience || ""
-            };
-          });
-          
-          setCandidates(mappedCands);
-        }
-      } catch (err) {
-        console.error("Error fetching pipeline data:", err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-    
-    fetchData();
-
-    // Set up Supabase Realtime subscription with debounce
+    if (!id) return;
     let timeoutId: any = null;
     const channel = supabase
       .channel(`campaign-${id}-updates`)
@@ -112,20 +54,19 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
         () => {
           if (timeoutId) clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
-            if (isMounted) fetchData();
+            invalidatePipeline();
           }, 1000);
         }
       )
       .subscribe();
 
     return () => {
-      isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
-  }, [id]);
+  }, [id, invalidatePipeline]);
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center h-full text-lg" style={{ color: t.txtMuted }}>Loading pipeline...</div>;
   }
 

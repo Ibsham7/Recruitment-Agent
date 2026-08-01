@@ -1,8 +1,10 @@
 import { useParams } from "react-router";
-import { useState, useEffect } from "react";
-import { Theme, Campaign, Candidate } from "../../lib/types";
+import { Theme, Candidate } from "../../lib/types";
 import { hexToRgba } from "../../lib/theme";
-import { apiFetch } from "../../lib/api";
+import { queryClient } from "../queryClient";
+import { useCandidateDetail, getCandidateQueryKey } from "../../lib/hooks/useCandidateDetail";
+import { getPipelineQueryKey } from "../../lib/hooks/usePipeline";
+import { CAMPAIGNS_QUERY_KEY } from "../../lib/hooks/useCampaigns";
 import {
   CandidateHeader,
   ScorePanel,
@@ -17,59 +19,20 @@ import {
 export default function CandidatePage({ theme: t }: { theme: Theme }) {
   const { id } = useParams<{ id: string }>();
 
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { candidate, campaign, isLoading } = useCandidateDetail(id);
 
-  useEffect(() => {
-    async function fetchCandidate() {
-      if (!id) return;
-      try {
-        const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}`);
-        if (!res.ok) throw new Error("Failed to fetch candidate");
-        const candidateData = await res.json();
-
-        if (candidateData) {
-          const evalData = candidateData.evaluation || {};
-          const mappedCand = {
-            ...candidateData,
-            cvUrl: candidateData.cvUrl || candidateData.resumePath || null,
-            score: Number((candidateData.fitScore ?? evalData.overallScore ?? 0).toFixed(2)),
-            recommendation: candidateData.decision || evalData.recommendation || 'pending',
-            stage: candidateData.status,
-            currentRole: candidateData.structuredProfile?.currentRole || "Candidate",
-            experience: candidateData.structuredProfile?.experience || "",
-            scores: {
-              technical: Number((evalData.technicalScore || 0).toFixed(2)),
-              communication: Number((evalData.communicationScore || 0).toFixed(2)),
-              culturalFit: Number((evalData.culturalFitScore || 0).toFixed(2)),
-              overall: Number((evalData.overallScore || candidateData.fitScore || 0).toFixed(2))
-            },
-            summary: candidateData.rejectionReason 
-              ? (evalData.summary ? `Rejection Reason: ${candidateData.rejectionReason}\n\n${evalData.summary}` : candidateData.rejectionReason)
-              : (evalData.summary || "No summary available."),
-            strengths: evalData.strengths || [],
-            concerns: evalData.concerns || [],
-            chainOfThought: evalData.chainOfThought || "No reasoning provided.",
-            transcript: evalData.interviewTranscript || []
-          };
-
-          setCandidate(mappedCand);
-          if (candidateData.campaign) {
-            setCampaign(candidateData.campaign);
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching candidate:", err);
-      } finally {
-        setLoading(false);
-      }
+  const handleDecisionUpdate = async (updatedCandidate: Candidate) => {
+    queryClient.setQueryData(getCandidateQueryKey(id || ""), (old: any) => ({
+      ...old,
+      candidate: updatedCandidate,
+    }));
+    if (updatedCandidate.campaignId) {
+      await queryClient.invalidateQueries({ queryKey: getPipelineQueryKey(updatedCandidate.campaignId) });
     }
+    await queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY });
+  };
 
-    fetchCandidate();
-  }, [id]);
-
-  if (loading) {
+  if (isLoading) {
     return <div className="p-8 text-center" style={{ color: t.txtMuted }}>Loading candidate...</div>;
   }
 
@@ -103,8 +66,9 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
         )}
       </div>
 
-      <DecisionBar candidate={candidate} campaign={campaign} theme={t} onDecisionUpdate={setCandidate} />
+      <DecisionBar candidate={candidate} campaign={campaign} theme={t} onDecisionUpdate={handleDecisionUpdate} />
     </div>
   );
 }
+
 
