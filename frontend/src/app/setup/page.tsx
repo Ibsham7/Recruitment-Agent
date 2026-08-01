@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Theme } from "../../lib/types";
 import { apiFetch } from "../../lib/api";
+import { queryClient } from "../queryClient";
+import { CAMPAIGNS_QUERY_KEY } from "../../lib/hooks/useCampaigns";
 import { 
   UploadTask, 
   HardFilter, 
@@ -194,6 +196,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
       if (!res.ok) throw new Error("Failed to create campaign");
       
+      await queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY });
       navigate("/dashboard");
     } catch (err) {
       console.error(err);

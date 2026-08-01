@@ -18,6 +18,9 @@ const PrivacyPage = lazy(() => import("./privacy/page"));
 const TermsPage = lazy(() => import("./terms/page"));
 const NotFoundPage = lazy(() => import("./not-found"));
 
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./queryClient";
+
 function PageLoader({ theme }: { theme: Theme }) {
   return (
     <div className="flex items-center justify-center min-h-[50vh] p-12 text-sm font-medium" style={{ color: theme.txtMuted }}>
@@ -159,8 +162,11 @@ export function AppRouter() {
   ]);
 
   return (
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
+

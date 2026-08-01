@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from contextvars import ContextVar
@@ -8,6 +9,36 @@ from typing import Any, Dict
 # Global context variables for request correlation & candidate tracing across async tasks
 correlation_id_ctx: ContextVar[str] = ContextVar("correlation_id", default="")
 candidate_id_ctx: ContextVar[str] = ContextVar("candidate_id", default="")
+
+class ConsoleFormatter(logging.Formatter):
+    """
+    Human-friendly Formatter for terminal development.
+    Emits readable, formatted single lines without JSON clutter.
+    """
+    def format(self, record: logging.LogRecord) -> str:
+        time_str = datetime.now().strftime("%H:%M:%S")
+        level = record.levelname.ljust(5)
+        logger_name = record.name
+        msg = record.getMessage()
+
+        context_parts = []
+        cid = correlation_id_ctx.get()
+        if cid:
+            context_parts.append(f"cid={cid[:8]}")
+        cand_id = candidate_id_ctx.get()
+        if cand_id:
+            context_parts.append(f"candidate_id={cand_id}")
+        if hasattr(record, "node_name"):
+            context_parts.append(f"node={record.node_name}")
+
+        ctx_str = f" [{', '.join(context_parts)}]" if context_parts else ""
+        line = f"[{time_str}] [{level}] {logger_name}{ctx_str}: {msg}"
+
+        if record.exc_info:
+            exc_text = self.formatException(record.exc_info)
+            line += f"\n{exc_text}"
+
+        return line.replace("\r", "")
 
 class JSONFormatter(logging.Formatter):
     """
@@ -50,10 +81,13 @@ class JSONFormatter(logging.Formatter):
         if extra:
             log_data.update(extra)
 
-        return json.dumps(log_data, ensure_ascii=False)
+        return json.dumps(log_data, ensure_ascii=False).replace("\r", "")
 
-def setup_logging(level: int = logging.INFO):
-    """Configures system-wide root logger to emit structured JSON logs to sys.stdout."""
+def setup_logging(level: int = logging.INFO, log_format: str = None):
+    """Configures system-wide root logger to emit readable logs in dev or JSON in production."""
+    if log_format is None:
+        log_format = os.getenv("LOG_FORMAT", "console" if os.getenv("ENV") != "production" else "json")
+
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
 
@@ -62,7 +96,23 @@ def setup_logging(level: int = logging.INFO):
         root_logger.removeHandler(handler)
 
     stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setFormatter(JSONFormatter())
+    if log_format.lower() == "json":
+        stream_handler.setFormatter(JSONFormatter())
+    else:
+        stream_handler.setFormatter(ConsoleFormatter())
+
     root_logger.addHandler(stream_handler)
 
+    # Mute noisy 3rd-party loggers in dev (e.g. httpx Supabase auth requests)
+    noisy_loggers = ["httpx", "httpcore", "urllib3", "asyncio"]
+    for logger_name in noisy_loggers:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+    # Re-route uvicorn loggers to use root handlers so output style is unified & un-mangled
+    for uvicorn_logger_name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+        uv_logger = logging.getLogger(uvicorn_logger_name)
+        uv_logger.handlers = []
+        uv_logger.propagate = True
+
 logger = logging.getLogger("recruitment_agent")
+

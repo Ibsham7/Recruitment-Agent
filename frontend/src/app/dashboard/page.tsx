@@ -6,6 +6,7 @@ import { apiFetch } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import { GlobalSpotlight } from "../../components/common/MagicBento";
 
+import { useCampaigns } from "../../lib/hooks/useCampaigns";
 import {
   ExtendedCampaign,
   DashboardMetrics,
@@ -20,84 +21,18 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
   const gridRef = useRef<HTMLDivElement>(null);
   const glow = hexToRgb(t.accentPrimary);
 
-  const [campaigns, setCampaigns] = useState<ExtendedCampaign[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // TanStack Query cached campaigns data
+  const { campaigns, isLoading, error, refetch, invalidateCampaigns } = useCampaigns();
 
   // Search & Filtering State
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | CampaignStatus>("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "candidates" | "match">("newest");
 
-  const fetchCampaigns = async (isSilent = false, isMounted = true) => {
-    try {
-      if (isMounted && !isSilent) {
-        setLoading(true);
-        setError(null);
-      }
-      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`);
-      if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
-      const campaignsData = await res.json();
-      
-      if (campaignsData && isMounted) {
-        const processedCampaigns: ExtendedCampaign[] = campaignsData.map((c: any) => {
-          const candidates = c.candidates || [];
-          const total = candidates.length;
-          const processed = candidates.filter((cand: any) => 
-            cand.status !== 'pending' && cand.status !== 'screening'
-          ).length;
-          const shortlisted = candidates.filter((cand: any) => 
-            cand.status === 'shortlisted' || cand.status === 'complete' || cand.status === 'finalized'
-          ).length;
-
-          // Compute individual campaign match score average
-          const scoredCandidates = candidates.filter((cand: any) => 
-            typeof cand.fitScore === 'number' && cand.fitScore > 0
-          );
-          const avgMatch = scoredCandidates.length > 0
-            ? Math.round(scoredCandidates.reduce((acc: number, cand: any) => acc + cand.fitScore, 0) / scoredCandidates.length)
-            : null;
-          
-          const rawStatus = (c.status as CampaignStatus) || 'active';
-          const isAllProcessed = total > 0 && processed >= total;
-          
-          // Effective Status logic: If all CVs are processed, classify as Completed!
-          const effectiveStatus: CampaignStatus = rawStatus === 'paused'
-            ? 'paused'
-            : (rawStatus === 'completed' || isAllProcessed)
-              ? 'completed'
-              : 'active';
-
-          return {
-            ...c,
-            total,
-            processed,
-            shortlisted,
-            avgMatch,
-            isAllProcessed,
-            status: effectiveStatus,
-            department: c.department || 'General',
-            location: c.location || 'Remote'
-          };
-        });
-
-        setCampaigns(processedCampaigns);
-      }
-    } catch (err: any) {
-      console.error("Error fetching campaigns:", err);
-      if (isMounted && !isSilent) setError(err.message || "Failed to load campaigns. Please check connection.");
-    } finally {
-      if (isMounted && !isSilent) setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    let isMounted = true;
     let timeoutId: any = null;
 
-    fetchCampaigns(false, isMounted);
-
-    // Realtime changes listener - perform silent refetch without showing loading skeletons
+    // Realtime changes listener - perform silent background cache invalidation without resetting UI or showing skeletons
     const channel = supabase
       .channel('dashboard-candidate-updates')
       .on(
@@ -106,18 +41,19 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
         () => {
           if (timeoutId) clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
-            if (isMounted) fetchCampaigns(true, isMounted);
+            invalidateCampaigns();
           }, 1000);
         }
       )
       .subscribe();
 
     return () => {
-      isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [invalidateCampaigns]);
+
+  const errorMessage = error instanceof Error ? error.message : error ? String(error) : null;
 
   // Compute Aggregates
   const totalCampaigns = campaigns.length;
@@ -195,7 +131,7 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
         theme={t}
         G={G}
         glow={glow}
-        loading={loading}
+        loading={isLoading}
         activeCount={activeCount}
         completedCount={completedCount}
         totalCampaigns={totalCampaigns}
@@ -220,17 +156,17 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
       />
 
       {/* Error Alert Banner */}
-      {error && (
+      {errorMessage && (
         <DashboardErrorBanner
           theme={t}
-          error={error}
-          onRetry={() => fetchCampaigns(true)}
+          error={errorMessage}
+          onRetry={() => refetch()}
         />
       )}
 
       {/* Main Campaign Grid & States */}
       <CampaignGrid
-        loading={loading}
+        loading={isLoading}
         campaigns={filteredCampaigns}
         theme={t}
         G={G}
@@ -243,3 +179,4 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
     </div>
   );
 }
+
