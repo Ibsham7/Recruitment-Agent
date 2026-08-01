@@ -11,11 +11,14 @@ async def verify_jwt(credentials: HTTPAuthorizationCredentials = Security(securi
     secret = os.getenv("SUPABASE_JWT_SECRET")
     
     if not secret or secret == "your-supabase-jwt-secret-here":
-        print("Warning: SUPABASE_JWT_SECRET is missing or not set securely.")
+        raise HTTPException(
+            status_code=500,
+            detail="Server configuration error: SUPABASE_JWT_SECRET is missing or not configured securely"
+        )
 
     try:
         # Decode token. Disable audience verification since it might vary
-        payload = jwt.decode(token, secret, algorithms=["HS256", "ES256", "RS256"], options={"verify_aud": False})
+        payload = jwt.decode(token, secret, algorithms=["HS256"], options={"verify_aud": False})
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")

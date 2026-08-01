@@ -247,39 +247,40 @@ The system dynamically adapts the interview based on the length of the candidate
 
 ```mermaid
 flowchart TD
-    [Candidate Start] ──> POST /start-interview
-                          │
-                          ▼
-                 LLM generates 3 Questions
-                 Saved to Evaluation.interviewQuestions: [Q1, Q2, Q3]
-                 Initializes interviewTranscript with Q1
-                          │
-                          ▼
-                 Frontend receives Candidate payload with Q1
-                          │
-  ┌───────────────────────┴────────────────────────┐
-  │ Candidate types Answer 1 & submits             │
-  └───────────────────────┬────────────────────────┘
-                          │
-                          ▼
-                 POST /interview/answer
-                          │
-     ┌────────────────────┴────────────────────┐
-     │ Backend inspects Answer 1              │
-     │ Is Answer 1 < 20 words?                │
-     └───────────┬────────────────┬────────────┘
-                 │                │
-            YES  │                │ NO
-                 ▼                ▼
-     Calls LLM immediately    Selects Q2 from 
-     for Adaptive Probe       interviewQuestions
-     "[Follow-up] ..."                │
-                 │                    │
-                 └────────┬───────────┘
-                          │
-                          ▼
-                 Appends turn to interviewTranscript in DB
-                 Returns calculated `currentQuestion` to Frontend
+                  ┌──────────────────────────────────────────┐
+                  │ 1. INITIALIZATION                        │
+                  │ Candidate hits /start-interview          │
+                  │ Frontend receives full array:            │
+                  │ questions = [Q1, Q2, Q3]                 │
+                  └────────────────────┬─────────────────────┘
+                                       │
+                                       ▼
+                  ┌──────────────────────────────────────────┐
+                  │ 2. INSTANT CLIENT-SIDE ITERATION         │
+                  │ Step 0: Render Q1                        │
+                  │ Step 1: Candidate answers Q1 ──> Sync    │
+                  │ Step 2: Render Q2 instantly (No waiting!) │
+                  │ Step 3: Candidate answers Q2 ──> Sync    │
+                  │ Step 4: Render Q3 instantly (No waiting!) │
+                  └────────────────────┬─────────────────────┘
+                                       │
+            ┌──────────────────────────┴──────────────────────────┐
+            │ 3. ASYNCHRONOUS BACKGROUND PROBING (Per Turn)       │
+            │ On each sync ping: Backend writes answer to DB      │
+            │ In background (asyncio.create_task):                │
+            │ Evaluates answer quality -> generates probe if needed│
+            │ Appends probe to `pendingProbes` queue in DB        │
+            └──────────────────────────┬──────────────────────────┘
+                                       │
+                                       ▼
+                  ┌──────────────────────────────────────────┐
+                  │ 4. END-OF-INTERVIEW PROBE CHECK          │
+                  │ After Q3 answered, frontend checks:      │
+                  │ GET /api/candidates/{id}/pending-probes  │
+                  │ If probes exist: Ask follow-ups at end   │
+                  │ If no probes: Mark complete              │
+                  └──────────────────────────────────────────┘
+
 ```
 
 ---
