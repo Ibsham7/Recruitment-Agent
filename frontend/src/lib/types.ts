@@ -39,6 +39,13 @@ export interface Evaluation {
   createdAt: string;
 }
 
+export interface CandidateScores {
+  technical: number;
+  communication: number;
+  culturalFit: number;
+  overall: number;
+}
+
 export interface Candidate {
   id: string;
   campaignId: string;
@@ -61,7 +68,7 @@ export interface Candidate {
   score?: number;
   stage?: CandidateStage;
   recommendation?: Recommendation;
-  scores?: any;
+  scores?: CandidateScores;
   summary?: string;
   strengths?: string[];
   concerns?: string[];
