@@ -53,7 +53,16 @@ async def lifespan(app: FastAPI):
         if asyncio.iscoroutine(res):
             await res
 
+from app.core.logging import setup_logging
+from app.middleware.correlation import CorrelationIdMiddleware
+
+# Initialize system-wide structured JSON logging to stdout
+setup_logging()
+
 app = FastAPI(title="Recruitment Agent API", lifespan=lifespan)
+
+# Add Correlation ID middleware for distributed request tracing
+app.add_middleware(CorrelationIdMiddleware)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
