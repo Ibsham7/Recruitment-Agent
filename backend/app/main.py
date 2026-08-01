@@ -20,7 +20,7 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 from app.agent.api import start_candidate_pipeline, resume_pipeline, generate_on_demand_questions, process_interview_answer
-from app.database import prisma
+from app.database import prisma, init_db_pool, close_db_pool
 from app.agent.embeddings import _distill_jd_async, get_embedding_async
 from app.security import verify_jwt
 from app.interview_security import generate_interview_token, verify_interview_token
@@ -38,12 +38,14 @@ def _get_redis_settings() -> RedisSettings:
     return settings
 
 async def lifespan(app: FastAPI):
-    # Startup: Connect to the database and Redis Queue
+    # Startup: Connect to database, initialize psycopg connection pool and Redis Queue
     await prisma.connect()
+    await init_db_pool()
     app.state.redis = await create_pool(_get_redis_settings())
     yield
-    # Shutdown: Disconnect from the database and Redis Queue
+    # Shutdown: Disconnect database pool and Redis Queue
     await prisma.disconnect()
+    await close_db_pool()
     if hasattr(app.state.redis, "aclose"):
         await app.state.redis.aclose()
     elif hasattr(app.state.redis, "close"):

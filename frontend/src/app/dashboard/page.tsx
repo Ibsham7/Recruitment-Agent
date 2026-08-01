@@ -29,9 +29,9 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
   const [statusFilter, setStatusFilter] = useState<"all" | CampaignStatus>("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "candidates" | "match">("newest");
 
-  const fetchCampaigns = async (isMounted = true) => {
+  const fetchCampaigns = async (isSilent = false, isMounted = true) => {
     try {
-      if (isMounted) {
+      if (isMounted && !isSilent) {
         setLoading(true);
         setError(null);
       }
@@ -85,9 +85,9 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
       }
     } catch (err: any) {
       console.error("Error fetching campaigns:", err);
-      if (isMounted) setError(err.message || "Failed to load campaigns. Please check connection.");
+      if (isMounted && !isSilent) setError(err.message || "Failed to load campaigns. Please check connection.");
     } finally {
-      if (isMounted) setLoading(false);
+      if (isMounted && !isSilent) setLoading(false);
     }
   };
 
@@ -95,9 +95,9 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
     let isMounted = true;
     let timeoutId: any = null;
 
-    fetchCampaigns(isMounted);
+    fetchCampaigns(false, isMounted);
 
-    // Realtime changes listener
+    // Realtime changes listener - perform silent refetch without showing loading skeletons
     const channel = supabase
       .channel('dashboard-candidate-updates')
       .on(
@@ -106,8 +106,8 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
         () => {
           if (timeoutId) clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
-            if (isMounted) fetchCampaigns(true);
-          }, 1200);
+            if (isMounted) fetchCampaigns(true, isMounted);
+          }, 1000);
         }
       )
       .subscribe();

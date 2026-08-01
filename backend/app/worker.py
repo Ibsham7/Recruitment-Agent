@@ -13,10 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.agent.api import start_candidate_pipeline, resume_pipeline
-from app.database import prisma
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from psycopg_pool import AsyncConnectionPool
-from psycopg.rows import dict_row
+from app.database import prisma, init_db_pool, close_db_pool, get_global_checkpointer
 from app.agent.state import RecruitmentState
 from arq.cron import cron
 from app.sweeper import run_all_sweepers
@@ -27,40 +24,15 @@ async def startup(ctx):
     when the worker process starts.
     """
     await prisma.connect()
-    
-    raw_db_url = os.environ.get("DATABASE_URL") or os.environ.get("DIRECT_URL")
-    if raw_db_url:
-        parsed = urlparse(raw_db_url)
-        # Strip query parameters (e.g. pgbouncer=true, connection_limit=1) for psycopg
-        db_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
-    else:
-        db_url = ""
-        
-    pool = AsyncConnectionPool(
-        conninfo=db_url,
-        min_size=1,
-        max_size=5,
-        open=False,
-        kwargs={
-            "autocommit": True,
-            "prepare_threshold": None,
-            "row_factory": dict_row,
-        },
-    )
-    await pool.open()
-    await pool.wait()
-    ctx['pool'] = pool
-    checkpointer = AsyncPostgresSaver(pool)
-    await checkpointer.setup()
-    ctx['checkpointer'] = checkpointer
+    await init_db_pool()
+    ctx['checkpointer'] = get_global_checkpointer()
 
 async def shutdown(ctx):
     """
     Clean up resources when the worker process stops.
     """
     await prisma.disconnect()
-    if 'pool' in ctx:
-        await ctx['pool'].close()
+    await close_db_pool()
 
 async def process_cv_task(ctx, candidate_id: str, cv_url: str, jd_text: str):
     """

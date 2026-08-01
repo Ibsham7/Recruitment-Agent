@@ -18,21 +18,21 @@ async def get_checkpointer(cp=None):
     if cp:
         yield cp
     else:
-        raw_db_url = os.environ.get("DATABASE_URL") or os.environ.get("DIRECT_URL")
-        if raw_db_url:
-            parsed = urlparse(raw_db_url)
-            db_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+        from app.database import get_global_checkpointer, get_db_url
+        global_cp = get_global_checkpointer()
+        if global_cp:
+            yield global_cp
         else:
-            db_url = ""
-        if db_url:
-            async with await AsyncConnection.connect(
-                db_url, autocommit=True, prepare_threshold=None, row_factory=dict_row
-            ) as conn:
-                new_cp = AsyncPostgresSaver(conn)
-                await new_cp.setup()
-                yield new_cp
-        else:
-            yield None
+            db_url = get_db_url()
+            if db_url:
+                async with await AsyncConnection.connect(
+                    db_url, autocommit=True, prepare_threshold=None, row_factory=dict_row
+                ) as conn:
+                    new_cp = AsyncPostgresSaver(conn)
+                    await new_cp.setup()
+                    yield new_cp
+            else:
+                yield None
 
 async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str, checkpointer=None):
     # Load existing profile if it's cached

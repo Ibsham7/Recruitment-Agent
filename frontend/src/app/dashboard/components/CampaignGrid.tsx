@@ -43,69 +43,73 @@ export interface CampaignGridProps {
   onClearFilters: () => void;
 }
 
-export function CampaignGrid({
-  loading,
-  campaigns,
-  theme: t,
-  G,
-  glowColor,
-  onNavigateSetup,
-  searchQuery,
-  statusFilter,
-  onClearFilters,
-}: CampaignGridProps) {
-  if (loading) {
+import React from "react";
+
+export const CampaignGrid = React.memo(
+  function CampaignGrid({
+    loading,
+    campaigns,
+    theme: t,
+    G,
+    glowColor,
+    onNavigateSetup,
+    searchQuery,
+    statusFilter,
+    onClearFilters,
+  }: CampaignGridProps) {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CampaignSkeleton key={i} G={G} />
+          ))}
+        </div>
+      );
+    }
+
+    if (campaigns.length === 0) {
+      return (
+        <DashboardEmptyState
+          theme={t}
+          searchQuery={searchQuery}
+          statusFilter={statusFilter}
+          onClearFilters={onClearFilters}
+          onNavigateSetup={onNavigateSetup}
+        />
+      );
+    }
+
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <CampaignSkeleton key={i} G={G} />
+        {campaigns.map((c) => (
+          <CampaignCard key={c.id} campaign={c} theme={t} G={G} glowColor={glowColor} />
         ))}
+
+        {/* New Campaign Button */}
+        <button 
+          onClick={onNavigateSetup} 
+          className="rounded-2xl flex flex-col items-center justify-center gap-2 py-12 transition-all group border-2 border-dashed"
+          style={{ 
+            borderColor: hexToRgba(t.bgCard, t.isDark ? 0.14 : 0.30), 
+            background: hexToRgba(t.bgCard, t.isDark ? 0.04 : 0.20), 
+            color: t.txtGhost 
+          }}
+          onMouseEnter={(e) => { 
+            (e.currentTarget as HTMLElement).style.borderColor = hexToRgba(t.accentPrimary, 0.45); 
+            (e.currentTarget as HTMLElement).style.color = t.txtSecondary; 
+          }}
+          onMouseLeave={(e) => { 
+            (e.currentTarget as HTMLElement).style.borderColor = hexToRgba(t.bgCard, t.isDark ? 0.14 : 0.30); 
+            (e.currentTarget as HTMLElement).style.color = t.txtGhost; 
+          }}
+        >
+          <div className="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}>
+            <Plus size={20} />
+          </div>
+          <span className="text-sm font-semibold">Start New Campaign</span>
+          <span className="text-xs" style={{ color: t.txtGhost }}>Upload JD & configure AI evaluation criteria</span>
+        </button>
       </div>
     );
   }
-
-  if (campaigns.length === 0) {
-    return (
-      <DashboardEmptyState
-        theme={t}
-        searchQuery={searchQuery}
-        statusFilter={statusFilter}
-        onClearFilters={onClearFilters}
-        onNavigateSetup={onNavigateSetup}
-      />
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {campaigns.map((c) => (
-        <CampaignCard key={c.id} campaign={c} theme={t} G={G} glowColor={glowColor} />
-      ))}
-
-      {/* New Campaign Button */}
-      <button 
-        onClick={onNavigateSetup} 
-        className="rounded-2xl flex flex-col items-center justify-center gap-2 py-12 transition-all group border-2 border-dashed"
-        style={{ 
-          borderColor: hexToRgba(t.bgCard, t.isDark ? 0.14 : 0.30), 
-          background: hexToRgba(t.bgCard, t.isDark ? 0.04 : 0.20), 
-          color: t.txtGhost 
-        }}
-        onMouseEnter={(e) => { 
-          (e.currentTarget as HTMLElement).style.borderColor = hexToRgba(t.accentPrimary, 0.45); 
-          (e.currentTarget as HTMLElement).style.color = t.txtSecondary; 
-        }}
-        onMouseLeave={(e) => { 
-          (e.currentTarget as HTMLElement).style.borderColor = hexToRgba(t.bgCard, t.isDark ? 0.14 : 0.30); 
-          (e.currentTarget as HTMLElement).style.color = t.txtGhost; 
-        }}
-      >
-        <div className="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}>
-          <Plus size={20} />
-        </div>
-        <span className="text-sm font-semibold">Start New Campaign</span>
-        <span className="text-xs" style={{ color: t.txtGhost }}>Upload JD & configure AI evaluation criteria</span>
-      </button>
-    </div>
-  );
-}
+);
