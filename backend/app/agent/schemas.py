@@ -20,16 +20,55 @@ class CandidateProfile(CandidateProfileOutput):
     """Full candidate profile including the raw text, kept for later nodes."""
     raw_cv_text: str = Field(default="", description="Full extracted text, kept for later nodes")
 
+class RequirementItemBreakdown(BaseModel):
+    requirement: str
+    match: Literal["full", "partial", "none"]
+    points_earned: float = 0.0
+    max_points: float = 0.0
+    percentage: float = 0.0
+    evidence: str = ""
+    deduction_reason: Optional[str] = None
+
 class RequirementMatch(BaseModel):
     requirement: str
     match: Literal["full", "partial", "none"]
-    evidence: str = Field(description="max 15 words")
+    evidence: str = Field(default="", description="max 15 words")
+
+class ExperienceBreakdown(BaseModel):
+    score: int = 0
+    points_earned: float = 0.0
+    max_points: float = 25.0
+    required_years: Optional[float] = None
+    candidate_years: Optional[float] = None
+    calculation: Optional[str] = None
+    assessment: Optional[str] = None
+
+class TrajectoryBreakdown(BaseModel):
+    score: int = 0
+    points_earned: float = 0.0
+    max_points: float = 10.0
+    assessment: Optional[str] = None
+
+class PenaltyBreakdownItem(BaseModel):
+    reason: str = ""
+    severity: str = ""
+    points_deducted: float = 0.0
 
 class ScoreBreakdown(BaseModel):
     required_skills_score: int = Field(default=0, ge=0, le=100)
     experience_score: int = Field(default=0, ge=0, le=100)
     nice_to_have_score: int = Field(default=0, ge=0, le=100)
     trajectory_score: int = Field(default=0, ge=0, le=100)
+
+    # Granular transparent attributions
+    weights: Optional[dict[str, float]] = None
+    eval_mode: Optional[str] = None
+    formula_summary: Optional[str] = None
+    must_have_breakdown: list[RequirementItemBreakdown] = Field(default_factory=list)
+    nice_to_have_breakdown: list[RequirementItemBreakdown] = Field(default_factory=list)
+    experience_breakdown: Optional[ExperienceBreakdown] = None
+    trajectory_breakdown: Optional[TrajectoryBreakdown] = None
+    penalties_breakdown: list[PenaltyBreakdownItem] = Field(default_factory=list)
 
     @field_validator("required_skills_score", "experience_score", "nice_to_have_score", "trajectory_score", mode="before")
     @classmethod
@@ -87,6 +126,7 @@ class EvaluationReport(BaseModel):
     competency_scores: list[CompetencyScore] = Field(default_factory=list)
     strengths: list[str]
     concerns: list[str]
+    score_breakdown: Optional[ScoreBreakdown] = Field(default=None, description="Detailed sub-scores breakdown")
     chain_of_thought: Optional[str] = Field(default=None, description="Step-by-step reasoning from screening")
     recommendation: str = Field(pattern="^(shortlist|reject|hold)$")
     summary: str = Field(description="2–3 sentence overall assessment")

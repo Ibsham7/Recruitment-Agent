@@ -22,6 +22,60 @@ export interface Campaign {
   totalCost?: number; // COST_TRACKING
 }
 
+export interface RequirementItemBreakdown {
+  requirement: string;
+  match: "full" | "partial" | "none";
+  points_earned: number;
+  max_points: number;
+  percentage: number;
+  evidence: string;
+  deduction_reason?: string;
+}
+
+export interface ExperienceBreakdown {
+  score: number;
+  points_earned: number;
+  max_points: number;
+  required_years?: number;
+  candidate_years?: number;
+  calculation?: string;
+  assessment?: string;
+}
+
+export interface TrajectoryBreakdown {
+  score: number;
+  points_earned: number;
+  max_points: number;
+  assessment?: string;
+}
+
+export interface PenaltyBreakdownItem {
+  reason: string;
+  severity: string;
+  points_deducted: number;
+}
+
+export interface ScoreBreakdown {
+  required_skills_score?: number;
+  experience_score?: number;
+  nice_to_have_score?: number;
+  trajectory_score?: number;
+
+  weights?: {
+    skills: number;
+    exp: number;
+    nice: number;
+    traj: number;
+  };
+  eval_mode?: string;
+  formula_summary?: string;
+  must_have_breakdown?: RequirementItemBreakdown[];
+  nice_to_have_breakdown?: RequirementItemBreakdown[];
+  experience_breakdown?: ExperienceBreakdown;
+  trajectory_breakdown?: TrajectoryBreakdown;
+  penalties_breakdown?: PenaltyBreakdownItem[];
+}
+
 export interface Evaluation {
   id: string;
   candidateId: string;
@@ -33,6 +87,7 @@ export interface Evaluation {
   summary: string;
   strengths: string[];
   concerns: string[];
+  scoreBreakdown?: ScoreBreakdown;
   chainOfThought?: string;
   interviewTranscript: any;
   interviewQuestions?: any;
@@ -72,6 +127,7 @@ export interface Candidate {
   summary?: string;
   strengths?: string[];
   concerns?: string[];
+  scoreBreakdown?: ScoreBreakdown;
   chainOfThought?: string;
   transcript?: any[];
   

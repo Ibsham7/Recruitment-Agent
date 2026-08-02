@@ -36,7 +36,11 @@ async def init_db_pool():
         await _pool.open()
         await _pool.wait()
         _checkpointer = AsyncPostgresSaver(_pool)
-        await _checkpointer.setup()
+        try:
+            await _checkpointer.setup()
+        except Exception as e:
+            # Handle idempotent schema setup if migration key already exists
+            pass
 
 async def close_db_pool():
     global _pool, _checkpointer

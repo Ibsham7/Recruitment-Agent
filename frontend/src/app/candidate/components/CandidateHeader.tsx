@@ -12,10 +12,11 @@ export function CandidateHeader({ candidate, theme: t }: CandidateHeaderProps) {
   const recommendation = candidate.recommendation || "pending";
   const recCfg = {
     shortlist: { label: "Highly Recommended", color: t.numPos, icon: <CheckCircle size={13} /> },
-    approve:   { label: "Approved",            color: t.numPos, icon: <CheckCircle size={13} /> },
-    reject:    { label: "Not Recommended",     color: t.numNeg, icon: <XCircle size={13} /> },
-    pending:   { label: "Evaluation Pending",  color: t.numMid, icon: <Clock size={13} /> },
-    hold:      { label: "On Hold",             color: t.numMid, icon: <Pause size={13} /> },
+    advance:   { label: "Recommended",        color: t.numPos, icon: <CheckCircle size={13} /> },
+    approve:   { label: "Approved",           color: t.numPos, icon: <CheckCircle size={13} /> },
+    reject:    { label: "Not Recommended",    color: t.numNeg, icon: <XCircle size={13} /> },
+    pending:   { label: "Evaluation Pending", color: t.numMid, icon: <Clock size={13} /> },
+    hold:      { label: "Hold / Borderline Match", color: t.numMid, icon: <Pause size={13} /> },
   };
   const rec = recCfg[recommendation as keyof typeof recCfg] || recCfg.pending;
 

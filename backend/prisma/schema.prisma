@@ -93,6 +93,7 @@ model Evaluation {
   summary             String
   strengths           String[]
   concerns            String[]
+  scoreBreakdown      Json?
   chainOfThought      String?
   interviewTranscript Json?
   interviewQuestions  Json?

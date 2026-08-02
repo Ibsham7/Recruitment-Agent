@@ -34,6 +34,87 @@ async def get_checkpointer(cp=None):
             else:
                 yield None
 
+def _build_evaluation_from_screening(res, strictness: str = "moderate"):
+    from app.agent.schemas import EvaluationReport
+    
+    # 1. Matched strengths
+    matched = []
+    for req in res.must_have:
+        if req.match == "full":
+            matched.append(f"{req.requirement}" + (f" ({req.evidence})" if req.evidence else ""))
+    for req in res.nice_to_have:
+        if req.match != "none":
+            matched.append(f"{req.requirement}" + (f" ({req.evidence})" if req.evidence else ""))
+            
+    # 2. Detailed Concerns with severity tags
+    concerns = []
+    # Must-have missing
+    for req in res.must_have:
+        if req.match == "none":
+            concerns.append(f"[CRITICAL GAP] Missing Must-Have: {req.requirement}" + (f" ({req.evidence})" if req.evidence else ""))
+            
+    # Must-have partial
+    for req in res.must_have:
+        if req.match == "partial":
+            concerns.append(f"[MODERATE GAP] Partial Skill Match: {req.requirement}" + (f" - {req.evidence}" if req.evidence else ""))
+            
+    # Experience / Tenure shortfall
+    if res.score_breakdown and res.score_breakdown.experience_score < 70:
+        gap_msg = f"[TENURE GAP] Experience Shortfall (Score {res.score_breakdown.experience_score}/100)"
+        if res.experience_assessment:
+            gap_msg += f": {res.experience_assessment}"
+        concerns.append(gap_msg)
+    elif res.experience_assessment and any(kw in res.experience_assessment.lower() for kw in ["shortfall", "intern", "less than", "duration"]):
+        concerns.append(f"[TENURE GAP] Experience Note: {res.experience_assessment}")
+        
+    # Nice-to-have missing
+    for req in res.nice_to_have:
+        if req.match == "none":
+            concerns.append(f"[MINOR GAP] Preferred Requirement Missing: {req.requirement}")
+            
+    if not concerns:
+        concerns = ["No major critical concerns flagged."]
+        
+    # 3. Recommendation Calibration aligning with Lenient/Moderate/Strict thresholds
+    rec = res.decision
+    if res.decision == "advance":
+        if res.fit_score >= 75:
+            rec = "shortlist"
+        else:
+            rec = "hold"
+    elif res.decision == "hold":
+        rec = "hold"
+    else:
+        rec = "reject"
+        
+    cot_parts = []
+    if res.experience_assessment:
+        cot_parts.append(f"Experience Assessment: {res.experience_assessment}")
+    if res.score_breakdown:
+        cot_parts.append(
+            f"Score Attribution:\n"
+            f"• Required Skills (50%): {res.score_breakdown.required_skills_score}/100\n"
+            f"• Experience Depth (25%): {res.score_breakdown.experience_score}/100\n"
+            f"• Nice-to-Have Skills (15%): {res.score_breakdown.nice_to_have_score}/100\n"
+            f"• Trajectory & Growth (10%): {res.score_breakdown.trajectory_score}/100\n"
+            f"Overall Fit Score: {res.fit_score}/100"
+        )
+    if res.reasoning_summary:
+        cot_parts.append(f"Decision Summary: {res.reasoning_summary}")
+        
+    return EvaluationReport(
+        overall_score=float(res.fit_score),
+        communication_score=0.0,
+        technical_score=0.0,
+        cultural_fit_score=0.0,
+        strengths=matched if matched else ["Strong foundational qualifications"],
+        concerns=concerns,
+        score_breakdown=res.score_breakdown,
+        recommendation=rec,
+        summary=res.reasoning_summary,
+        chain_of_thought="\n\n".join(cot_parts)
+    )
+
 async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str, checkpointer=None):
     # Load existing profile if it's cached
     candidate = await prisma.candidate.find_unique(where={"id": candidate_id}, include={"campaign": True, "resume": True})
@@ -159,23 +240,10 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
         # Save evaluation report if available
         evaluation_report = final_state.get("evaluation_report")
         
-        # Auto-generate evaluation for rejected candidates if missing
+        # Auto-generate evaluation for candidate if missing after JD screening
         if not evaluation_report and final_state.get("screening_result"):
-            from app.agent.schemas import EvaluationReport
             res = final_state["screening_result"]
-            missing = [req.requirement for req in res.must_have if req.match == "none"]
-            matched = [req.requirement for req in res.must_have if req.match != "none"] + [req.requirement for req in res.nice_to_have if req.match != "none"]
-            evaluation_report = EvaluationReport(
-                overall_score=res.fit_score,
-                communication_score=0.0,
-                technical_score=0.0,
-                cultural_fit_score=0.0,
-                strengths=matched,
-                concerns=missing,
-                recommendation="shortlist" if res.decision == "advance" else res.decision,
-                summary=res.reasoning_summary,
-                chain_of_thought=f"{res.experience_assessment}\n\n{res.reasoning_summary}"
-            )
+            evaluation_report = _build_evaluation_from_screening(res, evaluation_strictness)
         elif not evaluation_report and status == "rejected" and final_state.get("rejection_reason"):
             from app.agent.schemas import EvaluationReport
             evaluation_report = EvaluationReport(
@@ -202,6 +270,8 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                 "concerns": evaluation_report.concerns,
                 "chainOfThought": evaluation_report.chain_of_thought,
             }
+            if evaluation_report.score_breakdown:
+                eval_data["scoreBreakdown"] = Json(evaluation_report.score_breakdown.dict())
             if final_state.get("interview_questions"):
                 eval_data["interviewQuestions"] = Json([q.dict() for q in final_state["interview_questions"]])
                 
@@ -472,23 +542,10 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
         # Save evaluation report if available
         evaluation_report = final_state.get("evaluation_report")
         
-        # Auto-generate evaluation for rejected candidates if missing
+        # Auto-generate evaluation for candidate if missing after JD screening
         if not evaluation_report and final_state.get("screening_result"):
-            from app.agent.schemas import EvaluationReport
             res = final_state["screening_result"]
-            missing = [req.requirement for req in res.must_have if req.match == "none"]
-            matched = [req.requirement for req in res.must_have if req.match != "none"] + [req.requirement for req in res.nice_to_have if req.match != "none"]
-            evaluation_report = EvaluationReport(
-                overall_score=res.fit_score,
-                communication_score=0.0,
-                technical_score=0.0,
-                cultural_fit_score=0.0,
-                strengths=matched,
-                concerns=missing,
-                recommendation="shortlist" if res.decision == "advance" else res.decision,
-                summary=res.reasoning_summary,
-                chain_of_thought=f"{res.experience_assessment}\n\n{res.reasoning_summary}"
-            )
+            evaluation_report = _build_evaluation_from_screening(res, evaluation_strictness)
         elif not evaluation_report and status == "rejected" and final_state.get("rejection_reason"):
             from app.agent.schemas import EvaluationReport
             evaluation_report = EvaluationReport(
@@ -515,6 +572,8 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
                 "concerns": evaluation_report.concerns,
                 "chainOfThought": evaluation_report.chain_of_thought,
             }
+            if evaluation_report.score_breakdown:
+                eval_data["scoreBreakdown"] = Json(evaluation_report.score_breakdown.dict())
             if final_state.get("interview_questions"):
                 eval_data["interviewQuestions"] = Json([q.dict() for q in final_state["interview_questions"]])
                 

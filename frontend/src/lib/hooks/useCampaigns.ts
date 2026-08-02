@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 import { CampaignStatus } from "../types";
@@ -63,9 +64,9 @@ export function useCampaigns() {
     queryFn: fetchCampaignsData,
   });
 
-  const invalidateCampaigns = () => {
+  const invalidateCampaigns = useCallback(() => {
     return queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY });
-  };
+  }, [queryClient]);
 
   return {
     ...query,

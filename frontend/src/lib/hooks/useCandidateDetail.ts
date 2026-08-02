@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 import { Candidate, Campaign } from "../types";
@@ -24,8 +25,8 @@ export async function fetchCandidateDetail(id: string) {
   const mappedCand: Candidate = {
     ...candidateData,
     cvUrl: candidateData.cvUrl || candidateData.resumePath || null,
-    score: Number((candidateData.fitScore ?? evalData.overallScore ?? 0).toFixed(2)),
-    recommendation: candidateData.decision || evalData.recommendation || "pending",
+    score: Number((evalData.overallScore ?? candidateData.fitScore ?? 0).toFixed(2)),
+    recommendation: evalData.recommendation || candidateData.decision || "pending",
     stage: candidateData.status,
     currentRole: candidateData.structuredProfile?.currentRole || "Candidate",
     experience: candidateData.structuredProfile?.experience || "",
@@ -40,6 +41,7 @@ export async function fetchCandidateDetail(id: string) {
       : (evalData.summary || "No summary available."),
     strengths: evalData.strengths || [],
     concerns: evalData.concerns || [],
+    scoreBreakdown: evalData.scoreBreakdown || null,
     chainOfThought: evalData.chainOfThought || "No reasoning provided.",
     transcript: evalData.interviewTranscript || [],
   };
@@ -56,12 +58,19 @@ export function useCandidateDetail(id: string | undefined) {
     queryKey: getCandidateQueryKey(id || ""),
     queryFn: () => fetchCandidateDetail(id || ""),
     enabled: Boolean(id),
+    staleTime: (query) => {
+      const candidate = query.state.data?.candidate;
+      if (!candidate || candidate.stage === "pending" || candidate.stage === "screening") {
+        return 0;
+      }
+      return 1000 * 60 * 5;
+    },
   });
 
-  const invalidateCandidate = () => {
+  const invalidateCandidate = useCallback(() => {
     if (!id) return;
     return queryClient.invalidateQueries({ queryKey: getCandidateQueryKey(id) });
-  };
+  }, [id, queryClient]);
 
   return {
     ...query,

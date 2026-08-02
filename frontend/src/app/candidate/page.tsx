@@ -12,6 +12,7 @@ import {
   AISummaryCard,
   ChainOfThoughtCard,
   StrengthsConcernsPanel,
+  ScoreBreakdownPanel,
   TranscriptPanel,
   DecisionBar,
 } from "./components";
@@ -58,6 +59,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           <ResumeCard cvUrl={candidate.cvUrl} theme={t} />
           <AISummaryCard summary={candidate.summary || "No summary available."} theme={t} />
           <ChainOfThoughtCard chainOfThought={candidate.chainOfThought || "No reasoning provided."} theme={t} />
+          <ScoreBreakdownPanel candidate={candidate} theme={t} />
           <StrengthsConcernsPanel strengths={candidate.strengths || []} concerns={candidate.concerns || []} theme={t} />
         </div>
 

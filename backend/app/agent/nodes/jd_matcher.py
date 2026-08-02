@@ -87,7 +87,11 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     final_score, decision, score_note = calculate_weighted_fit_score(
         result.score_breakdown,
         eval_mode=eval_mode,
-        penalties=penalties
+        penalties=penalties,
+        must_have=result.must_have,
+        nice_to_have=result.nice_to_have,
+        experience_assessment=result.experience_assessment,
+        candidate_profile=profile
     )
     
     result.fit_score = final_score

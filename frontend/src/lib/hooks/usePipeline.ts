@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 import { Campaign, Candidate, CandidateStage } from "../types";
@@ -69,12 +70,22 @@ export function usePipeline(id: string | undefined) {
     queryKey: getPipelineQueryKey(id || ""),
     queryFn: () => fetchPipelineData(id || ""),
     enabled: Boolean(id),
+    // Selective Caching Strategy:
+    // - In-process / Active campaigns: staleTime = 0 (always fetch fresh live data)
+    // - Completed or Paused campaigns: staleTime = 5 minutes (cache results)
+    staleTime: (query) => {
+      const campaign = query.state.data?.campaign;
+      if (!campaign || campaign.status === "active") {
+        return 0;
+      }
+      return 1000 * 60 * 5;
+    },
   });
 
-  const invalidatePipeline = () => {
+  const invalidatePipeline = useCallback(() => {
     if (!id) return;
     return queryClient.invalidateQueries({ queryKey: getPipelineQueryKey(id) });
-  };
+  }, [id, queryClient]);
 
   return {
     ...query,
