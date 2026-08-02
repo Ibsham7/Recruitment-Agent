@@ -2,6 +2,7 @@ import { Pause, XCircle, CheckCircle } from "lucide-react";
 import { Theme, Campaign, Candidate } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { apiFetch } from "../../../lib/api";
+import { getCandidateDisplayName } from "../../../lib/candidate";
 
 export interface DecisionBarProps {
   candidate: Candidate;
@@ -68,7 +69,7 @@ export function DecisionBar({ candidate, campaign, theme: t, onDecisionUpdate }:
       }}
     >
       <div className="text-xs" style={{ color: t.txtSecondary }}>
-        Final decision for <span className="font-semibold" style={{ color: t.txtPrimary }}>{candidate.name}</span>
+        Final decision for <span className="font-semibold" style={{ color: t.txtPrimary }}>{getCandidateDisplayName(candidate)}</span>
         {campaign && <span style={{ color: t.txtMuted }}> · {campaign.title}</span>}
       </div>
       <div className="flex items-center gap-2.5">

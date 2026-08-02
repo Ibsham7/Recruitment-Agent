@@ -3,6 +3,7 @@ import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
 import { Sparkles, X, Brain, ThumbsUp, ThumbsDown, MessageSquare, Loader2 } from "lucide-react";
 import { InterviewCandidate } from "../types";
+import { getCandidateDisplayName } from "../../../lib/candidate";
 
 export interface CandidateInspectionDrawerProps {
   candidate: InterviewCandidate | null;
@@ -31,6 +32,8 @@ export function CandidateInspectionDrawer({
   }, [candidate, onClose]);
 
   if (!candidate) return null;
+
+  const displayName = getCandidateDisplayName(candidate);
 
   return (
     <div
@@ -65,7 +68,7 @@ export function CandidateInspectionDrawer({
             </div>
             <div className="flex items-center gap-3">
               <h2 id="eval-modal-title" className="text-xl md:text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
-                {candidate.name}
+                {displayName}
               </h2>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary, border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}` }}>
                 {candidate.status}
@@ -197,7 +200,7 @@ export function CandidateInspectionDrawer({
                         }}
                       >
                         <div className="font-bold text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5" style={{ color: isAi ? t.accentPrimary : t.numPos }}>
-                          {isAi ? "🤖 AI Technical Interviewer" : `👤 ${candidate.name}`}
+                          {isAi ? "🤖 AI Technical Interviewer" : `👤 ${displayName}`}
                         </div>
                         <p className="font-normal">{turn.message}</p>
                       </div>

@@ -3,6 +3,7 @@ import { getGlass, hexToRgba } from "../../../lib/theme";
 import { Loader2, Mail } from "lucide-react";
 import { InterviewCandidate } from "../types";
 import { CandidateStatusBadge } from "./CandidateStatusBadge";
+import { getCandidateDisplayName } from "../../../lib/candidate";
 
 export interface InterviewListTableProps {
   theme: Theme;
@@ -94,7 +95,7 @@ export function InterviewListTable({
                   />
                 </td>
                 <td className="p-4">
-                  <div className="text-xs font-semibold" style={{ color: t.txtPrimary }}>{c.name}</div>
+                  <div className="text-xs font-semibold" style={{ color: t.txtPrimary }}>{getCandidateDisplayName(c)}</div>
                   <div className="text-[11px]" style={{ color: t.txtMuted }}>{c.email || "No email provided"}</div>
                 </td>
                 <td className="p-4">

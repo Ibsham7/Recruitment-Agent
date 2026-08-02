@@ -120,17 +120,33 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
     candidate_records = []
     jobs_to_enqueue = []
     
+    import re
+    from urllib.parse import unquote
+    
     for resume_url in campaign.resumes:
         if not resume_url or not isinstance(resume_url, str) or not resume_url.strip():
             continue
-        filename = resume_url.split("/")[-1]
-        name = filename.split(".")[0] if "." in filename else "Unknown Candidate"
+        filename = resume_url.split("/")[-1].split("?")[0]
+        clean_filename = unquote(filename)
+        base_name = clean_filename.rsplit(".", 1)[0] if "." in clean_filename else clean_filename
+        
+        # Strip UUID prefix if present (e.g. 12345678-1234-1234-1234-123456789abc_John_Doe -> John_Doe)
+        uuid_pattern = r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}[_-]?'
+        stripped_name = re.sub(uuid_pattern, '', base_name).strip()
+        
+        is_pure_uuid = bool(re.match(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$', stripped_name)) or bool(re.match(r'^[0-9a-fA-F]{32}$', stripped_name))
+        
+        if stripped_name and not is_pure_uuid and stripped_name.lower() != "unknown candidate":
+            init_name = re.sub(r'[_-]+', ' ', stripped_name).title()
+        else:
+            init_name = "Processing Candidate..."
+
         cand_id = str(uuid.uuid4())
         
         candidate_records.append({
             "id": cand_id,
             "campaignId": new_campaign.id,
-            "name": name.replace("%20", " "),
+            "name": init_name,
             "status": "pending",
             "cvUrl": resume_url
         })

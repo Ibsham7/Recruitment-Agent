@@ -384,7 +384,6 @@ async def process_interview_answer(candidate_id: str, answer_text: str):
 
     import json
     from datetime import datetime
-    from prisma.Json import Json
     now_str = datetime.now().strftime("%I:%M %p")
 
     raw_questions = candidate.evaluation.interviewQuestions or []

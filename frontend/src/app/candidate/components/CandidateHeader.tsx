@@ -1,6 +1,7 @@
 import { CheckCircle, XCircle, Clock, Pause, FileText, ExternalLink } from "lucide-react";
 import { Theme, Candidate } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
+import { getCandidateDisplayName } from "../../../lib/candidate";
 
 export interface CandidateHeaderProps {
   candidate: Candidate;
@@ -20,6 +21,15 @@ export function CandidateHeader({ candidate, theme: t }: CandidateHeaderProps) {
   };
   const rec = recCfg[recommendation as keyof typeof recCfg] || recCfg.pending;
 
+  const displayName = getCandidateDisplayName(candidate);
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "C";
+
   return (
     <div className="px-8 py-5 flex-shrink-0" style={G.bar}>
       <div className="flex items-center gap-5">
@@ -27,12 +37,12 @@ export function CandidateHeader({ candidate, theme: t }: CandidateHeaderProps) {
           className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-semibold flex-shrink-0"
           style={{ fontFamily: "'Fraunces',serif", color: t.accentBadge, ...G.card }}
         >
-          {candidate.name.split(" ").map((n) => n[0]).join("")}
+          {initials}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-0.5">
             <h2 className="text-xl font-semibold" style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary }}>
-              {candidate.name}
+              {displayName}
             </h2>
             <span
               className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"

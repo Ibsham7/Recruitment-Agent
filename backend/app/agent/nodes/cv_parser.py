@@ -223,12 +223,15 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         profile_data = json.loads(resume.structuredProfile) if isinstance(resume.structuredProfile, str) else resume.structuredProfile
         candidate_profile = CandidateProfile(**profile_data)
         
-        # Link candidate to existing resume
+        # Link candidate to existing resume & update extracted name
         if "candidate_id" in state and not state["candidate_id"].startswith("candidate_") and prisma.is_connected():
             try:
+                update_data = {"resumeId": resume.id}
+                if candidate_profile.name and candidate_profile.name not in ["Unknown Candidate", "Processing Candidate..."]:
+                    update_data["name"] = candidate_profile.name
                 await prisma.candidate.update(
                     where={"id": state["candidate_id"]},
-                    data={"resumeId": resume.id}
+                    data=update_data
                 )
             except Exception as e:
                 print(f"  [Warning] Could not link resume to candidate: {e}")
@@ -324,11 +327,14 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                 }
             )
             
-            # Link candidate
+            # Link candidate & update extracted name
             if "candidate_id" in state and not state["candidate_id"].startswith("candidate_"):
+                update_data = {"resumeId": new_resume.id}
+                if candidate_profile.name and candidate_profile.name not in ["Unknown Candidate", "Processing Candidate..."]:
+                    update_data["name"] = candidate_profile.name
                 await prisma.candidate.update(
                     where={"id": state["candidate_id"]},
-                    data={"resumeId": new_resume.id}
+                    data=update_data
                 )
         except Exception as e:
             print(f"  [Warning] DB save failed in cv_parser: {e}")

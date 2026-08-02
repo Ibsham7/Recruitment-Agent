@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { Loader2 } from "lucide-react";
 import { Theme, Candidate } from "../../../lib/types";
 import { hexToRgba, getGlass, scoreColor } from "../../../lib/theme";
+import { getCandidateDisplayName } from "../../../lib/candidate";
 
 interface CandidateGridCardProps {
   candidate: Candidate;
@@ -32,7 +33,7 @@ export function CandidateGridCard({ candidate, theme: t, G }: CandidateGridCardP
   score = Math.min(100, Math.max(0, score));
   score = typeof score === 'number' && score % 1 !== 0 ? Number(score.toFixed(2)) : score;
   
-  const displayName = candidate.name && candidate.name !== "Unknown Candidate" ? candidate.name : null;
+  const displayName = getCandidateDisplayName(candidate);
 
   return (
     <Link to={`/candidate/${candidate.id}`} className="w-full rounded-3xl p-5 text-left transition-all duration-300 flex flex-col justify-between h-full group" style={{ ...G.card, position: 'relative', overflow: 'hidden' }}
@@ -56,7 +57,7 @@ export function CandidateGridCard({ candidate, theme: t, G }: CandidateGridCardP
         <div className="flex-1 min-w-0 pr-4">
           <div className="text-lg font-semibold truncate transition-colors group-hover:text-opacity-90 flex items-center gap-2" style={{ color: t.txtPrimary }}>
             {isScreening && <Loader2 size={16} className="animate-spin flex-shrink-0 text-amber-500" />}
-            <span className="truncate">{displayName || "Extracting Name..."}</span>
+            <span className="truncate">{displayName}</span>
           </div>
           <div className="text-sm mt-1 truncate flex items-center gap-1.5" style={{ color: t.txtMuted }}>
             {isScreening ? (
