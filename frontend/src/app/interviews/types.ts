@@ -1,3 +1,5 @@
+import { AntiCheatFlag, AntiCheatMetadata } from "../../lib/types";
+
 export interface InterviewCandidate {
   id: string;
   name: string;
@@ -22,6 +24,9 @@ export interface InterviewCandidate {
     chainOfThought?: string;
     interviewTranscript?: any[];
     interviewQuestions?: any[];
+    aiGeneratedLikelihoodScore?: number;
+    antiCheatFlags?: AntiCheatFlag[];
+    antiCheatMetadata?: AntiCheatMetadata;
   };
 }
 

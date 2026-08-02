@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Literal
+from typing import Optional, Literal, Any
 from datetime import datetime
 
 class CandidateProfileOutput(BaseModel):
@@ -98,6 +98,9 @@ class InterviewQuestion(BaseModel):
     question: str
     category: str = Field(description="technical / behavioral / situational")
     what_to_look_for: str = Field(description="What a good answer should include")
+    is_probe: Optional[bool] = Field(default=False, description="Whether this is an adaptive follow-up probe")
+    is_adaptive: Optional[bool] = Field(default=False, description="Whether this is an adaptive sub-question")
+    timer_seconds: Optional[int] = Field(default=90, description="Timer limit in seconds for answering this question")
 
 class InterviewTranscript(BaseModel):
     """Accumulated across multiple interview turns."""
@@ -105,6 +108,7 @@ class InterviewTranscript(BaseModel):
     answers_given: list[str] = Field(default_factory=list)
     current_question_index: int = 0
     probe_counts: dict[int, int] = Field(default_factory=dict, description="Maps question index to number of probes asked")
+    anti_cheat_telemetry: Optional[Any] = Field(default=None, description="Cumulative anti-cheat telemetry metadata")
 
 class InterviewQuestionList(BaseModel):
     """Wrapper for returning a list of questions via structured output."""
@@ -115,6 +119,75 @@ class CompetencyScore(BaseModel):
     score: float = Field(ge=0, le=100)
     evidence_quote: str = Field(description="Exact verbatim quote from candidate transcript supporting this score")
     rationale: str
+
+class AntiCheatMetadata(BaseModel):
+    blur_count: int = 0
+    focus_duration_seconds: float = 0.0
+    paste_count: int = 0
+    total_pasted_chars: int = 0
+    total_answer_chars: int = 0
+    paste_ratio: float = 0.0
+    paste_timestamps: list[str] = Field(default_factory=list)
+    flags: list[str] = Field(default_factory=list)
+
+def normalize_telemetry(raw: Any) -> dict:
+    if raw is None:
+        raw = {}
+    elif hasattr(raw, "model_dump"):
+        raw = raw.model_dump()
+    elif hasattr(raw, "dict"):
+        raw = raw.dict()
+    elif not isinstance(raw, dict):
+        raw = {}
+
+    def get_val(keys, default):
+        for k in keys:
+            if k in raw and raw[k] is not None:
+                return raw[k]
+        return default
+
+    blur_count = int(get_val(["blur_count", "blurCount"], 0))
+    focus_duration = float(get_val(["focus_duration_seconds", "focusDuration", "focus_duration"], 0.0))
+    paste_count = int(get_val(["paste_count", "pasteCount"], 0))
+    total_pasted = int(get_val(["total_pasted_chars", "totalPastedChars"], 0))
+    total_answer = int(get_val(["total_answer_chars", "totalAnswerChars"], 0))
+    paste_ratio_val = get_val(["paste_ratio", "pasteRatio"], None)
+    if paste_ratio_val is not None:
+        paste_ratio = float(paste_ratio_val)
+    elif total_answer > 0:
+        paste_ratio = round(total_pasted / total_answer, 4)
+    else:
+        paste_ratio = 0.0
+
+    paste_timestamps = get_val(["paste_timestamps", "pasteTimestamps"], [])
+    if not isinstance(paste_timestamps, list):
+        paste_timestamps = []
+
+    flags = get_val(["flags"], [])
+    if not isinstance(flags, list):
+        flags = []
+
+    return {
+        "blur_count": blur_count,
+        "blurCount": blur_count,
+        "focus_duration_seconds": focus_duration,
+        "focusDuration": focus_duration,
+        "paste_count": paste_count,
+        "pasteCount": paste_count,
+        "total_pasted_chars": total_pasted,
+        "totalPastedChars": total_pasted,
+        "total_answer_chars": total_answer,
+        "totalAnswerChars": total_answer,
+        "paste_ratio": paste_ratio,
+        "pasteRatio": paste_ratio,
+        "paste_timestamps": paste_timestamps,
+        "pasteTimestamps": paste_timestamps,
+        "flags": flags
+    }
+
+class InterviewAnswerInput(BaseModel):
+    answer_text: str
+    anti_cheat_telemetry: Optional[AntiCheatMetadata] = None
 
 class EvaluationReport(BaseModel):
     """Output of the Evaluator node."""
@@ -130,3 +203,5 @@ class EvaluationReport(BaseModel):
     chain_of_thought: Optional[str] = Field(default=None, description="Step-by-step reasoning from screening")
     recommendation: str = Field(pattern="^(shortlist|reject|hold)$")
     summary: str = Field(description="2–3 sentence overall assessment")
+    ai_generated_likelihood_score: Optional[float] = Field(default=0.0, ge=0, le=100)
+    anti_cheat_flags: list[dict] = Field(default_factory=list)

@@ -14,6 +14,7 @@ import {
   StrengthsConcernsPanel,
   ScoreBreakdownPanel,
   TranscriptPanel,
+  AntiCheatInspectionCard,
   DecisionBar,
 } from "./components";
 
@@ -40,7 +41,8 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
 
   const hasInterviewData = Boolean(
     (candidate.transcript && candidate.transcript.length > 0) || 
-    (candidate.scores && (candidate.scores.technical > 0 || candidate.scores.communication > 0 || candidate.scores.culturalFit > 0))
+    (candidate.scores && (candidate.scores.technical > 0 || candidate.scores.communication > 0 || candidate.scores.culturalFit > 0)) ||
+    Boolean(candidate.antiCheatMetadata || candidate.evaluation?.antiCheatMetadata)
   );
 
   return (
@@ -53,6 +55,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           style={{ borderRight: hasInterviewData ? `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.45)}` : undefined }}
         >
           {hasInterviewData && <ScorePanel candidate={candidate} theme={t} />}
+          {hasInterviewData && <AntiCheatInspectionCard candidate={candidate} theme={t} />}
           <ResumeCard cvUrl={candidate.cvUrl} theme={t} />
           <AISummaryCard summary={candidate.summary || "No summary available."} theme={t} />
           <ChainOfThoughtCard chainOfThought={candidate.chainOfThought || "No reasoning provided."} theme={t} />

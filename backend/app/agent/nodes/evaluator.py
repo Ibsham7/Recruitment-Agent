@@ -1,4 +1,5 @@
 import json
+from typing import Any
 from app.agent.config import get_model
 from app.agent.schemas import EvaluationReport
 from app.agent.state import RecruitmentState
@@ -6,8 +7,74 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import EVALUATOR_PROMPTS
 
 
+def analyze_anti_cheat_signals(answers_given: list[str], telemetry: dict[str, Any]) -> tuple[float, list[dict[str, str]]]:
+    """
+    Perform deterministic analysis of candidate answer text and anti-cheat telemetry
+    for AI-generated text styling and security anti-cheat signals.
+    """
+    flags = []
+    heuristic_score = 0.0
+    
+    combined_answers = "\n\n".join(answers_given or [])
+    
+    # 1. Structural Overuse of Markdown
+    markdown_headers = combined_answers.count("#")
+    bullet_points = combined_answers.count("\n- ") + combined_answers.count("\n* ") + combined_answers.count("\n1. ") + combined_answers.count("\n2. ")
+    bold_text = combined_answers.count("**")
+    
+    if markdown_headers >= 2 or bullet_points >= 4 or bold_text >= 6:
+        flags.append({
+            "flag": "MARKDOWN_OVERUSE",
+            "severity": "medium",
+            "description": f"Candidate response contains structural overuse of Markdown formatting (headers: {markdown_headers}, bullets: {bullet_points}, bolding: {bold_text}) typical of generated text."
+        })
+        heuristic_score += 35.0
+        
+    # 2. Robotic / LLM Boilerplate Transitions
+    boilerplate_phrases = [
+        "in summary", "furthermore", "certainly!", "to address your question",
+        "in conclusion", "as an ai", "it is important to note", "here is a breakdown",
+        "to answer your question", "firstly,", "secondly,", "thirdly,"
+    ]
+    detected_phrases = [phrase for phrase in boilerplate_phrases if phrase in combined_answers.lower()]
+    if detected_phrases:
+        flags.append({
+            "flag": "LLM_BOILERPLATE_TRANSITIONS",
+            "severity": "high" if len(detected_phrases) >= 2 else "medium",
+            "description": f"Candidate response exhibits robotic LLM transition boilerplate: {', '.join(detected_phrases)}."
+        })
+        heuristic_score += 40.0 if len(detected_phrases) >= 2 else 25.0
+
+    # 3. High paste ratio or large pasted blocks from telemetry metadata
+    paste_ratio = float(telemetry.get("paste_ratio", 0.0) or 0.0)
+    paste_count = int(telemetry.get("paste_count", 0) or 0)
+    total_pasted = int(telemetry.get("total_pasted_chars", 0) or 0)
+    
+    if paste_ratio > 0.3 or paste_count > 2 or total_pasted > 150:
+        severity = "high" if (paste_ratio > 0.5 or total_pasted > 300) else "medium"
+        flags.append({
+            "flag": "HIGH_PASTE_RATIO",
+            "severity": severity,
+            "description": f"Telemetry metadata flags high paste ratio ({paste_ratio:.2%}), paste count ({paste_count}), or pasted characters ({total_pasted})."
+        })
+        heuristic_score += 45.0 if severity == "high" else 30.0
+        
+    # 4. Frequent tab switches / window blur events from telemetry metadata
+    blur_count = int(telemetry.get("blur_count", 0) or 0)
+    if blur_count >= 3:
+        flags.append({
+            "flag": "FREQUENT_TAB_SWITCHES",
+            "severity": "high" if blur_count >= 5 else "medium",
+            "description": f"Telemetry metadata recorded {blur_count} window blur/tab switch events during the interview assessment."
+        })
+        heuristic_score += 30.0 if blur_count >= 5 else 20.0
+        
+    final_score = min(100.0, max(0.0, heuristic_score))
+    return final_score, flags
+
+
 async def evaluator_node(state: RecruitmentState) -> dict:
-    """Score the interview transcript and write the evaluation report."""
+    """Score the interview transcript and write the evaluation report with AI detection & security flags."""
 
     profile = state.get("candidate_profile")
     screening = state.get("screening_result")
@@ -37,6 +104,30 @@ async def evaluator_node(state: RecruitmentState) -> dict:
         )
     qa_text = "\n\n".join(qa_pairs)
 
+    # Extract anti-cheat telemetry metadata if provided in state or transcript
+    telemetry_raw = state.get("anti_cheat_telemetry") or getattr(transcript, "anti_cheat_telemetry", None) or {}
+    if hasattr(telemetry_raw, "model_dump"):
+        telemetry_dict = telemetry_raw.model_dump()
+    elif isinstance(telemetry_raw, dict):
+        telemetry_dict = telemetry_raw
+    else:
+        telemetry_dict = {}
+
+    heuristic_ai_score, heuristic_flags = analyze_anti_cheat_signals(
+        transcript.answers_given, telemetry_dict
+    )
+
+    telemetry_text = f"""
+SECURITY & TELEMETRY METADATA:
+- Blur / Tab Switch Count: {telemetry_dict.get('blur_count', 0)}
+- Focus Duration (seconds): {telemetry_dict.get('focus_duration_seconds', 0)}
+- Paste Count: {telemetry_dict.get('paste_count', 0)}
+- Total Pasted Chars: {telemetry_dict.get('total_pasted_chars', 0)}
+- Total Answer Chars: {telemetry_dict.get('total_answer_chars', 0)}
+- Paste Ratio: {telemetry_dict.get('paste_ratio', 0.0):.2f}
+- Telemetry Flags: {', '.join(telemetry_dict.get('flags', [])) or 'None'}
+"""
+
     missing = [req.requirement for req in screening.must_have if req.match == "none"]
     prompt = f"""
 JOB: (Summary) {jd[:500]}...
@@ -48,7 +139,13 @@ Missing requirements: {', '.join(missing) or 'none'}
 INTERVIEW TRANSCRIPT:
 {qa_text}
 
-Evaluate this candidate's interview performance.
+{telemetry_text}
+
+Evaluate this candidate's interview performance across technical, communication, and cultural fit dimensions.
+Analyze candidate answers and telemetry for AI-generated text styling (structural overuse of Markdown, robotic LLM boilerplate transitions) and security anti-cheat signals (high paste ratio, frequent tab switches).
+Ensure your output populates:
+- `ai_generated_likelihood_score` (float 0.0 to 100.0)
+- `anti_cheat_flags` (list of flag objects `[{{"flag": "...", "severity": "...", "description": "..."}}]`)
 """
 
     eval_mode = state.get("jd_matcher_prompt_variant") or "default"
@@ -73,9 +170,26 @@ Evaluate this candidate's interview performance.
             report = parsed_res
             from app.agent.utils import extract_cost
             total_cost = extract_cost(result)
+            
+            # Populate & synthesize ai_generated_likelihood_score and anti_cheat_flags
+            llm_ai_score = float(report.ai_generated_likelihood_score or 0.0)
+            report.ai_generated_likelihood_score = min(100.0, max(llm_ai_score, heuristic_ai_score))
+            
+            merged_flags = []
+            existing_flag_names = set()
+            for flag_obj in (report.anti_cheat_flags or []):
+                if isinstance(flag_obj, dict) and "flag" in flag_obj:
+                    merged_flags.append(flag_obj)
+                    existing_flag_names.add(flag_obj["flag"])
+            for h_flag in heuristic_flags:
+                if h_flag["flag"] not in existing_flag_names:
+                    merged_flags.append(h_flag)
+                    existing_flag_names.add(h_flag["flag"])
+            report.anti_cheat_flags = merged_flags
+
             if not report.interview_score:
                 report.interview_score = report.overall_score
-            report.chain_of_thought = f"Screening Fit Score: {screening.fit_score}/100\nExperience Assessment: {screening.experience_assessment}\n\nInterview Evaluation Summary: {report.summary}"
+            report.chain_of_thought = f"Screening Fit Score: {screening.fit_score}/100\nExperience Assessment: {screening.experience_assessment}\nAI Likelihood Score: {report.ai_generated_likelihood_score:.1f}/100\n\nInterview Evaluation Summary: {report.summary}"
             break
         except Exception as e:
             print(f"  [Evaluator] Attempt {attempt+1} failed: {e}.")
@@ -85,6 +199,6 @@ Evaluate this candidate's interview performance.
     return {
         "evaluation_report": report,
         "pipeline_status": "review",   # signal ready for human review
-        "log": [f"Evaluated: {report.recommendation.upper()} (score={report.overall_score})"],
+        "log": [f"Evaluated: {report.recommendation.upper()} (score={report.overall_score}, ai_likelihood={report.ai_generated_likelihood_score})"],
         "total_cost": total_cost
     }
