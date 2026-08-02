@@ -25,7 +25,7 @@ export async function fetchCandidateDetail(id: string) {
   const mappedCand: Candidate = {
     ...candidateData,
     cvUrl: candidateData.cvUrl || candidateData.resumePath || null,
-    score: Number((evalData.overallScore ?? candidateData.fitScore ?? 0).toFixed(2)),
+    score: Math.min(100, Math.max(0, Number((evalData.overallScore ?? candidateData.fitScore ?? 0).toFixed(2)))),
     recommendation: evalData.recommendation || candidateData.decision || "pending",
     stage: candidateData.status,
     currentRole: candidateData.structuredProfile?.currentRole || "Candidate",
@@ -34,7 +34,7 @@ export async function fetchCandidateDetail(id: string) {
       technical: Number((evalData.technicalScore || 0).toFixed(2)),
       communication: Number((evalData.communicationScore || 0).toFixed(2)),
       culturalFit: Number((evalData.culturalFitScore || 0).toFixed(2)),
-      overall: Number((evalData.overallScore || candidateData.fitScore || 0).toFixed(2)),
+      overall: Math.min(100, Math.max(0, Number((evalData.overallScore || candidateData.fitScore || 0).toFixed(2)))),
     },
     summary: candidateData.rejectionReason
       ? (evalData.summary ? `Rejection Reason: ${candidateData.rejectionReason}\n\n${evalData.summary}` : candidateData.rejectionReason)

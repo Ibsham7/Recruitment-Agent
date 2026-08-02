@@ -29,6 +29,7 @@ export function CandidateGridCard({ candidate, theme: t, G }: CandidateGridCardP
   const currentStatus = candidate.status || "pending";
   const badge = statusBadgeMap[currentStatus] || { text: t.numMid, label: currentStatus };
   let score = candidate.score || candidate.fitScore || 0;
+  score = Math.min(100, Math.max(0, score));
   score = typeof score === 'number' && score % 1 !== 0 ? Number(score.toFixed(2)) : score;
   
   const displayName = candidate.name && candidate.name !== "Unknown Candidate" ? candidate.name : null;

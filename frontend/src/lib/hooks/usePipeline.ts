@@ -52,7 +52,7 @@ export async function fetchPipelineData(id: string) {
 
     return {
       ...c,
-      score: c.fitScore || c.evaluation?.overallScore || 0,
+      score: Math.min(100, Math.max(0, c.fitScore || c.evaluation?.overallScore || 0)),
       recommendation: c.decision || c.evaluation?.recommendation || "pending",
       stage,
       currentRole: c.structuredProfile?.currentRole || "",

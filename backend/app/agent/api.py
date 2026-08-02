@@ -213,10 +213,9 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             
         if final_state.get("screening_result"):
             base_score = final_state["screening_result"].fit_score
-            semantic_bonus = final_state.get("semantic_score", 0.0)
-            update_data["fitScore"] = base_score + semantic_bonus
+            update_data["fitScore"] = min(100.0, float(base_score))
         elif final_state.get("semantic_score") is not None:
-            update_data["fitScore"] = final_state.get("semantic_score")
+            update_data["fitScore"] = min(100.0, float(final_state.get("semantic_score")))
             
         if final_state.get("candidate_profile"):
             profile = final_state["candidate_profile"]
@@ -515,10 +514,9 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
             
         if final_state.get("screening_result"):
             base_score = final_state["screening_result"].fit_score
-            semantic_bonus = final_state.get("semantic_score", 0.0)
-            update_data["fitScore"] = base_score + semantic_bonus
+            update_data["fitScore"] = min(100.0, float(base_score))
         elif final_state.get("semantic_score") is not None:
-            update_data["fitScore"] = final_state.get("semantic_score")
+            update_data["fitScore"] = min(100.0, float(final_state.get("semantic_score")))
             
         if final_state.get("candidate_profile"):
             profile = final_state["candidate_profile"]
