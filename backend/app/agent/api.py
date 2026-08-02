@@ -358,6 +358,7 @@ async def _run_evaluator_background(candidate_id: str, candidate: Any, transcrip
             await prisma.candidate.update(
                 where={"id": candidate_id},
                 data={
+                    "status": "review",
                     "apiCost": candidate.apiCost + eval_res.get("total_cost", 0.0)
                 }
             )

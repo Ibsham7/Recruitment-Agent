@@ -93,8 +93,8 @@ export function InterviewsFilterToolbar({
             <option value="shortlisted">Ready to Invite</option>
             <option value="invited">Invitation Sent</option>
             <option value="interviewing">In Progress</option>
-            <option value="review">Awaiting Review</option>
-            <option value="complete">Completed</option>
+            <option value="review">Evaluation Ready / Awaiting Review</option>
+            <option value="complete">Finalized</option>
           </select>
         </div>
       </div>

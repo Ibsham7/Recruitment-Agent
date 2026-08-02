@@ -110,7 +110,11 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
   // Filter candidates
   const filteredCandidates = candidates.filter((c) => {
     if (selectedCampaign !== "all" && c.campaignId !== selectedCampaign) return false;
-    if (selectedStatus !== "all" && c.status !== selectedStatus) return false;
+    if (selectedStatus !== "all") {
+      if (selectedStatus === "complete" && !["complete", "finalized"].includes(c.status)) return false;
+      else if (selectedStatus === "review" && !["review", "interview_completed"].includes(c.status)) return false;
+      else if (selectedStatus !== "complete" && selectedStatus !== "review" && c.status !== selectedStatus) return false;
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchName = c.name.toLowerCase().includes(q);

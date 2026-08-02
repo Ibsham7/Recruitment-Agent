@@ -545,7 +545,7 @@ async def get_interview_candidates(campaignId: Optional[str] = None, status: Opt
     if status:
         where_filter["status"] = status
     else:
-        where_filter["status"] = {"in": ["shortlisted", "invited", "interviewing", "review", "complete", "finalized"]}
+        where_filter["status"] = {"in": ["shortlisted", "invited", "interviewing", "interview_completed", "review", "complete", "finalized"]}
         
     candidates = await prisma.candidate.find_many(
         where=where_filter,
