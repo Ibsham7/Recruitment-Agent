@@ -199,9 +199,11 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             )
             
     if final_state:
-        if interrupt_value == "hold_for_review":
+        if final_state.get("pipeline_status") == "rejected":
+            status = "rejected"
+        elif interrupt_value == "hold_for_review":
             status = "screening_hold"
-        elif interrupt_value or final_state.get("pipeline_status") == "shortlisted":
+        elif final_state.get("pipeline_status") == "shortlisted":
             status = "shortlisted"
         else:
             status = final_state.get("pipeline_status", "shortlisted")
@@ -500,9 +502,11 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
             )
     
     if final_state:
-        if interrupt_value == "hold_for_review":
+        if str(resume_data).lower() == "reject" or final_state.get("pipeline_status") == "rejected":
+            status = "rejected"
+        elif interrupt_value == "hold_for_review":
             status = "screening_hold"
-        elif interrupt_value or final_state.get("pipeline_status") == "shortlisted":
+        elif str(resume_data).lower() in ["override", "approve"] or final_state.get("pipeline_status") == "shortlisted":
             status = "shortlisted"
         else:
             status = final_state.get("pipeline_status", "shortlisted")
@@ -581,7 +585,9 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
             else:
                 await prisma.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)
     elif interrupt_value:
-        fallback_status = "screening_hold" if interrupt_value == "hold_for_review" else "shortlisted"
+        fallback_status = "screening_hold" if interrupt_value == "hold_for_review" else (
+            "rejected" if str(resume_data).lower() == "reject" else "shortlisted"
+        )
         await prisma.candidate.update(
             where={"id": candidate_id},
             data={"status": fallback_status}

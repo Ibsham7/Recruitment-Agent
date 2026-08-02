@@ -288,7 +288,7 @@ async def submit_human_review(id: str, review_data: HumanReview, request: Reques
                 status_update = "screening_hold"
                 resume_val = "hold"
                 
-            await prisma.candidate.update(
+            updated_cand = await prisma.candidate.update(
                 where={"id": id},
                 data={
                     "status": status_update,
@@ -306,9 +306,9 @@ async def submit_human_review(id: str, review_data: HumanReview, request: Reques
             elif decision == "reject":
                 status_update = "rejected"
             else:
-                status_update = "interview_completed"
+                status_update = "screening_hold"
                 
-            await prisma.candidate.update(
+            updated_cand = await prisma.candidate.update(
                 where={"id": id},
                 data={
                     "status": status_update,
@@ -317,7 +317,7 @@ async def submit_human_review(id: str, review_data: HumanReview, request: Reques
                 }
             )
             
-        return {"status": "success", "message": f"Review submitted for candidate ({decision})"}
+        return {"status": "success", "message": f"Review submitted for candidate ({decision})", "candidate": updated_cand}
     except HTTPException:
         raise
     except Exception as e:

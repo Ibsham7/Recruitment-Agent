@@ -23,10 +23,7 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
   const { candidate, campaign, isLoading } = useCandidateDetail(id);
 
   const handleDecisionUpdate = async (updatedCandidate: Candidate) => {
-    queryClient.setQueryData(getCandidateQueryKey(id || ""), (old: any) => ({
-      ...old,
-      candidate: updatedCandidate,
-    }));
+    await queryClient.invalidateQueries({ queryKey: getCandidateQueryKey(id || "") });
     if (updatedCandidate.campaignId) {
       await queryClient.invalidateQueries({ queryKey: getPipelineQueryKey(updatedCandidate.campaignId) });
     }
