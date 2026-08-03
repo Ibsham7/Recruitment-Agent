@@ -43,6 +43,17 @@ class ExperienceBreakdown(BaseModel):
     calculation: Optional[str] = None
     assessment: Optional[str] = None
 
+    @field_validator("required_years", "candidate_years", mode="before")
+    @classmethod
+    def convert_years_to_float(cls, v):
+        if isinstance(v, str):
+            import re
+            match = re.search(r"(\d+(?:\.\d+)?)", v)
+            if match:
+                return float(match.group(1))
+            return None
+        return v
+
 class TrajectoryBreakdown(BaseModel):
     score: int = 0
     points_earned: float = 0.0
@@ -55,10 +66,10 @@ class PenaltyBreakdownItem(BaseModel):
     points_deducted: float = 0.0
 
 class ScoreBreakdown(BaseModel):
-    required_skills_score: int = Field(default=0, ge=0, le=100)
-    experience_score: int = Field(default=0, ge=0, le=100)
-    nice_to_have_score: int = Field(default=0, ge=0, le=100)
-    trajectory_score: int = Field(default=0, ge=0, le=100)
+    required_skills_score: Optional[int] = Field(default=None, ge=0, le=100)
+    experience_score: Optional[int] = Field(default=None, ge=0, le=100)
+    nice_to_have_score: Optional[int] = Field(default=None, ge=0, le=100)
+    trajectory_score: Optional[int] = Field(default=None, ge=0, le=100)
 
     # Granular transparent attributions
     weights: Optional[dict[str, float]] = None

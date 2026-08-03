@@ -28,47 +28,7 @@ def calculate_weighted_fit_score(
     """
     weights = WEIGHTS_CONFIG.get(eval_mode, WEIGHTS_CONFIG["default"])
     
-    # Extract sub-scores (0-100 scale)
-    skills_score = float(getattr(score_breakdown, "required_skills_score", 50))
-    exp_score = float(getattr(score_breakdown, "experience_score", 50))
-    nice_score = float(getattr(score_breakdown, "nice_to_have_score", 50))
-    traj_score = float(getattr(score_breakdown, "trajectory_score", 50))
-    
-    raw_score = (
-        skills_score * weights["skills"] +
-        exp_score * weights["exp"] +
-        nice_score * weights["nice"] +
-        traj_score * weights["traj"]
-    )
-    
-    if eval_mode == "lenient":
-        raw_score = min(100.0, raw_score + 3.0)
-        
-    # Calculate penalty deductions
-    deduction = 0
-    penalty_reasons = []
-    penalties_breakdown_items = []
-    if penalties:
-        for p in penalties:
-            sev = p.get("severity") if isinstance(p, dict) else getattr(p, "severity", "")
-            reason = p.get("reason") if isinstance(p, dict) else getattr(p, "reason", "")
-            pts = 5.0 if sev == "slight_penalize" else 10.0 if sev == "intermediate_penalize" else 20.0 if sev == "hard_penalize" else 0.0
-            if pts > 0:
-                deduction += pts
-                if reason:
-                    penalty_reasons.append(reason)
-                    penalties_breakdown_items.append(PenaltyBreakdownItem(
-                        reason=reason,
-                        severity=sev,
-                        points_deducted=pts
-                    ))
-                
-    penalty_scale = 0.5 if eval_mode == "lenient" else 1.5 if eval_mode == "strict" else 1.0
-    scaled_deduction = round(deduction * penalty_scale)
-    
-    final_score = int(round(max(0.0, min(100.0, raw_score - scaled_deduction))))
-    
-    # Itemized Must-Have Skills Breakdown
+    # 1. Itemized Must-Have Skills Breakdown
     must_have_list = must_have or []
     must_have_breakdown_items = []
     max_skills_pts = weights["skills"] * 100.0
@@ -104,7 +64,7 @@ def calculate_weighted_fit_score(
                 deduction_reason=reason
             ))
 
-    # Itemized Nice-To-Have Skills Breakdown
+    # 2. Itemized Nice-To-Have Skills Breakdown
     nice_have_list = nice_to_have or []
     nice_have_breakdown_items = []
     max_nice_pts = weights["nice"] * 100.0
@@ -139,23 +99,91 @@ def calculate_weighted_fit_score(
                 deduction_reason=reason
             ))
 
+    # 3. Deterministic Category Sub-Scores (0-100 scale)
+    raw_skills = getattr(score_breakdown, "required_skills_score", None)
+    if num_must > 0:
+        skills_score = sum(item.percentage for item in must_have_breakdown_items) / num_must
+    elif raw_skills is not None and float(raw_skills) > 0:
+        skills_score = float(raw_skills)
+    else:
+        skills_score = 50.0
+
+    raw_nice = getattr(score_breakdown, "nice_to_have_score", None)
+    if num_nice > 0:
+        nice_score = sum(item.percentage for item in nice_have_breakdown_items) / num_nice
+    elif raw_nice is not None and float(raw_nice) > 0:
+        nice_score = float(raw_nice)
+    else:
+        # If JD has no nice-to-have items, candidate gets full credit
+        nice_score = 100.0
+
+    raw_exp = getattr(score_breakdown, "experience_score", None)
+    if raw_exp is not None and float(raw_exp) > 0:
+        exp_score = float(raw_exp)
+    else:
+        cand_years = getattr(candidate_profile, "total_experience_years", 0.0) if candidate_profile else 0.0
+        if cand_years and float(cand_years) > 0:
+            exp_score = min(100.0, max(60.0, float(cand_years) * 15.0))
+        else:
+            exp_score = 50.0
+
+    raw_traj = getattr(score_breakdown, "trajectory_score", None)
+    if raw_traj is not None and float(raw_traj) > 0:
+        traj_score = float(raw_traj)
+    else:
+        traj_score = 80.0 if eval_mode == "lenient" else 50.0 if eval_mode == "strict" else 65.0
+
+    raw_score = (
+        skills_score * weights["skills"] +
+        exp_score * weights["exp"] +
+        nice_score * weights["nice"] +
+        traj_score * weights["traj"]
+    )
+    
+    if eval_mode == "lenient":
+        raw_score = min(100.0, raw_score + 3.0)
+        
+    # Calculate penalty deductions
+    deduction = 0
+    penalty_reasons = []
+    penalties_breakdown_items = []
+    if penalties:
+        for p in penalties:
+            sev = p.get("severity") if isinstance(p, dict) else getattr(p, "severity", "")
+            reason = p.get("reason") if isinstance(p, dict) else getattr(p, "reason", "")
+            pts = 5.0 if sev == "slight_penalize" else 10.0 if sev == "intermediate_penalize" else 20.0 if sev == "hard_penalize" else 0.0
+            if pts > 0:
+                deduction += pts
+                if reason:
+                    penalty_reasons.append(reason)
+                    penalties_breakdown_items.append(PenaltyBreakdownItem(
+                        reason=reason,
+                        severity=sev,
+                        points_deducted=pts
+                    ))
+                
+    penalty_scale = 0.5 if eval_mode == "lenient" else 1.5 if eval_mode == "strict" else 1.0
+    scaled_deduction = round(deduction * penalty_scale)
+    
+    final_score = int(round(max(0.0, min(100.0, raw_score - scaled_deduction))))
+    
     # Experience Breakdown
     cand_years = getattr(candidate_profile, "total_experience_years", None) if candidate_profile else None
     cand_calc = getattr(candidate_profile, "experience_calculation", None) if candidate_profile else None
     exp_pts_earned = round(exp_score * weights["exp"], 1)
     exp_breakdown_obj = ExperienceBreakdown(
-        score=int(exp_score),
+        score=int(round(exp_score)),
         points_earned=exp_pts_earned,
         max_points=weights["exp"] * 100.0,
         candidate_years=cand_years,
         calculation=cand_calc,
-        assessment=experience_assessment
+        assessment=experience_assessment or f"Candidate experience ({cand_years or 0} yrs) evaluated against role depth requirements."
     )
 
     # Trajectory Breakdown
     traj_pts_earned = round(traj_score * weights["traj"], 1)
     traj_breakdown_obj = TrajectoryBreakdown(
-        score=int(traj_score),
+        score=int(round(traj_score)),
         points_earned=traj_pts_earned,
         max_points=weights["traj"] * 100.0,
         assessment="Growth capacity evaluated from project complexity, educational background, and skill acquisition rate."
@@ -173,15 +201,20 @@ def calculate_weighted_fit_score(
         formula_str += f" - {scaled_deduction:.1f} (Penalties)"
 
     # Populate fields on score_breakdown if it is an object
-    if hasattr(score_breakdown, "weights"):
-        score_breakdown.weights = weights
-        score_breakdown.eval_mode = eval_mode
-        score_breakdown.formula_summary = formula_str
-        score_breakdown.must_have_breakdown = must_have_breakdown_items
-        score_breakdown.nice_to_have_breakdown = nice_have_breakdown_items
-        score_breakdown.experience_breakdown = exp_breakdown_obj
-        score_breakdown.trajectory_breakdown = traj_breakdown_obj
-        score_breakdown.penalties_breakdown = penalties_breakdown_items
+    if score_breakdown is not None:
+        if hasattr(score_breakdown, "required_skills_score"):
+            score_breakdown.required_skills_score = int(round(skills_score))
+            score_breakdown.experience_score = int(round(exp_score))
+            score_breakdown.nice_to_have_score = int(round(nice_score))
+            score_breakdown.trajectory_score = int(round(traj_score))
+            score_breakdown.weights = weights
+            score_breakdown.eval_mode = eval_mode
+            score_breakdown.formula_summary = formula_str
+            score_breakdown.must_have_breakdown = must_have_breakdown_items
+            score_breakdown.nice_to_have_breakdown = nice_have_breakdown_items
+            score_breakdown.experience_breakdown = exp_breakdown_obj
+            score_breakdown.trajectory_breakdown = traj_breakdown_obj
+            score_breakdown.penalties_breakdown = penalties_breakdown_items
 
     # Thresholding logic
     if eval_mode == "strict":

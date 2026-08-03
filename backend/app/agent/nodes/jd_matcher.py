@@ -33,7 +33,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     async def invoke_model(system_prompt, candidate_dict):
         model_escalation = [
             ("fast", 8192),
-            ("fast", 8192),
+            ("smart", 8192),
             ("smart", 8192),
         ]
         human_content = clean_surrogates(f"CANDIDATE PROFILE (JSON):\n{json.dumps(candidate_dict, indent=2)}")
@@ -42,7 +42,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
             try:
                 attempt_prompt = system_prompt
                 if attempt > 0:
-                    attempt_prompt += "\n\nCRITICAL NOTICE: Keep your output extremely concise. Max 3 must_have items and brief 5-word evidence strings to ensure valid JSON output."
+                    attempt_prompt += "\n\nCRITICAL NOTICE: Ensure all required schema fields including must_have, experience_assessment, and reasoning_summary are completely populated."
                 
                 m = get_model(tier, max_tokens=token_limit)
                 sm = m.with_structured_output(ScreeningResult, method="json_schema", include_raw=True)
@@ -60,18 +60,24 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                             extracted = extract_json(raw_text)
                             parsed_dict = json.loads(extracted)
                             r = ScreeningResult.model_validate(parsed_dict)
+                    
+                    if r and (not r.must_have or not r.reasoning_summary or not r.reasoning_summary.strip()):
+                        raise ValueError(f"Incomplete ScreeningResult: must_have count={len(r.must_have) if r.must_have else 0}, summary='{r.reasoning_summary}'")
+                        
                     if r:
                         c = extract_cost(response)
                         return r, c
                 except Exception as inner_e:
                     print(f"  [JD Matcher] Structured output attempt {attempt+1} ({tier}) failed ({inner_e}). Trying fallback raw JSON parsing...")
                     raw_resp = await m.ainvoke([
-                        SystemMessage(content=attempt_prompt + "\nOutput a single valid JSON object matching the ScreeningResult schema."),
+                        SystemMessage(content=attempt_prompt + "\nOutput a single valid JSON object matching the ScreeningResult schema with non-empty must_have and reasoning_summary."),
                         HumanMessage(content=human_content)
                     ])
                     extracted = extract_json(raw_resp.content)
                     parsed_dict = json.loads(extracted)
                     r = ScreeningResult.model_validate(parsed_dict)
+                    if not r.must_have or not r.reasoning_summary or not r.reasoning_summary.strip():
+                        raise ValueError("Incomplete ScreeningResult from raw JSON fallback")
                     c = extract_cost(raw_resp)
                     return r, c
             except Exception as e:

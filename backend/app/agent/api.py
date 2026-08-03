@@ -102,6 +102,11 @@ def _build_evaluation_from_screening(res, strictness: str = "moderate"):
     if res.reasoning_summary:
         cot_parts.append(f"Decision Summary: {res.reasoning_summary}")
         
+    summary_text = res.reasoning_summary.strip() if (res.reasoning_summary and res.reasoning_summary.strip()) else ""
+    if not summary_text:
+        matched_str = f"Satisfies key requirements: {', '.join([req.requirement for req in res.must_have if req.match == 'full'][:3])}." if matched else "Evaluated against job description requirements."
+        summary_text = f"Candidate evaluated with a Fit Score of {res.fit_score}/100 ({rec.title()}). {matched_str}"
+
     return EvaluationReport(
         overall_score=float(res.fit_score),
         communication_score=0.0,
@@ -111,7 +116,7 @@ def _build_evaluation_from_screening(res, strictness: str = "moderate"):
         concerns=concerns,
         score_breakdown=res.score_breakdown,
         recommendation=rec,
-        summary=res.reasoning_summary,
+        summary=summary_text,
         chain_of_thought="\n\n".join(cot_parts)
     )
 
