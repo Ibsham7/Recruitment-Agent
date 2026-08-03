@@ -58,13 +58,7 @@ export function useCandidateDetail(id: string | undefined) {
     queryKey: getCandidateQueryKey(id || ""),
     queryFn: () => fetchCandidateDetail(id || ""),
     enabled: Boolean(id),
-    staleTime: (query) => {
-      const candidate = query.state.data?.candidate;
-      if (!candidate || candidate.stage === "pending" || candidate.stage === "screening") {
-        return 0;
-      }
-      return 1000 * 60 * 5;
-    },
+    staleTime: 0,
   });
 
   const invalidateCandidate = useCallback(() => {
