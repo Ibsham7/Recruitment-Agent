@@ -5,6 +5,7 @@ from app.agent.state import RecruitmentState
 from app.agent.utils import extract_cost, extract_json, clean_surrogates
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import JD_MATCHER_PROMPTS
+from app.core.logging import logger
 
 
 async def jd_matcher_node(state: RecruitmentState) -> dict:
@@ -13,7 +14,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     if profile is None:
         raise ValueError("candidate_profile is required for JD matching")
 
-    print(f"\n[JD Matcher] Scoring: {profile.name}")
+    logger.info(f"[JD Matcher] Scoring: {profile.name}")
 
     jd = clean_surrogates(state["job_description"])
     
@@ -68,7 +69,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                         c = extract_cost(response)
                         return r, c
                 except Exception as inner_e:
-                    print(f"  [JD Matcher] Structured output attempt {attempt+1} ({tier}) failed ({inner_e}). Trying fallback raw JSON parsing...")
+                    logger.warning(f"[JD Matcher] Structured output attempt {attempt+1} ({tier}) failed ({inner_e}). Trying fallback raw JSON parsing...")
                     raw_resp = await m.ainvoke([
                         SystemMessage(content=attempt_prompt + "\nOutput a single valid JSON object matching the ScreeningResult schema with non-empty must_have and reasoning_summary."),
                         HumanMessage(content=human_content)
@@ -81,7 +82,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                     c = extract_cost(raw_resp)
                     return r, c
             except Exception as e:
-                print(f"  [JD Matcher] Attempt {attempt+1} ({tier}) failed: {e}.")
+                logger.warning(f"[JD Matcher] Attempt {attempt+1} ({tier}) failed: {e}.")
                 if attempt == len(model_escalation) - 1:
                     raise RuntimeError(f"Failed to evaluate candidate against JD after {len(model_escalation)} attempts: {e}")
                     

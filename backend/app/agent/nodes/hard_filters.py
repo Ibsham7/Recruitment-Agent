@@ -1,4 +1,5 @@
 from app.agent.state import RecruitmentState
+from app.core.logging import logger
 import re
 
 def extract_min_experience_from_jd(jd_text: str) -> float:
@@ -10,7 +11,7 @@ def extract_min_experience_from_jd(jd_text: str) -> float:
 
 async def hard_filters_node(state: RecruitmentState) -> dict:
     """Zero LLM cost filter based on structured CV fields and explicit config."""
-    print("\n[Hard Filters] Evaluating structured criteria...")
+    logger.info("[Hard Filters] Evaluating structured criteria...")
     profile = state.get("candidate_profile")
     jd = state.get("job_description", "")
     config = state.get("hard_filters_config", [])
@@ -45,14 +46,14 @@ async def hard_filters_node(state: RecruitmentState) -> dict:
             
             if failed:
                 if penalty == "reject" or penalty == "completely_reject":
-                    print(f"  [FAIL] Rejected: {reason}")
+                    logger.info(f"[Hard Filters] [FAIL] Rejected: {reason}")
                     return {
                         "pipeline_status": "rejected",
                         "rejection_reason": reason,
                         "log": [f"Hard filter rejected: {reason}"]
                     }
                 else:
-                    print(f"  [PENALTY] {penalty}: {reason}")
+                    logger.info(f"[Hard Filters] [PENALTY] {penalty}: {reason}")
                     penalties.append({"reason": reason, "severity": penalty})
                     log.append(f"Penalty applied ({penalty}): {reason}")
     else:
@@ -61,7 +62,7 @@ async def hard_filters_node(state: RecruitmentState) -> dict:
         # We avoid applying a secondary flat penalty here to prevent double-penalizing candidates.
         pass
             
-    print("  [OK] Passed hard filters.")
+    logger.info("[Hard Filters] [OK] Passed hard filters.")
     log.append("Passed hard filters checks.")
     return {
         "penalties": penalties,

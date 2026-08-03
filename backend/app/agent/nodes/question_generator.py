@@ -5,6 +5,7 @@ from app.agent.schemas import InterviewQuestion, InterviewQuestionList
 from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import QUESTION_GEN_SYSTEM
+from app.core.logging import logger
 
 
 async def question_generator_node(state: RecruitmentState) -> dict:
@@ -20,7 +21,7 @@ async def question_generator_node(state: RecruitmentState) -> dict:
     if jd is None:
         raise ValueError("job_description is required for JD matching")
 
-    print(f"\n[Question Generator] Generating questions for: {getattr(profile, 'name', None)}")
+    logger.info(f"[Question Generator] Generating questions for: {getattr(profile, 'name', None)}")
 
     missing_reqs = [req.requirement for req in screening.must_have if req.match == "none"]
     
@@ -86,9 +87,9 @@ Generate 3 targeted, anchor-grounded interview questions for this specific candi
             total_cost = extract_cost(result)
             break
         except Exception as e:
-            print(f"  [Question Gen] Attempt {attempt+1} (fast) failed: {e}.")
+            logger.warning(f"[Question Gen] Attempt {attempt+1} (fast) failed: {e}.")
             if attempt == max_retries - 1:
-                print(f"  [Question Gen] All {max_retries} attempts failed. Falling back to resume-anchored default questions.")
+                logger.warning(f"[Question Gen] All {max_retries} attempts failed. Falling back to resume-anchored default questions.")
                 role_ref = profile.previous_roles[0] if profile.previous_roles else "your recent role"
                 skill_ref = profile.skills[0] if profile.skills else "your core technology"
                 project_ref = profile.projects[0] if profile.projects else "your key project"

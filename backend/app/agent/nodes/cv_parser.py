@@ -13,6 +13,7 @@ from app.agent.prompts import CV_PARSER_SYSTEM
 from app.agent.utils import clean_surrogates, extract_json, extract_cost
 import asyncio
 from app.database import prisma
+from app.core.logging import logger
 from typing import Tuple, Optional, Dict
 
 import httpx
@@ -33,7 +34,7 @@ def parse_file_by_format(local_path: str) -> str:
         with open(local_path, "rb") as f:
             header = f.read(8)
     except Exception as e:
-        print(f"  [CV Parser] Error reading header: {e}")
+        logger.warning(f"[CV Parser] Error reading header: {e}")
 
     # 1. PDF format (%PDF)
     if header.startswith(b"%PDF"):
@@ -41,7 +42,7 @@ def parse_file_by_format(local_path: str) -> str:
             reader = PdfReader(local_path)
             return "\n".join([page.extract_text() or "" for page in reader.pages])
         except Exception as e:
-            print(f"  [CV Parser] PdfReader failed: {e}")
+            logger.warning(f"[CV Parser] PdfReader failed: {e}")
             return ""
 
     # 2. DOCX format (ZIP header PK\x03\x04)
@@ -57,7 +58,7 @@ def parse_file_by_format(local_path: str) -> str:
                             full_text.append(cell.text)
             return "\n".join(full_text)
         except Exception as e:
-            print(f"  [CV Parser] python-docx failed: {e}")
+            logger.warning(f"[CV Parser] python-docx failed: {e}")
         
         try:
             import zipfile
@@ -73,7 +74,7 @@ def parse_file_by_format(local_path: str) -> str:
                     texts.append('\n')
             return "".join(texts)
         except Exception as e:
-            print(f"  [CV Parser] zipfile docx parsing failed: {e}")
+            logger.warning(f"[CV Parser] zipfile docx parsing failed: {e}")
             return ""
 
     # 3. DOC format (OLE CFBF header \xd0\xcf\x11\xe0)
@@ -86,7 +87,7 @@ def parse_file_by_format(local_path: str) -> str:
             filtered = [t for t in decoded if not t.startswith("Root Entry") and not t.startswith("WordDocument")]
             return "\n".join(filtered)
         except Exception as e:
-            print(f"  [CV Parser] DOC parsing failed: {e}")
+            logger.warning(f"[CV Parser] DOC parsing failed: {e}")
             return ""
 
     # 4. Text / Fallback file
@@ -94,7 +95,7 @@ def parse_file_by_format(local_path: str) -> str:
         with open(local_path, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
     except Exception as e:
-        print(f"  [CV Parser] Text reading failed: {e}")
+        logger.warning(f"[CV Parser] Text reading failed: {e}")
         return ""
 
 async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
@@ -118,7 +119,7 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
                 break
             except Exception as e:
                 last_exception = e
-                print(f"  [CV Parser] Download attempt {attempt}/{max_retries} failed for {filepath}: {e}")
+                logger.warning(f"[CV Parser] Download attempt {attempt}/{max_retries} failed for {filepath}: {e}")
                 if attempt < max_retries:
                     await asyncio.sleep(1.5 * attempt)
         
@@ -135,7 +136,7 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
         
         # Trigger OCR fallback if standard text extraction returned too little text
         if len(text.strip()) < 50:
-            print("  [CV Parser] Standard text extraction failed or returned too little text. Falling back to OCR.")
+            logger.info("[CV Parser] Standard text extraction failed or returned too little text. Falling back to OCR.")
             profile_data, cost = await ocr_pdf_fallback(local_path)
             raw_text = clean_surrogates(json.dumps(profile_data, sort_keys=True)) if profile_data else text
             return raw_text, profile_data, cost
@@ -148,9 +149,9 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
 
 async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float]:
     """Fallback method that converts PDF pages to images and uses a Vision model to extract directly to JSON."""
-    print(f"  [OCR Fallback] Initiating Vision OCR for {pdf_path}...")
+    logger.info(f"[OCR Fallback] Initiating Vision OCR for {pdf_path}...")
     if not fitz:
-        print("  [OCR Fallback] PyMuPDF (fitz) is not installed. Cannot perform OCR.")
+        logger.warning("[OCR Fallback] PyMuPDF (fitz) is not installed. Cannot perform OCR.")
         return None, 0.0
         
     try:
@@ -182,25 +183,25 @@ async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float]:
         model = get_model("ocr", max_tokens=8192)
         structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
         result = await structured_model.ainvoke([HumanMessage(content=content_parts)])
-        print(f"  [OCR Fallback] Successfully parsed JSON via Vision OCR.")
+        logger.info("[OCR Fallback] Successfully parsed JSON via Vision OCR.")
         from app.agent.utils import extract_cost
         cost = extract_cost(result)
         profile_data = result["parsed"].model_dump()
         return profile_data, cost
 
     except Exception as e:
-        print(f"  [OCR Fallback] Failed: {e}")
+        logger.error(f"[OCR Fallback] Failed: {e}")
         return None, 0.0
 
 #todo : can save token by adding raw cv text manually instead of sending to LLM
 
 async def cv_parser_node(state: RecruitmentState) -> dict:
     """Parse a CV PDF into a structured CandidateProfile."""
-    print(f"\n[CV Parser] Processing: {state['cv_filepath']}")
+    logger.info(f"[CV Parser] Processing: {state['cv_filepath']}")
 
     # If profile is already in state (cached), skip parsing
     if state.get("candidate_profile"):
-        print("  [OK] Using cached profile.")
+        logger.info("[CV Parser] Using cached profile.")
         return {
             "pipeline_status": "running",
             "log": ["CV parsed from cache"]
@@ -219,7 +220,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             resume = None
 
     if resume and resume.structuredProfile:
-        print("  [OK] Found global resume cache via hash.")
+        logger.info("[CV Parser] Found global resume cache via hash.")
         profile_data = json.loads(resume.structuredProfile) if isinstance(resume.structuredProfile, str) else resume.structuredProfile
         candidate_profile = CandidateProfile(**profile_data)
         
@@ -234,7 +235,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                     data=update_data
                 )
             except Exception as e:
-                print(f"  [Warning] Could not link resume to candidate: {e}")
+                logger.warning(f"[CV Parser] Could not link resume to candidate: {e}")
                 
         return {
             "candidate_profile": candidate_profile,
@@ -244,7 +245,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         }
 
     if pre_parsed_profile:
-        print("  [OK] Using directly parsed profile from Vision OCR.")
+        logger.info("[CV Parser] Using directly parsed profile from Vision OCR.")
         profile_data = pre_parsed_profile
     else:
         # Tiered escalation: Attempt 1 uses fast tier with full 8K token budget; Attempt 2 escalates to smart tier safety net
@@ -275,7 +276,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                         profile_data = parsed_res.model_dump()
                         break
                 except Exception as inner_e:
-                    print(f"  [CV Parser] Structured output attempt {attempt+1} ({tier}) failed ({inner_e}). Trying fallback raw JSON parsing...")
+                    logger.warning(f"[CV Parser] Structured output attempt {attempt+1} ({tier}) failed ({inner_e}). Trying fallback raw JSON parsing...")
                     raw_resp = await model.ainvoke([
                         SystemMessage(content=CV_PARSER_SYSTEM + "\nOutput a single valid JSON object matching the CandidateProfileOutput schema."),
                         HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
@@ -287,7 +288,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                     profile_data = parsed_res.model_dump()
                     break
             except Exception as e:
-                print(f"  [CV Parser] Attempt {attempt+1} ({tier}, max_tokens={token_limit}) failed: {e}.")
+                logger.warning(f"[CV Parser] Attempt {attempt+1} ({tier}, max_tokens={token_limit}) failed: {e}.")
                 if attempt == len(model_escalation) - 1:
                     raise RuntimeError(f"Failed to parse CV after {len(model_escalation)} attempts due to LLM failure: {e}")
     
@@ -337,8 +338,8 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                     data=update_data
                 )
         except Exception as e:
-            print(f"  [Warning] DB save failed in cv_parser: {e}")
-            print(f"  [Warning] Could not link new resume to candidate: {e}")
+            logger.warning(f"[CV Parser] DB save failed: {e}")
+            logger.warning(f"[CV Parser] Could not link new resume to candidate: {e}")
 
     return {
         "candidate_profile": candidate_profile,

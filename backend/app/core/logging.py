@@ -108,11 +108,11 @@ def setup_logging(level: int = logging.INFO, log_format: str = None):
     for logger_name in noisy_loggers:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
 
-    # Re-route uvicorn loggers to use root handlers so output style is unified & un-mangled
-    for uvicorn_logger_name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
-        uv_logger = logging.getLogger(uvicorn_logger_name)
-        uv_logger.handlers = []
-        uv_logger.propagate = True
+    # Re-route uvicorn & arq loggers to use root handlers so output style is unified & un-mangled
+    for logger_name in ("uvicorn", "uvicorn.access", "uvicorn.error", "arq", "arq.worker", "arq.main", "arq.jobs"):
+        lg = logging.getLogger(logger_name)
+        lg.handlers = []
+        lg.propagate = True
 
 logger = logging.getLogger("recruitment_agent")
 

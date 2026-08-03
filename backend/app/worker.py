@@ -40,13 +40,20 @@ async def shutdown(ctx):
     await prisma.disconnect()
     await close_db_pool()
 
+from app.dev_logger import log_event, log_error
+
 async def process_cv_task(ctx, candidate_id: str, cv_url: str, jd_text: str):
     """
     Background job to process a candidate's CV.
     """
     candidate_id_ctx.set(candidate_id)
     try:
+        log_event(candidate_id, "WORKER", f"Starting background CV processing task for candidate {candidate_id}")
         await start_candidate_pipeline(candidate_id, cv_url, jd_text, checkpointer=ctx.get('checkpointer'))
+        log_event(candidate_id, "WORKER", f"Completed background CV processing for candidate {candidate_id}")
+    except Exception as e:
+        log_error(candidate_id, "WORKER", e)
+        raise
     finally:
         candidate_id_ctx.set("")
     
@@ -56,7 +63,12 @@ async def resume_pipeline_task(ctx, candidate_id: str, resume_data: str):
     """
     candidate_id_ctx.set(candidate_id)
     try:
+        log_event(candidate_id, "WORKER", f"Starting background resume pipeline task for candidate {candidate_id}")
         await resume_pipeline(candidate_id, resume_data, checkpointer=ctx.get('checkpointer'))
+        log_event(candidate_id, "WORKER", f"Completed background resume pipeline task for candidate {candidate_id}")
+    except Exception as e:
+        log_error(candidate_id, "WORKER", e)
+        raise
     finally:
         candidate_id_ctx.set("")
 

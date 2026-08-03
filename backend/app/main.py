@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
         if asyncio.iscoroutine(res):
             await res
 
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, logger
 from app.middleware.correlation import CorrelationIdMiddleware
 
 # Initialize system-wide structured JSON logging to stdout
@@ -112,9 +112,9 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
         ''', distilled_jd, str(jd_embedding), new_campaign.id)
         from app.dev_logger import log_event
         log_event(new_campaign.id, "JD_EMBEDDING", f"JD embedded successfully for Campaign '{new_campaign.title}' ({new_campaign.id})")
-        print(f"[JD Embedding] Distilled and embedded JD for Campaign '{new_campaign.title}' ({new_campaign.id})")
+        logger.info(f"[JD Embedding] Distilled and embedded JD for Campaign '{new_campaign.title}' ({new_campaign.id})")
     except Exception as e:
-        print(f"Warning: Failed to generate JD embedding during campaign creation: {e}")
+        logger.warning(f"Failed to generate JD embedding during campaign creation: {e}")
         # The embedding_matcher_node will self-heal and generate it when the first candidate runs
     
     import uuid

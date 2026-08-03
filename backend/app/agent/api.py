@@ -182,6 +182,7 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
         interrupt_value = None
         final_state = None
         try:
+            log_event(candidate_id, "GRAPH", f"Starting graph execution for candidate {candidate_id}")
             events = graph.astream(cast(Any, input_state), config=config, stream_mode="updates")
             async for event in events:
                 for node_name, node_output in event.items():
@@ -190,6 +191,7 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                             log_event(candidate_id, node_name, log_msg)
                     if node_name == "__interrupt__":
                         interrupt_value = node_output[0].value
+                        log_event(candidate_id, "GRAPH", f"Graph paused at interrupt: {interrupt_value}")
             
             final_state_res = await graph.aget_state(config)
             final_state = final_state_res.values
@@ -213,6 +215,7 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
         else:
             status = final_state.get("pipeline_status", "shortlisted")
         
+        log_event(candidate_id, "GRAPH", f"Candidate graph execution finished (status={status})")
         update_data = {"status": status}
             
         if final_state.get("rejection_reason"):
@@ -603,10 +606,21 @@ async def process_interview_answer(candidate_id: str, answer_text: str, telemetr
         "flags": list(dict.fromkeys([str(f) for f in all_flags if f]))
     }
 
-    # Save interviewTranscript and antiCheatMetadata to Evaluation table in Prisma
+    # Run deterministic anti-cheat signal analysis on accumulated candidate answers
+    answers_given = [t.get("message", "") for t in transcript_list if isinstance(t, dict) and t.get("role") == "candidate"]
+    from app.agent.nodes.evaluator import analyze_anti_cheat_signals
+    heuristic_ai_score, heuristic_flags = analyze_anti_cheat_signals(answers_given, cumulative_anti_cheat_metadata)
+
+    existing_flags = cumulative_anti_cheat_metadata.get("flags", [])
+    flag_strings = list(dict.fromkeys(existing_flags + [f["flag"] for f in heuristic_flags if isinstance(f, dict) and "flag" in f]))
+    cumulative_anti_cheat_metadata["flags"] = flag_strings
+
+    # Save interviewTranscript, antiCheatMetadata, aiGeneratedLikelihoodScore, and antiCheatFlags to Evaluation table in Prisma
     eval_update: dict = {
         "interviewTranscript": Json(transcript_list),
-        "antiCheatMetadata": Json(cumulative_anti_cheat_metadata)
+        "antiCheatMetadata": Json(cumulative_anti_cheat_metadata),
+        "aiGeneratedLikelihoodScore": heuristic_ai_score,
+        "antiCheatFlags": Json(heuristic_flags)
     }
     if probe_added:
         eval_update["interviewQuestions"] = Json(raw_questions)
@@ -618,6 +632,32 @@ async def process_interview_answer(candidate_id: str, answer_text: str, telemetr
 
     # Check if all questions (including any added probes) have been answered
     if next_cand_turn_idx >= len(raw_questions):
+        ans_count = len(answers_given)
+        avg_words = sum(len(a.split()) for a in answers_given) / max(1, ans_count) if ans_count > 0 else 0
+        
+        # Initial deterministic evaluation scores
+        tech_score = min(95.0, max(40.0, avg_words * 0.8)) if not heuristic_flags else max(10.0, min(65.0, avg_words * 0.5))
+        comm_score = min(95.0, max(40.0, avg_words * 0.7)) if not heuristic_flags else max(10.0, min(60.0, avg_words * 0.4))
+        cult_score = min(90.0, max(50.0, 70.0))
+        
+        if any(f.get("severity") == "high" for f in heuristic_flags if isinstance(f, dict)):
+            tech_score = min(25.0, tech_score)
+            comm_score = min(25.0, comm_score)
+
+        init_overall = round((tech_score * 0.4) + (comm_score * 0.3) + (cult_score * 0.3), 1)
+
+        await prisma.evaluation.update(
+            where={"candidateId": candidate_id},
+            data={
+                "overallScore": init_overall,
+                "technicalScore": tech_score,
+                "communicationScore": comm_score,
+                "culturalFitScore": cult_score,
+                "aiGeneratedLikelihoodScore": heuristic_ai_score,
+                "antiCheatFlags": Json(heuristic_flags),
+            }
+        )
+
         await prisma.candidate.update(
             where={"id": candidate_id},
             data={"status": "interview_completed"}
