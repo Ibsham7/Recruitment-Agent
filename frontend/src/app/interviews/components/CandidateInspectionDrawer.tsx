@@ -5,6 +5,8 @@ import { Sparkles, X, Brain, ThumbsUp, ThumbsDown, MessageSquare, Loader2 } from
 import { InterviewCandidate } from "../types";
 import { getCandidateDisplayName } from "../../../lib/candidate";
 
+import { AntiCheatInspectionCard } from "../../candidate/components/AntiCheatInspectionCard";
+
 export interface CandidateInspectionDrawerProps {
   candidate: InterviewCandidate | null;
   theme: Theme;
@@ -127,6 +129,9 @@ export function CandidateInspectionDrawer({
             })}
           </div>
 
+          {/* Anti-Cheat & Telemetry Inspection Metric Card */}
+          <AntiCheatInspectionCard candidate={candidate} theme={t} />
+
           {/* AI Summary Assessment */}
           {candidate.evaluation?.summary && (
             <div className="p-5 rounded-2xl" style={{ background: hexToRgba(t.accentPrimary, 0.05), border: `1px solid ${hexToRgba(t.accentPrimary, 0.2)}` }}>
@@ -187,8 +192,20 @@ export function CandidateInspectionDrawer({
             </div>
             <div className="p-4 rounded-2xl max-h-80 overflow-y-auto space-y-3" style={{ background: hexToRgba(t.bgPage, t.isDark ? 0.6 : 0.7), border: `1px solid ${hexToRgba(t.txtPrimary, 0.1)}` }}>
               {candidate.evaluation?.interviewTranscript && candidate.evaluation.interviewTranscript.length > 0 ? (
-                candidate.evaluation.interviewTranscript.map((turn, idx) => {
+                candidate.evaluation.interviewTranscript.map((turn: any, idx: number) => {
                   const isAi = turn.role === "ai" || turn.role === "interviewer";
+                  const telem = turn.telemetry || turn || {};
+                  const turnPasteCount = telem.pasteCount ?? telem.paste_count ?? turn.pasteCount ?? 0;
+                  const turnBlurCount = telem.blurCount ?? telem.blur_count ?? telem.tabSwitches ?? turn.blurCount ?? 0;
+                  let turnPasteRatio = telem.pasteRatio ?? telem.paste_ratio ?? turn.pasteRatio;
+                  if (typeof turnPasteRatio === "number" && turnPasteRatio > 0 && turnPasteRatio <= 1) {
+                    turnPasteRatio = Math.round(turnPasteRatio * 100);
+                  } else if (typeof turnPasteRatio === "number") {
+                    turnPasteRatio = Math.round(turnPasteRatio);
+                  }
+
+                  const hasTurnTelem = !isAi && (turnPasteCount > 0 || turnBlurCount > 0 || (turnPasteRatio !== undefined && turnPasteRatio > 0));
+
                   return (
                     <div key={idx} className={`flex ${isAi ? "justify-start" : "justify-end"}`}>
                       <div
@@ -199,8 +216,27 @@ export function CandidateInspectionDrawer({
                           color: t.txtPrimary,
                         }}
                       >
-                        <div className="font-bold text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1.5" style={{ color: isAi ? t.accentPrimary : t.numPos }}>
-                          {isAi ? "🤖 AI Technical Interviewer" : `👤 ${displayName}`}
+                        <div className="font-bold text-[10px] uppercase tracking-wider mb-1.5 flex flex-wrap items-center justify-between gap-2" style={{ color: isAi ? t.accentPrimary : t.numPos }}>
+                          <span>{isAi ? "🤖 AI Technical Interviewer" : `👤 ${displayName}`}</span>
+                          {hasTurnTelem && (
+                            <div className="flex items-center gap-1.5 text-[9px] font-semibold">
+                              {turnPasteCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                  📋 Pastes: {turnPasteCount}
+                                </span>
+                              )}
+                              {turnBlurCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400 border border-orange-500/30">
+                                  👁 Blurs: {turnBlurCount}
+                                </span>
+                              )}
+                              {turnPasteRatio !== undefined && turnPasteRatio > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                                  📊 Paste Ratio: {turnPasteRatio}%
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <p className="font-normal">{turn.message}</p>
                       </div>

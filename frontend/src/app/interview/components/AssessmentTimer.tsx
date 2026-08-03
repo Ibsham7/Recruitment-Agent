@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
 import { Clock, AlertTriangle } from "lucide-react";
 
 export interface AssessmentTimerProps {
   theme: Theme;
-  timeRemaining?: number; // Time remaining in seconds
+  timeRemaining?: number; // Legacy/fallback seconds
+  initialSeconds?: number; // Initial duration in seconds
+  timerSeconds?: number; // Dynamic duration (60s-90s per turn, 45s for adaptive probes)
+  questionIndex?: number; // Active question index to trigger timer resets
   formattedTime?: string;
   totalTime?: number;
   onTimeUp?: () => void;
@@ -13,24 +16,41 @@ export interface AssessmentTimerProps {
 
 export function AssessmentTimer({
   theme: t,
-  timeRemaining: initialSeconds,
+  timeRemaining,
+  initialSeconds,
+  timerSeconds,
+  questionIndex = 0,
   formattedTime,
   onTimeUp,
 }: AssessmentTimerProps) {
-  const [secondsLeft, setSecondsLeft] = useState<number | undefined>(initialSeconds);
+  // Determine duration from available props (timerSeconds takes priority, then initialSeconds, timeRemaining, fallback 75s)
+  const startSeconds = timerSeconds ?? initialSeconds ?? timeRemaining ?? 75;
 
-  useEffect(() => {
-    setSecondsLeft(initialSeconds);
-  }, [initialSeconds]);
+  const [secondsLeft, setSecondsLeft] = useState<number>(startSeconds);
+  const hasTriggeredTimeUp = useRef<boolean>(false);
 
+  // Reset countdown timer when active question index or start duration changes
   useEffect(() => {
-    if (secondsLeft === undefined || secondsLeft <= 0) return;
+    setSecondsLeft(startSeconds);
+    hasTriggeredTimeUp.current = false;
+  }, [questionIndex, startSeconds]);
+
+  // Clean countdown timer logic & single-shot onTimeUp trigger
+  useEffect(() => {
+    if (secondsLeft <= 0) {
+      if (!hasTriggeredTimeUp.current) {
+        hasTriggeredTimeUp.current = true;
+        if (onTimeUp) {
+          onTimeUp();
+        }
+      }
+      return;
+    }
 
     const interval = setInterval(() => {
       setSecondsLeft((prev) => {
-        if (prev === undefined || prev <= 1) {
+        if (prev <= 1) {
           clearInterval(interval);
-          if (onTimeUp) onTimeUp();
           return 0;
         }
         return prev - 1;
@@ -40,9 +60,8 @@ export function AssessmentTimer({
     return () => clearInterval(interval);
   }, [secondsLeft, onTimeUp]);
 
-  const formatDisplayTime = (secs?: number) => {
+  const formatDisplayTime = (secs: number) => {
     if (formattedTime) return formattedTime;
-    if (secs === undefined) return "--:--";
     const minutes = Math.floor(secs / 60);
     const remainingSeconds = secs % 60;
     return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
@@ -50,10 +69,17 @@ export function AssessmentTimer({
       .padStart(2, "0")}`;
   };
 
-  const isLowTime = secondsLeft !== undefined && secondsLeft < 300; // < 5 mins
-  const displayString = formatDisplayTime(secondsLeft);
+  // Visual countdown warning colors (< 30s amber, < 10s red)
+  const isRedWarning = secondsLeft < 10;
+  const isAmberWarning = secondsLeft < 30;
 
-  const badgeColor = isLowTime ? t.numNeg : t.accentPrimary;
+  const badgeColor = isRedWarning
+    ? (t.numNeg || "#ef4444")
+    : isAmberWarning
+    ? "#f59e0b"
+    : t.accentPrimary;
+
+  const displayString = formatDisplayTime(secondsLeft);
 
   return (
     <div
@@ -64,7 +90,7 @@ export function AssessmentTimer({
         border: `1px solid ${hexToRgba(badgeColor, 0.3)}`,
       }}
     >
-      {isLowTime ? (
+      {isAmberWarning || isRedWarning ? (
         <AlertTriangle size={14} className="animate-pulse" style={{ color: badgeColor }} />
       ) : (
         <Clock size={14} style={{ color: badgeColor }} />

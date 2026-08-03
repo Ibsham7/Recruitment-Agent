@@ -8,7 +8,7 @@ from app.agent.prompts import QUESTION_GEN_SYSTEM
 
 
 async def question_generator_node(state: RecruitmentState) -> dict:
-    """Generate tailored interview questions."""
+    """Generate tailored, resume-anchored interview questions."""
 
     profile = state.get("candidate_profile")
     screening = state.get("screening_result")
@@ -23,22 +23,48 @@ async def question_generator_node(state: RecruitmentState) -> dict:
     print(f"\n[Question Generator] Generating questions for: {getattr(profile, 'name', None)}")
 
     missing_reqs = [req.requirement for req in screening.must_have if req.match == "none"]
-    prompt = f"""
-JOB DESCRIPTION:
+    
+    roles_str = ", ".join(profile.previous_roles) if profile.previous_roles else "None specified"
+    skills_str = ", ".join(profile.skills) if profile.skills else "None specified"
+    projects_str = "\n  - ".join(profile.projects) if profile.projects else "None specified"
+    achievements_str = "\n  - ".join(profile.key_achievements) if profile.key_achievements else "None specified"
+    education_str = ", ".join(profile.education) if profile.education else "None specified"
+    other_str = profile.other_info or "None"
+
+    prompt = f"""JOB DESCRIPTION:
 {jd}
 
-CANDIDATE:
+CANDIDATE PROFILE (PARSED CV DETAILS):
 Name: {profile.name}
-Skills: {', '.join(profile.skills)}
-Experience: {profile.total_experience_years} years in roles: {', '.join(profile.previous_roles)}
-Missing requirements identified during screening: {', '.join(missing_reqs)}
+Total Experience: {profile.total_experience_years} years
+Previous Roles: {roles_str}
+Skills & Technologies: {skills_str}
+Projects:
+  - {projects_str}
+Key Achievements & Metrics:
+  - {achievements_str}
+Education: {education_str}
+Other Info: {other_str}
+
+IDENTIFIED SCREENING GAPS / MISSING REQUIREMENTS:
+{', '.join(missing_reqs) if missing_reqs else 'None'}
 """
 
     custom_config = state.get("interview_config")
     if custom_config and custom_config.strip():
-        prompt += f"\nTHE RECRUITER HAS PROVIDED THE FOLLOWING CUSTOM FOCUS AREAS / QUESTIONS:\n{custom_config.strip()}\n\nPlease ensure your generated questions prioritize addressing these focus areas while still adhering to the JSON format.\n"
+        prompt += f"\nTHE RECRUITER HAS PROVIDED THE FOLLOWING CUSTOM FOCUS AREAS / QUESTIONS:\n{custom_config.strip()}\n\nPlease ensure your generated questions prioritize addressing these focus areas while adhering to resume anchoring.\n"
 
-    prompt += "\nGenerate 3 targeted interview questions for this specific candidate.\n"
+    prompt += """
+STRICT QUESTION GENERATION RULES (RESUME ANCHORING):
+1. Every single question MUST be strictly anchored to specific candidate experience details from the parsed CV above (referencing exact roles, company/project names, tools/technologies, or achievements/metrics).
+2. DO NOT ask generic behavioral questions like "Tell me about your background" or "What are your strengths".
+3. Force hyper-specific, contextual prompts referencing candidate CV facts, e.g.:
+   - "In your role at [Company/Project], you used [Tool/Tech] to achieve [Metric]. How did you handle..."
+   - "While working on [Project Name], you utilized [Tool/Tech]. How did you scale..."
+4. Ground questions in specific candidate tools, projects, company roles, technologies, and metrics mentioned in the parsed profile.
+
+Generate 3 targeted, anchor-grounded interview questions for this specific candidate.
+"""
 
     max_retries = 3
     questions = []
@@ -62,17 +88,25 @@ Missing requirements identified during screening: {', '.join(missing_reqs)}
         except Exception as e:
             print(f"  [Question Gen] Attempt {attempt+1} (fast) failed: {e}.")
             if attempt == max_retries - 1:
-                print(f"  [Question Gen] All {max_retries} attempts failed. Falling back to default questions.")
+                print(f"  [Question Gen] All {max_retries} attempts failed. Falling back to resume-anchored default questions.")
+                role_ref = profile.previous_roles[0] if profile.previous_roles else "your recent role"
+                skill_ref = profile.skills[0] if profile.skills else "your core technology"
+                project_ref = profile.projects[0] if profile.projects else "your key project"
                 questions = [
                     InterviewQuestion(
-                        question="Could you tell us more about your background and experience?",
-                        category="behavioral",
-                        what_to_look_for="Clear communication, Relevance to JD"
+                        question=f"In your role at {role_ref}, you used {skill_ref} to deliver projects. How did you handle architectural trade-offs and technical challenges?",
+                        category="technical",
+                        what_to_look_for=f"Concrete technical trade-offs, depth with {skill_ref}, hands-on experience in {role_ref}"
                     ),
                     InterviewQuestion(
-                        question="What do you consider your greatest professional achievement?",
+                        question=f"While working on {project_ref}, what specific metrics or outcomes did you achieve using {skill_ref}?",
                         category="behavioral",
-                        what_to_look_for="Impact, Problem solving"
+                        what_to_look_for=f"Measurable achievements in {project_ref}, technical ownership, clear communication"
+                    ),
+                    InterviewQuestion(
+                        question=f"Given your experience with {skill_ref} at {role_ref}, how would you approach the primary requirements described in this Job Description?",
+                        category="situational",
+                        what_to_look_for=f"Direct application of past experience to the target position requirements"
                     )
                 ]
 

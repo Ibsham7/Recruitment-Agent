@@ -1,3 +1,4 @@
+import React from "react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
 import { Send, Loader2, Mic, MicOff, AlertCircle } from "lucide-react";
@@ -12,6 +13,19 @@ export interface LiveAnswerCardProps {
   isRecording?: boolean;
   onToggleRecording?: () => void;
   audioSupported?: boolean;
+  telemetry?: {
+    pasteCount: number;
+    totalPastedChars: number;
+    pasteRatio: number;
+    pasteTimestamps: string[];
+  };
+  onTelemetryUpdate?: (data: {
+    pasteCount: number;
+    totalPastedChars: number;
+    pasteRatio: number;
+    pasteTimestamps: string[];
+  }) => void;
+  onPasteEvent?: (pastedLength: number, timestamp: string) => void;
 }
 
 export function LiveAnswerCard({
@@ -24,7 +38,37 @@ export function LiveAnswerCard({
   isRecording = false,
   onToggleRecording,
   audioSupported = false,
+  telemetry,
+  onTelemetryUpdate,
+  onPasteEvent,
 }: LiveAnswerCardProps) {
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = e.clipboardData?.getData("text") || "";
+    const pastedLength = pastedText.length;
+    const timestamp = new Date().toISOString();
+
+    if (onPasteEvent) {
+      onPasteEvent(pastedLength, timestamp);
+    }
+
+    if (onTelemetryUpdate) {
+      const currentPasteCount = (telemetry?.pasteCount ?? 0) + 1;
+      const currentTotalPasted = (telemetry?.totalPastedChars ?? 0) + pastedLength;
+      const currentTimestamps = [...(telemetry?.pasteTimestamps ?? []), timestamp];
+      const projectedAnswerLength = answer.length + pastedLength;
+      const currentRatio = Number(
+        (currentTotalPasted / Math.max(1, projectedAnswerLength)).toFixed(2)
+      );
+
+      onTelemetryUpdate({
+        pasteCount: currentPasteCount,
+        totalPastedChars: currentTotalPasted,
+        pasteRatio: currentRatio,
+        pasteTimestamps: currentTimestamps,
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Response Header & Optional Audio Recording Indicator */}
@@ -70,6 +114,7 @@ export function LiveAnswerCard({
         <textarea
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
+          onPaste={handlePaste}
           rows={7}
           placeholder="Type your response here... Include specific examples, methodology, and technical reasoning."
           className="w-full rounded-2xl p-4 text-sm focus:outline-none resize-none"

@@ -38,6 +38,28 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // Anti-cheat telemetry states per question turn
+  const [blurCount, setBlurCount] = useState<number>(0);
+  const [focusDuration, setFocusDuration] = useState<number>(0);
+  const [pasteCount, setPasteCount] = useState<number>(0);
+  const [totalPastedChars, setTotalPastedChars] = useState<number>(0);
+  const [pasteTimestamps, setPasteTimestamps] = useState<string[]>([]);
+
+  // Reset telemetry state per question turn
+  const resetTelemetry = () => {
+    setBlurCount(0);
+    setFocusDuration(0);
+    setPasteCount(0);
+    setTotalPastedChars(0);
+    setPasteTimestamps([]);
+  };
+
+  const handlePasteEvent = (pastedLength: number, timestamp: string) => {
+    setPasteCount((prev) => prev + 1);
+    setTotalPastedChars((prev) => prev + pastedLength);
+    setPasteTimestamps((prev) => [...prev, timestamp]);
+  };
+
   // Safely parse questions list and transcript list from candidate evaluation
   const rawQuestions = candidate?.evaluation?.interviewQuestions;
   const questionsList: any[] = Array.isArray(rawQuestions)
@@ -127,6 +149,50 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     }
   }, [id, token]);
 
+  const isComplete =
+    candidate?.status === "interview_completed" ||
+    candidate?.status === "review" ||
+    candidate?.status === "complete" ||
+    candidate?.status === "finalized";
+  const isInterviewing = candidate?.status === "interviewing";
+
+  // Global window telemetry event listeners (blur, focus, visibilitychange)
+  useEffect(() => {
+    if (!candidate || !isInterviewing || isComplete) return;
+
+    // Track active focus duration in seconds when window is active & tab visible
+    const focusInterval = setInterval(() => {
+      if (!document.hidden && document.hasFocus()) {
+        setFocusDuration((prev) => prev + 1);
+      }
+    }, 1000);
+
+    const handleBlur = () => {
+      setBlurCount((prev) => prev + 1);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setBlurCount((prev) => prev + 1);
+      }
+    };
+
+    const handleFocus = () => {
+      // Focus returned
+    };
+
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(focusInterval);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [candidate, isInterviewing, isComplete, currentQuestionIdx]);
+
   // Step 2: Handle Start Assessment (Email verification + Consent + On-demand question generation)
   const handleStartAssessment = async () => {
     if (!emailInput.trim()) {
@@ -158,6 +224,7 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
       const candData = await res.json();
       setCandidate(candData);
       setCurrentQuestionIdx(0);
+      resetTelemetry();
     } catch (err: any) {
       setError(err.message || "Email verification failed.");
     } finally {
@@ -165,20 +232,42 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     }
   };
 
-  // Step 3: Handle Submit Answer with network error protection and fast submission guard
-  const handleSubmitAnswer = async () => {
-    if (!answer.trim() || submitting) return;
+  // Step 3: Handle Submit Answer with anti-cheat telemetry and auto-submit support
+  const handleSubmitAnswer = async (overrideAnswer?: string) => {
+    const answerToSubmit = overrideAnswer !== undefined ? overrideAnswer : answer;
+    if (submitting) return;
+    if (overrideAnswer === undefined && !answerToSubmit.trim()) return;
+
     setSubmitting(true);
     setError("");
 
-    const submittedAnswer = answer;
+    const submittedAnswer = answerToSubmit.trim()
+      ? answerToSubmit
+      : "[Time Expired - No Response]";
     setAnswer(""); // Immediately clear text field for smooth responsiveness
+
+    const totalAnswerChars = submittedAnswer.length;
+    const pasteRatio = Number((totalPastedChars / Math.max(1, totalAnswerChars)).toFixed(2));
+
+    const anti_cheat_telemetry = {
+      blurCount,
+      focusDuration: Math.round(focusDuration),
+      pasteCount,
+      totalPastedChars,
+      totalAnswerChars,
+      pasteRatio,
+      pasteTimestamps,
+      flags: [],
+    };
 
     try {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}/interview/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer: submittedAnswer }),
+        body: JSON.stringify({
+          answer: submittedAnswer,
+          anti_cheat_telemetry,
+        }),
       });
 
       if (!res.ok) {
@@ -190,6 +279,8 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
       if (candData && candData.id) {
         setCandidate(candData);
       }
+
+      resetTelemetry();
       setCurrentQuestionIdx((prev) => prev + 1);
     } catch (err: any) {
       // Preserve candidate's typed answer on network or server error so work is not lost
@@ -198,6 +289,11 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleTimeUp = () => {
+    // Auto-submit current typed answer cleanly without loss of text content
+    handleSubmitAnswer(answer);
   };
 
   if (loading) {
@@ -219,16 +315,10 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
 
   const campaignTitle = accessMeta?.campaignTitle || candidate?.campaign?.title || "Candidate Evaluation";
   const candidateName = accessMeta?.candidateName || candidate?.name || "Candidate";
-  const isComplete =
-    candidate?.status === "interview_completed" ||
-    candidate?.status === "review" ||
-    candidate?.status === "complete" ||
-    candidate?.status === "finalized";
 
-  const isInterviewing = candidate?.status === "interviewing";
   const currentStep = isComplete ? 3 : candidate ? 2 : 1;
 
-  // Active question extraction
+  // Active question & timer duration extraction
   const currentQObj = questionsList[currentQuestionIdx] || (questionsList.length > 0 ? questionsList[questionsList.length - 1] : null);
   const currentQText =
     typeof currentQObj === "object" && currentQObj?.question
@@ -239,6 +329,12 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
 
   const currentQTopic = typeof currentQObj === "object" ? currentQObj?.topic : candidate?.currentTopic || candidate?.topic;
   const currentQDiff = typeof currentQObj === "object" ? currentQObj?.difficulty : candidate?.difficulty;
+
+  // Dynamic timer duration (60s-90s per turn, 45s for adaptive probes, default 75s)
+  const timerSeconds: number =
+    currentQObj?.timer_seconds ||
+    currentQObj?.timerSeconds ||
+    (currentQObj?.is_adaptive || currentQObj?.isAdaptive ? 45 : 75);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: t.bgPage }}>
@@ -277,7 +373,12 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
         {candidate && isInterviewing && !isComplete && (
           <div className="space-y-6">
             <div className="flex justify-end mb-2">
-              <AssessmentTimer theme={t} />
+              <AssessmentTimer
+                theme={t}
+                timerSeconds={timerSeconds}
+                questionIndex={currentQuestionIdx}
+                onTimeUp={handleTimeUp}
+              />
             </div>
 
             <QuestionRenderer
@@ -295,7 +396,14 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
               setAnswer={setAnswer}
               submitting={submitting}
               error={error}
-              onSubmit={handleSubmitAnswer}
+              onSubmit={() => handleSubmitAnswer()}
+              onPasteEvent={handlePasteEvent}
+              telemetry={{
+                pasteCount,
+                totalPastedChars,
+                pasteRatio: Number((totalPastedChars / Math.max(1, answer.length)).toFixed(2)),
+                pasteTimestamps,
+              }}
             />
           </div>
         )}

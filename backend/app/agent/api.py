@@ -296,11 +296,71 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
 async def _run_evaluator_background(candidate_id: str, candidate: Any, transcript_list: list):
     try:
         import json
-        from app.agent.schemas import CandidateProfile, ScreeningResult, ScoreBreakdown, InterviewTranscript, InterviewQuestion
-        profile_data = candidate.resume.structuredProfile if candidate.resume and candidate.resume.structuredProfile else {}
+        from app.agent.schemas import (
+            CandidateProfile, ScreeningResult, ScoreBreakdown,
+            InterviewTranscript, InterviewQuestion, normalize_telemetry
+        )
+
+        # 1. Aggregate cumulative anti-cheat telemetry across candidate turns
+        total_blur = 0
+        total_focus = 0.0
+        total_paste_cnt = 0
+        total_pasted_ch = 0
+        total_ans_ch = 0
+        all_timestamps = []
+        all_flags = []
+
+        for turn in transcript_list:
+            if isinstance(turn, dict) and turn.get("role") == "candidate":
+                t_telemetry = turn.get("telemetry") or {}
+                if isinstance(t_telemetry, dict):
+                    total_blur += int(t_telemetry.get("blur_count") or t_telemetry.get("blurCount") or 0)
+                    total_focus += float(t_telemetry.get("focus_duration_seconds") or t_telemetry.get("focusDuration") or t_telemetry.get("focus_duration") or 0.0)
+                    total_paste_cnt += int(t_telemetry.get("paste_count") or t_telemetry.get("pasteCount") or 0)
+                    total_pasted_ch += int(t_telemetry.get("total_pasted_chars") or t_telemetry.get("totalPastedChars") or 0)
+                    
+                    ans_len = len(turn.get("message", ""))
+                    t_ans_ch = int(t_telemetry.get("total_answer_chars") or t_telemetry.get("totalAnswerChars") or ans_len)
+                    total_ans_ch += t_ans_ch
+                    
+                    ts = t_telemetry.get("paste_timestamps") or t_telemetry.get("pasteTimestamps") or []
+                    if isinstance(ts, list):
+                        all_timestamps.extend(ts)
+                        
+                    fl = t_telemetry.get("flags") or []
+                    if isinstance(fl, list):
+                        all_flags.extend(fl)
+
+        cum_paste_ratio = round(total_pasted_ch / total_ans_ch, 4) if total_ans_ch > 0 else 0.0
+        cumulative_anti_cheat_metadata = {
+            "blur_count": total_blur,
+            "blurCount": total_blur,
+            "focus_duration_seconds": total_focus,
+            "focusDuration": total_focus,
+            "paste_count": total_paste_cnt,
+            "pasteCount": total_paste_cnt,
+            "total_pasted_chars": total_pasted_ch,
+            "totalPastedChars": total_pasted_ch,
+            "total_answer_chars": total_ans_ch,
+            "totalAnswerChars": total_ans_ch,
+            "paste_ratio": cum_paste_ratio,
+            "pasteRatio": cum_paste_ratio,
+            "paste_timestamps": all_timestamps,
+            "pasteTimestamps": all_timestamps,
+            "flags": list(dict.fromkeys([str(f) for f in all_flags if f]))
+        }
+
+        profile_data = candidate.resume.structuredProfile if (candidate.resume and candidate.resume.structuredProfile) else {}
         if isinstance(profile_data, str):
             profile_data = json.loads(profile_data)
-        candidate_profile = CandidateProfile(**profile_data) if profile_data else CandidateProfile(name=candidate.name or "Candidate")
+        if not isinstance(profile_data, dict):
+            profile_data = {}
+        if "name" not in profile_data:
+            profile_data["name"] = candidate.name or "Candidate"
+        if "total_experience_years" not in profile_data:
+            profile_data["total_experience_years"] = 0.0
+
+        candidate_profile = CandidateProfile(**profile_data)
 
         fit_score_val = int(round(candidate.fitScore)) if candidate.fitScore is not None else 0
         screening_result = ScreeningResult(
@@ -334,12 +394,15 @@ async def _run_evaluator_background(candidate_id: str, candidate: Any, transcrip
             answers_given=answers_given,
             current_question_index=len(questions_asked)
         )
+        setattr(it_obj, "anti_cheat_telemetry", cumulative_anti_cheat_metadata)
 
         eval_state = {
             "candidate_profile": candidate_profile,
             "screening_result": screening_result,
             "job_description": candidate.campaign.jobDescription if candidate.campaign else "",
             "interview_transcript": it_obj,
+            "anti_cheat_telemetry": cumulative_anti_cheat_metadata,
+            "raw_interview_transcript": transcript_list,
             "jd_matcher_prompt_variant": candidate.campaign.evaluationStrictness if candidate.campaign else "moderate"
         }
 
@@ -348,6 +411,19 @@ async def _run_evaluator_background(candidate_id: str, candidate: Any, transcrip
         report = eval_res.get("evaluation_report")
 
         if report:
+            ai_likelihood_score = float(report.ai_generated_likelihood_score or 0.0)
+            flags_json = report.anti_cheat_flags if isinstance(report.anti_cheat_flags, list) else []
+
+            # Synthesize evaluator flags with cumulative flags in metadata
+            rep_flag_strings = []
+            for f in flags_json:
+                if isinstance(f, dict):
+                    rep_flag_strings.append(f.get("flag") or str(f))
+                elif isinstance(f, str):
+                    rep_flag_strings.append(f)
+            merged_flags = list(dict.fromkeys(cumulative_anti_cheat_metadata.get("flags", []) + rep_flag_strings))
+            cumulative_anti_cheat_metadata["flags"] = merged_flags
+
             await prisma.evaluation.update(
                 where={"candidateId": candidate_id},
                 data={
@@ -360,6 +436,9 @@ async def _run_evaluator_background(candidate_id: str, candidate: Any, transcrip
                     "strengths": report.strengths,
                     "concerns": report.concerns,
                     "chainOfThought": report.chain_of_thought,
+                    "aiGeneratedLikelihoodScore": ai_likelihood_score,
+                    "antiCheatFlags": Json(flags_json),
+                    "antiCheatMetadata": Json(cumulative_anti_cheat_metadata)
                 }
             )
             await prisma.candidate.update(
@@ -372,10 +451,11 @@ async def _run_evaluator_background(candidate_id: str, candidate: Any, transcrip
     except Exception as e:
         print(f"[Interview] Evaluator background task failed for {candidate_id}: {e}")
 
-async def process_interview_answer(candidate_id: str, answer_text: str):
+async def process_interview_answer(candidate_id: str, answer_text: str, telemetry: Any = None):
     """
     Processes candidate answer submission for an active interview session.
-    Updates interview transcript, handles non-blocking adaptive probing,
+    Updates interview transcript with embedded turn anti-cheat telemetry,
+    calculates cumulative antiCheatMetadata, handles non-blocking adaptive probing,
     and advances or completes assessment when all questions are answered.
     """
     candidate = await prisma.candidate.find_unique(
@@ -392,6 +472,8 @@ async def process_interview_answer(candidate_id: str, answer_text: str):
 
     import json
     from datetime import datetime
+    from app.agent.schemas import normalize_telemetry
+
     now_str = datetime.now().strftime("%I:%M %p")
 
     raw_questions = candidate.evaluation.interviewQuestions or []
@@ -419,8 +501,24 @@ async def process_interview_answer(candidate_id: str, answer_text: str):
         q1_text = first_q.get("question") if isinstance(first_q, dict) else str(first_q)
         transcript_list.append({"role": "ai", "message": q1_text, "time": now_str})
 
-    # Record candidate answer
-    transcript_list.append({"role": "candidate", "message": answer_text, "time": now_str})
+    # Normalize turn telemetry and ensure answer character metrics are recorded
+    telemetry_dict = normalize_telemetry(telemetry)
+    ans_len = len(answer_text)
+    if telemetry_dict.get("total_answer_chars", 0) == 0:
+        telemetry_dict["total_answer_chars"] = ans_len
+        telemetry_dict["totalAnswerChars"] = ans_len
+        if telemetry_dict.get("total_pasted_chars", 0) > 0 and ans_len > 0:
+            calc_ratio = round(telemetry_dict["total_pasted_chars"] / ans_len, 4)
+            telemetry_dict["paste_ratio"] = calc_ratio
+            telemetry_dict["pasteRatio"] = calc_ratio
+
+    # Record candidate answer turn containing embedded turn telemetry
+    transcript_list.append({
+        "role": "candidate",
+        "message": answer_text,
+        "time": now_str,
+        "telemetry": telemetry_dict
+    })
 
     # Check for adaptive probing: if answer is short (< 20 words) and probe not generated yet for this interview
     words = answer_text.strip().split()
@@ -438,7 +536,10 @@ async def process_interview_answer(candidate_id: str, answer_text: str):
                 new_probe_q = {
                     "question": f"[Follow-up] {probe_question}",
                     "topic": "Clarification",
-                    "difficulty": "Adaptive"
+                    "difficulty": "Adaptive",
+                    "is_probe": True,
+                    "is_adaptive": True,
+                    "timer_seconds": 45
                 }
                 raw_questions.append(new_probe_q)
                 probe_added = True
@@ -452,8 +553,61 @@ async def process_interview_answer(candidate_id: str, answer_text: str):
         next_q_text = next_q_obj.get("question") if isinstance(next_q_obj, dict) else str(next_q_obj)
         transcript_list.append({"role": "ai", "message": next_q_text, "time": now_str})
 
-    # Save to Evaluation table in Prisma
-    eval_update: dict = {"interviewTranscript": Json(transcript_list)}
+    # Calculate cumulative candidate antiCheatMetadata across all candidate turns
+    total_blur = 0
+    total_focus = 0.0
+    total_paste_cnt = 0
+    total_pasted_ch = 0
+    total_ans_ch = 0
+    all_timestamps = []
+    all_flags = []
+
+    for turn in transcript_list:
+        if isinstance(turn, dict) and turn.get("role") == "candidate":
+            t_telemetry = turn.get("telemetry") or {}
+            if isinstance(t_telemetry, dict):
+                total_blur += int(t_telemetry.get("blur_count") or t_telemetry.get("blurCount") or 0)
+                total_focus += float(t_telemetry.get("focus_duration_seconds") or t_telemetry.get("focusDuration") or t_telemetry.get("focus_duration") or 0.0)
+                total_paste_cnt += int(t_telemetry.get("paste_count") or t_telemetry.get("pasteCount") or 0)
+                total_pasted_ch += int(t_telemetry.get("total_pasted_chars") or t_telemetry.get("totalPastedChars") or 0)
+                
+                turn_msg_len = len(turn.get("message", ""))
+                t_ans_ch = int(t_telemetry.get("total_answer_chars") or t_telemetry.get("totalAnswerChars") or turn_msg_len)
+                total_ans_ch += t_ans_ch
+                
+                ts = t_telemetry.get("paste_timestamps") or t_telemetry.get("pasteTimestamps") or []
+                if isinstance(ts, list):
+                    all_timestamps.extend(ts)
+                    
+                fl = t_telemetry.get("flags") or []
+                if isinstance(fl, list):
+                    all_flags.extend(fl)
+
+    cum_paste_ratio = round(total_pasted_ch / total_ans_ch, 4) if total_ans_ch > 0 else 0.0
+
+    cumulative_anti_cheat_metadata = {
+        "blur_count": total_blur,
+        "blurCount": total_blur,
+        "focus_duration_seconds": total_focus,
+        "focusDuration": total_focus,
+        "paste_count": total_paste_cnt,
+        "pasteCount": total_paste_cnt,
+        "total_pasted_chars": total_pasted_ch,
+        "totalPastedChars": total_pasted_ch,
+        "total_answer_chars": total_ans_ch,
+        "totalAnswerChars": total_ans_ch,
+        "paste_ratio": cum_paste_ratio,
+        "pasteRatio": cum_paste_ratio,
+        "paste_timestamps": all_timestamps,
+        "pasteTimestamps": all_timestamps,
+        "flags": list(dict.fromkeys([str(f) for f in all_flags if f]))
+    }
+
+    # Save interviewTranscript and antiCheatMetadata to Evaluation table in Prisma
+    eval_update: dict = {
+        "interviewTranscript": Json(transcript_list),
+        "antiCheatMetadata": Json(cumulative_anti_cheat_metadata)
+    }
     if probe_added:
         eval_update["interviewQuestions"] = Json(raw_questions)
 
