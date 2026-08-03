@@ -20,7 +20,6 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 from app.agent.api import start_candidate_pipeline, resume_pipeline, generate_on_demand_questions, process_interview_answer
-from app.agent.schemas import normalize_telemetry
 from app.database import prisma, init_db_pool, close_db_pool
 from app.agent.embeddings import _distill_jd_async, get_embedding_async
 from app.security import verify_jwt
@@ -226,54 +225,6 @@ async def health_db():
         # If it throws P1001 or timeout, it means it's likely waking up or unreachable
         raise HTTPException(status_code=503, detail="Database is waking up or unreachable")
 
-def _format_candidate_dict(cand_dict: dict) -> dict:
-    if cand_dict.get("resume"):
-        cand_dict["structuredProfile"] = cand_dict["resume"].get("structuredProfile")
-        cand_dict["rawCvText"] = cand_dict["resume"].get("rawCvText")
-    else:
-        cand_dict["structuredProfile"] = None
-        cand_dict["rawCvText"] = None
-
-    if cand_dict.get("evaluation"):
-        eval_obj = cand_dict["evaluation"]
-        if isinstance(eval_obj, dict):
-            import json
-            for json_field in ["interviewQuestions", "interviewTranscript", "antiCheatFlags", "antiCheatMetadata", "scoreBreakdown"]:
-                val = eval_obj.get(json_field)
-                if isinstance(val, str):
-                    try:
-                        eval_obj[json_field] = json.loads(val)
-                    except Exception:
-                        pass
-
-            if eval_obj.get("aiGeneratedLikelihoodScore") is None:
-                eval_obj["aiGeneratedLikelihoodScore"] = 0.0
-            if eval_obj.get("antiCheatFlags") is None:
-                eval_obj["antiCheatFlags"] = []
-            if eval_obj.get("antiCheatMetadata") is None:
-                eval_obj["antiCheatMetadata"] = {}
-
-            eval_obj["ai_generated_likelihood_score"] = eval_obj["aiGeneratedLikelihoodScore"]
-            eval_obj["anti_cheat_flags"] = eval_obj["antiCheatFlags"]
-            eval_obj["anti_cheat_metadata"] = eval_obj["antiCheatMetadata"]
-
-            iq = eval_obj.get("interviewQuestions") or []
-            transcript = eval_obj.get("interviewTranscript") or []
-
-            if isinstance(iq, list) and len(iq) > 0:
-                cand_turns = [t for t in transcript if isinstance(t, dict) and t.get("role") == "candidate"]
-                answered_count = len(cand_turns)
-                cand_dict["answeredCount"] = answered_count
-
-                if answered_count < len(iq):
-                    q_item = iq[answered_count]
-                    cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
-                else:
-                    q_item = iq[-1]
-                    cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
-
-    return cand_dict
-
 @app.get("/api/campaigns")
 async def get_campaigns(user: dict = Depends(verify_jwt)):
     """Get all job campaigns."""
@@ -295,21 +246,21 @@ async def get_campaigns(user: dict = Depends(verify_jwt)):
     for c in campaigns:
         c_dict = c.model_dump() if hasattr(c, "model_dump") else c.dict()
         for cand in c_dict.get("candidates", []):
-            _format_candidate_dict(cand)
+            if cand.get("resume"):
+                cand["structuredProfile"] = cand["resume"].get("structuredProfile")
+                cand["rawCvText"] = cand["resume"].get("rawCvText")
+            else:
+                cand["structuredProfile"] = None
+                cand["rawCvText"] = None
         result.append(c_dict)
     return result
 
 class InterviewAnswer(BaseModel):
     answer: str
-    telemetry: Optional[dict] = None
-    anti_cheat_telemetry: Optional[dict] = None
-    antiCheatTelemetry: Optional[dict] = None
 
 @app.post("/api/candidates/{id}/interview/answer")
 async def submit_interview_answer(id: str, answer_data: InterviewAnswer):
-    raw_telemetry = answer_data.anti_cheat_telemetry or answer_data.antiCheatTelemetry or answer_data.telemetry
-    telemetry_dict = normalize_telemetry(raw_telemetry) if raw_telemetry is not None else None
-    await process_interview_answer(id, answer_data.answer, telemetry=telemetry_dict)
+    await process_interview_answer(id, answer_data.answer)
     updated_cand = await get_candidate(id)
     return updated_cand
 
@@ -392,7 +343,12 @@ async def get_campaign(id: str, user: dict = Depends(verify_jwt)):
     total_cost = 0.0
     for cand in c_dict.get("candidates", []):
         total_cost += cand.get("apiCost", 0.0)
-        _format_candidate_dict(cand)
+        if cand.get("resume"):
+            cand["structuredProfile"] = cand["resume"].get("structuredProfile")
+            cand["rawCvText"] = cand["resume"].get("rawCvText")
+        else:
+            cand["structuredProfile"] = None
+            cand["rawCvText"] = None
     
     # COST_TRACKING: Remove after testing
     c_dict["totalCost"] = total_cost
@@ -412,7 +368,46 @@ async def get_candidate(id: str):
         raise HTTPException(status_code=404, detail="Candidate not found")
     
     cand_dict = candidate.model_dump() if hasattr(candidate, "model_dump") else candidate.dict()
-    return _format_candidate_dict(cand_dict)
+    if cand_dict.get("resume"):
+        cand_dict["structuredProfile"] = cand_dict["resume"].get("structuredProfile")
+        cand_dict["rawCvText"] = cand_dict["resume"].get("rawCvText")
+    else:
+        cand_dict["structuredProfile"] = None
+        cand_dict["rawCvText"] = None
+
+    # Dynamically resolve interview questions, answered count & active currentQuestion
+    if cand_dict.get("evaluation") and cand_dict["evaluation"].get("interviewQuestions"):
+        iq = cand_dict["evaluation"]["interviewQuestions"]
+        if isinstance(iq, str):
+            import json
+            try:
+                iq = json.loads(iq)
+            except Exception:
+                iq = []
+            cand_dict["evaluation"]["interviewQuestions"] = iq
+
+        transcript = cand_dict["evaluation"].get("interviewTranscript") or []
+        if isinstance(transcript, str):
+            import json
+            try:
+                transcript = json.loads(transcript)
+            except Exception:
+                transcript = []
+            cand_dict["evaluation"]["interviewTranscript"] = transcript
+
+        if isinstance(iq, list) and len(iq) > 0:
+            cand_turns = [t for t in transcript if isinstance(t, dict) and t.get("role") == "candidate"]
+            answered_count = len(cand_turns)
+            cand_dict["answeredCount"] = answered_count
+
+            if answered_count < len(iq):
+                q_item = iq[answered_count]
+                cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
+            else:
+                q_item = iq[-1]
+                cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
+
+    return cand_dict
 
 class SendInvitationsRequest(BaseModel):
     candidateIds: List[str]
@@ -561,7 +556,6 @@ async def get_interview_candidates(campaignId: Optional[str] = None, status: Opt
     result = []
     for cand in candidates:
         c_dict = cand.model_dump() if hasattr(cand, "model_dump") else cand.dict()
-        _format_candidate_dict(c_dict)
         c_dict["campaignTitle"] = cand.campaign.title if cand.campaign else "Unknown Campaign"
         c_dict["hasQuestions"] = bool(cand.evaluation and cand.evaluation.interviewQuestions)
         result.append(c_dict)

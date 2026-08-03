@@ -20,22 +20,10 @@ async def generate_followup_probe(question_text: str, brief_answer: str) -> str:
     except Exception:
         return "Could you please elaborate with a specific example or more details on your role in this?"
 
-def create_adaptive_probe_dict(probe_question_text: str, category: str = "Technical", what_to_look_for: str = "Detailed elaboration and concrete technical evidence") -> dict:
-    """Helper to structure an adaptive follow-up probe turn with a 45-second timer."""
-    return {
-        "question": f"[Follow-up] {probe_question_text}" if not probe_question_text.startswith("[Follow-up]") else probe_question_text,
-        "category": f"{category} (Follow-up)" if "Follow-up" not in category else category,
-        "what_to_look_for": what_to_look_for,
-        "is_probe": True,
-        "is_adaptive": True,
-        "timer_seconds": 45
-    }
-
 async def interviewer_node(state: RecruitmentState) -> dict:
     """
     Conduct the interview one question at a time using LangGraph interrupt,
-    with bounded adaptive probing (max 1 follow-up probe per core question)
-    and a shorter 45-second timer for adaptive sub-questions.
+    with bounded adaptive probing (max 1 follow-up probe per core question).
     """
     questions: list[InterviewQuestion] = state.get("interview_questions", [])
     transcript = state.get("interview_transcript") or InterviewTranscript()
@@ -60,9 +48,7 @@ async def interviewer_node(state: RecruitmentState) -> dict:
         "total_questions": len(questions),
         "category": current_q.category,
         "question": current_q.question,
-        "is_probe": getattr(current_q, "is_probe", False) or False,
-        "is_adaptive": getattr(current_q, "is_adaptive", False) or False,
-        "timer_seconds": getattr(current_q, "timer_seconds", 90) or 90
+        "is_probe": False
     })
 
     answer_str = str(answer).strip()
@@ -73,16 +59,13 @@ async def interviewer_node(state: RecruitmentState) -> dict:
         probe_question = await generate_followup_probe(current_q.question, answer_str)
         transcript.probe_counts[idx] = 1
 
-        # Interrupt again for the adaptive probe - marked with 45s timer for adaptive sub-question
+        # Interrupt again for the adaptive probe
         probe_answer = interrupt({
             "question_number": idx + 1,
             "total_questions": len(questions),
             "category": f"{current_q.category} (Follow-up)",
             "question": probe_question,
-            "is_probe": True,
-            "is_adaptive": True,
-            "timer_seconds": 45,
-            "time_limit": 45
+            "is_probe": True
         })
 
         probe_answer_str = str(probe_answer).strip()
@@ -103,9 +86,6 @@ async def interviewer_node(state: RecruitmentState) -> dict:
 def current_question_with_probe(q: InterviewQuestion, probe_text: str) -> InterviewQuestion:
     return InterviewQuestion(
         question=f"{q.question} (Follow-up: {probe_text})",
-        category=f"{q.category} (Follow-up)",
-        what_to_look_for=q.what_to_look_for,
-        is_probe=True,
-        is_adaptive=True,
-        timer_seconds=45
+        category=q.category,
+        what_to_look_for=q.what_to_look_for
     )

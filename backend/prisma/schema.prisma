@@ -97,9 +97,6 @@ model Evaluation {
   chainOfThought      String?
   interviewTranscript Json?
   interviewQuestions  Json?
-  aiGeneratedLikelihoodScore Float?   @default(0.0)
-  antiCheatFlags      Json?
-  antiCheatMetadata   Json?
   
   candidate           Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   

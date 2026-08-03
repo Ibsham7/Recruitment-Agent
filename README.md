@@ -285,59 +285,6 @@ flowchart TD
 
 ---
 
-## 🛡️ Multi-Layered Interview Anti-Cheat Engine
-
-To prevent candidates from externalizing interview responses using AI tools like ChatGPT or external search engines, the system incorporates an end-to-end multi-layered anti-cheat mechanism supported by real-time client telemetry, dynamic timers, resume anchoring, and AI-text likelihood scoring.
-
-```mermaid
-flowchart TD
-    subgraph Client ["Client Browser Telemetry (InterviewPage)"]
-        TabBlur["👁️ Page Visibility & Blur Detection<br/><i>Tracks visibilitychange & focus loss</i>"]
-        PasteTrack["📋 Paste Event Tracking<br/><i>Monitors paste count, chars, & length ratio</i>"]
-        Timer["⏱️ 60-90s Per-Question Timer<br/><i>Enforces strict clock & auto-submit</i>"]
-    end
-
-    subgraph Backend ["FastAPI & LangGraph Engine"]
-        API["POST /interview/answer<br/><i>Ingests telemetry metadata</i>"]
-        QuestionGen["🎯 Resume-Anchored Question Generator<br/><i>Forces candidate CV specificity</i>"]
-        Evaluator["🧠 Evaluator Node<br/><i>Calculates aiGeneratedLikelihoodScore (0-100%)</i>"]
-    end
-
-    subgraph Recruiter ["Recruiter Oversight"]
-        UI["Candidate Inspection Drawer<br/><i>Risk severity badges & audit trail</i>"]
-    end
-
-    TabBlur & PasteTrack & Timer --> API --> Evaluator
-    QuestionGen --> Timer
-    Evaluator --> UI
-```
-
-### 🔑 Core Anti-Cheat Pillars
-
-1. **👁️ Real-Time Focus & Tab-Switch Detection (`visibilitychange`, `blur`, `focus`)**
-   * Listens for tab switches, browser window blurs, and visibility changes during each question turn.
-   * Tracks event count, out-of-focus duration, and flags candidates exceeding focus loss thresholds.
-
-2. **📋 Paste-Event & Burst Text Telemetry (`onPaste`)**
-   * Captures paste operations on the answer text area, recording paste counts, total pasted character counts, paste timestamps, and paste ratio ($\frac{\text{Pasted Chars}}{\text{Total Answer Length}}$).
-   * Detects rapid burst text injections to flag automated extensions or clipboard pastes.
-
-3. **⏱️ Per-Question Timers & Bounded Adaptive Probing**
-   * Configurable 60s–90s countdown clock per question. Auto-submits candidate responses upon timer expiration without losing typed progress.
-   * Adaptive follow-up probes feature a refreshed 45-second clock, drastically restricting the time available to round-trip queries to ChatGPT.
-
-4. **🎯 Resume-Anchored Hyper-Specific Questioning**
-   * The `question_generator` node anchors questions directly to candidate resume details (previous companies, tech stack, metrics, specific projects).
-   * Eliminates textbook AI responses; generic ChatGPT outputs immediately clash with hyper-specific questions about the candidate's actual work history.
-
-5. **🤖 4th Signal: AI-Text Likelihood Scoring & Flagging**
-   * The `evaluator` node scores `aiGeneratedLikelihoodScore` (0–100%) as a 4th dimension alongside Technical, Communication, and Cultural Fit scores.
-   * Scans transcripts for AI phrasing hallmarks (overused transitional phrases, structural markdown overuse, robotic tone, telemetry anomalies).
-   * Displays risk severity badges (**Clean**, **Caution**, **High Risk**) and turn-by-turn audit logs in the Recruiter Candidate Inspection Drawer.
-
----
-
-
 
 ## 📁 Repository Structure
 

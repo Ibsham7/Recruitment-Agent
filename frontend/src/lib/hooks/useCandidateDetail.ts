@@ -44,10 +44,6 @@ export async function fetchCandidateDetail(id: string) {
     scoreBreakdown: evalData.scoreBreakdown || null,
     chainOfThought: evalData.chainOfThought || "No reasoning provided.",
     transcript: evalData.interviewTranscript || [],
-    aiGeneratedLikelihoodScore: evalData.aiGeneratedLikelihoodScore ?? candidateData.aiGeneratedLikelihoodScore ?? 0,
-    antiCheatFlags: evalData.antiCheatFlags || candidateData.antiCheatFlags || [],
-    antiCheatMetadata: evalData.antiCheatMetadata || candidateData.antiCheatMetadata,
-    evaluation: evalData,
   };
 
   const campaign: Campaign | null = candidateData.campaign || null;

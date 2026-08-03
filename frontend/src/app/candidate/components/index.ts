@@ -7,4 +7,3 @@ export * from "./StrengthsConcernsPanel";
 export * from "./ScoreBreakdownPanel";
 export * from "./TranscriptPanel";
 export * from "./DecisionBar";
-export * from "./AntiCheatInspectionCard";

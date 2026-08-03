@@ -76,23 +76,6 @@ export interface ScoreBreakdown {
   penalties_breakdown?: PenaltyBreakdownItem[];
 }
 
-export interface AntiCheatFlag {
-  flag: string;
-  severity: 'low' | 'medium' | 'high';
-  description: string;
-}
-
-export interface AntiCheatMetadata {
-  blurCount: number;
-  focusDuration: number; // in seconds
-  pasteCount: number;
-  totalPastedChars: number;
-  totalAnswerChars: number;
-  pasteRatio: number;
-  pasteTimestamps: string[];
-  flags: string[];
-}
-
 export interface Evaluation {
   id: string;
   candidateId: string;
@@ -108,9 +91,6 @@ export interface Evaluation {
   chainOfThought?: string;
   interviewTranscript: any;
   interviewQuestions?: any;
-  aiGeneratedLikelihoodScore?: number;
-  antiCheatFlags?: AntiCheatFlag[];
-  antiCheatMetadata?: AntiCheatMetadata;
   createdAt: string;
 }
 
@@ -150,9 +130,6 @@ export interface Candidate {
   scoreBreakdown?: ScoreBreakdown;
   chainOfThought?: string;
   transcript?: any[];
-  aiGeneratedLikelihoodScore?: number;
-  antiCheatFlags?: AntiCheatFlag[];
-  antiCheatMetadata?: AntiCheatMetadata;
   
   evaluation?: Evaluation;
 }
