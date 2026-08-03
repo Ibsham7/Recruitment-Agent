@@ -1,5 +1,4 @@
-import { useNavigate } from "react-router";
-import { CheckCircle, XCircle, Clock, Pause, FileText, ExternalLink, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Pause, FileText, ExternalLink } from "lucide-react";
 import { Theme, Candidate } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { getCandidateDisplayName } from "../../../lib/candidate";
@@ -11,7 +10,6 @@ export interface CandidateHeaderProps {
 
 export function CandidateHeader({ candidate, theme: t }: CandidateHeaderProps) {
   const G = getGlass(t);
-  const navigate = useNavigate();
   const recommendation = candidate.recommendation || "pending";
   const recCfg = {
     shortlist: { label: "Highly Recommended", color: t.numPos, icon: <CheckCircle size={13} /> },
@@ -34,26 +32,6 @@ export function CandidateHeader({ candidate, theme: t }: CandidateHeaderProps) {
 
   return (
     <div className="px-8 py-5 flex-shrink-0" style={G.bar}>
-      <div className="flex items-center gap-4 mb-3">
-        <button
-          onClick={() => {
-            if (candidate.campaignId) {
-              navigate(`/pipeline/${candidate.campaignId}`);
-            } else {
-              navigate(-1);
-            }
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all hover:opacity-80 cursor-pointer"
-          style={{
-            background: hexToRgba(t.bgCard, t.isDark ? 0.3 : 0.6),
-            color: t.txtSecondary,
-            border: `1px solid ${hexToRgba(t.txtPrimary, 0.12)}`
-          }}
-        >
-          <ArrowLeft size={13} /> Back to Pipeline
-        </button>
-      </div>
-
       <div className="flex items-center gap-5">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-semibold flex-shrink-0"

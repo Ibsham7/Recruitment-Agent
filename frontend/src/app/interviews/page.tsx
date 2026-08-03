@@ -5,9 +5,6 @@ import { apiFetch } from "../../lib/api";
 import { Sparkles, Sliders, Loader2, Send } from "lucide-react";
 import { GlobalSpotlight } from "../../components/common/MagicBento";
 
-import { queryClient } from "../queryClient";
-import { getCandidateQueryKey } from "../../lib/hooks/useCandidateDetail";
-
 import { InterviewCandidate, CampaignItem } from "./types";
 import {
   InterviewsStats,
@@ -184,7 +181,6 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
       setToastMessage(`Candidate decision recorded: ${decision.toUpperCase()}`);
       setInspectingCandidate(null);
       await fetchCandidates();
-      await queryClient.invalidateQueries({ queryKey: getCandidateQueryKey(candidateId) });
     } catch (err: any) {
       setToastMessage(`Error: ${err.message || "Failed to submit decision"}`);
     } finally {
