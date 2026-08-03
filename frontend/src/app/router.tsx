@@ -18,6 +18,8 @@ const PrivacyPage = lazy(() => import("./privacy/page"));
 const TermsPage = lazy(() => import("./terms/page"));
 const NotFoundPage = lazy(() => import("./not-found"));
 
+import RouteErrorPage from "./error-page";
+
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./queryClient";
 
@@ -55,6 +57,7 @@ export function AppRouter() {
   const router = createBrowserRouter([
     {
       path: "/",
+      errorElement: <RouteErrorPage theme={PRESETS[4]} />,
       element: (
         <Suspense fallback={<PageLoader theme={PRESETS[4]} />}>
           <LandingPage theme={PRESETS[4]} />
@@ -63,6 +66,7 @@ export function AppRouter() {
     },
     {
       path: "/auth",
+      errorElement: <RouteErrorPage theme={theme} />,
       element: (
         <Suspense fallback={<PageLoader theme={theme} />}>
           <AuthPage theme={theme} />
@@ -71,6 +75,7 @@ export function AppRouter() {
     },
     {
       path: "/interview/:id",
+      errorElement: <RouteErrorPage theme={theme} />,
       element: (
         <Suspense fallback={<PageLoader theme={theme} />}>
           <InterviewPage theme={theme} />
@@ -79,6 +84,7 @@ export function AppRouter() {
     },
     {
       path: "/privacy",
+      errorElement: <RouteErrorPage theme={theme} />,
       element: (
         <Suspense fallback={<PageLoader theme={theme} />}>
           <PrivacyPage theme={theme} />
@@ -87,6 +93,7 @@ export function AppRouter() {
     },
     {
       path: "/terms",
+      errorElement: <RouteErrorPage theme={theme} />,
       element: (
         <Suspense fallback={<PageLoader theme={theme} />}>
           <TermsPage theme={theme} />
@@ -95,6 +102,7 @@ export function AppRouter() {
     },
     {
       path: "/",
+      errorElement: <RouteErrorPage theme={theme} />,
       element: (
         <ProtectedRoute>
           <Layout theme={theme} setTheme={setTheme} />
@@ -103,6 +111,7 @@ export function AppRouter() {
       children: [
         {
           path: "dashboard",
+          errorElement: <RouteErrorPage theme={theme} />,
           element: (
             <Suspense fallback={<PageLoader theme={theme} />}>
               <DashboardPage theme={theme} />
@@ -111,6 +120,7 @@ export function AppRouter() {
         },
         {
           path: "interviews",
+          errorElement: <RouteErrorPage theme={theme} />,
           element: (
             <Suspense fallback={<PageLoader theme={theme} />}>
               <InterviewsPage theme={theme} />
@@ -119,6 +129,7 @@ export function AppRouter() {
         },
         {
           path: "setup",
+          errorElement: <RouteErrorPage theme={theme} />,
           element: (
             <Suspense fallback={<PageLoader theme={theme} />}>
               <SetupPage theme={theme} />
@@ -127,6 +138,7 @@ export function AppRouter() {
         },
         {
           path: "pipeline/:id",
+          errorElement: <RouteErrorPage theme={theme} />,
           element: (
             <Suspense fallback={<PageLoader theme={theme} />}>
               <PipelinePage theme={theme} />
@@ -135,6 +147,7 @@ export function AppRouter() {
         },
         {
           path: "candidate/:id",
+          errorElement: <RouteErrorPage theme={theme} />,
           element: (
             <Suspense fallback={<PageLoader theme={theme} />}>
               <CandidatePage theme={theme} />
@@ -143,6 +156,7 @@ export function AppRouter() {
         },
         {
           path: "notfound",
+          errorElement: <RouteErrorPage theme={theme} />,
           element: (
             <Suspense fallback={<PageLoader theme={theme} />}>
               <NotFoundPage theme={theme} />
@@ -151,6 +165,7 @@ export function AppRouter() {
         },
         {
           path: "*",
+          errorElement: <RouteErrorPage theme={theme} />,
           element: (
             <Suspense fallback={<PageLoader theme={theme} />}>
               <NotFoundPage theme={theme} />
