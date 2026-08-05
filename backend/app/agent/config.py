@@ -19,17 +19,23 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 
 def get_model(tier: str = "smart", max_tokens: int = None) -> ChatOpenAI:
     """
-    smart  → google/gemini-2.5-flash: Highly reliable and intelligent model with 1M context for complex JSON parsing.
-    fast   → google/gemini-2.5-flash-lite: Using a non-reasoning, cost-effective model for fast and bulk extraction tasks.
+    smart  → google/gemini-2.5-flash: High-performance reasoning model for structured/complex extraction.
+    fast   → google/gemini-2.5-flash-lite: Fast, cost-effective model for initial extraction pass.
     """
-    kwargs = {"seed": 42, "top_p": 0.01}
-    if tier != "smart":
-        kwargs["extra_body"] = {"include_reasoning": False}
+    kwargs = {
+        "seed": 42,
+        "top_p": 0.01,
+        "extra_body": {"include_reasoning": False},
+        "default_headers": {
+            "HTTP-Referer": "https://recruitmentagent.ai",
+            "X-Title": "Recruitment Agent"
+        }
+    }
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
         
     return ChatOpenAI(
-        model=MODELS[tier],
+        model=MODELS.get(tier, MODELS["fast"]),
         openai_api_base=OPENROUTER_BASE,  # type: ignore
         openai_api_key=OPENROUTER_KEY,    # type: ignore
         temperature=0,        # deterministic — you want consistent scoring

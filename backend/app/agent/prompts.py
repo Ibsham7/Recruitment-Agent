@@ -33,12 +33,22 @@ every field concise (max 5 key must_have items, evidence under 10 words each), d
 
 ## Step 1 — Extract requirements
 List the JD's must-have and nice-to-have requirements as short phrases.
+TENURE EXCLUSION RULE: Do NOT include years of experience, tenure numbers, or total duration requirements (e.g. "5+ years experience", "3 years Python exp") in must_have or nice_to_have requirement lists. All tenure, duration, and years of experience MUST be evaluated exclusively in Step 3 (Experience Depth). must_have MUST contain ONLY qualitative skills, tools, domain competencies, methodologies, and certifications.
 
 ## Step 2 — Map evidence
 For each requirement, mark "full", "partial", or "none" based on direct
 evidence in the candidate profile. "Partial" covers adjacent/transferable
 evidence — a related tool, methodology, campaign, shorter duration than required, or comparable
 experience (counted at 50% credit).
+
+EVIDENCE MATCHING & STRETCHING PREVENTION RULES:
+1. FUNCTIONAL EQUIVALENCE REQUIREMENT FOR PARTIAL CREDIT:
+   "Partial" credit is strictly reserved for tools, frameworks, or practices that perform the EXACT SAME operational function as the requirement (e.g. Jenkins or GitLab CI when GitHub Actions is requested; MariaDB when MySQL is requested). Downstream, complementary, or deployment target activities DO NOT satisfy a pipeline/tool requirement (e.g., deploying code to a PaaS hosting target like Azure App Service, Heroku, or AWS EC2 is hosting deployment, NOT CI/CD pipeline automation experience — mark as "none").
+2. PROFICIENCY QUALIFIER CAPS:
+   Candidate statements containing qualifying phrases such as "some exposure to", "basic knowledge of", "familiarity with", "assisted with", "supervised use of", or "limited experience with" MUST NOT be credited as a "full" match under any circumstances. They MUST be capped at "partial" (or "none" if requirement demands deep hands-on expertise).
+3. EXPLICIT COUNTER-EXAMPLES:
+   - Requirement: "CI/CD Pipelines (GitHub Actions / Jenkins)". Candidate CV: "Deployed services to Azure App Service". Match: "none". Reason: Hosting deployment is not automated CI/CD pipeline tooling experience.
+   - Requirement: "PostgreSQL Database Management". Candidate CV: "Some exposure to PostgreSQL query writing". Match: "partial". Reason: Supervised/limited exposure cannot be credited as a full match.
 
 Multi-Role & Portfolio Evidence Rule (Domain-Agnostic):
 Demonstrated active usage or application of a skill/competency across multiple
@@ -61,7 +71,7 @@ especially at small companies or startups without formal leveling.
 - required_skills_score: % of must-have requirements at full(100)/partial(50)/none(0)
 - experience_score: from Step 3 (0-100)
 - nice_to_have_score: % of preferred requirements met (0-100)
-- trajectory_score: confidence the candidate succeeds here given transferable skills/learning signal (0-100)
+- trajectory_score: learning signal & technical adaptability grounded in verified historical progress or adjacent skills (0-100). MUST NOT be based on self-proclaimed enthusiasm or soft phrases ("fast learner", "passionate"). If required_skills_score < 25%, trajectory_score MUST NOT exceed 40%.
 
 ## Step 6 — Compute fit_score
 Weighted average: required_skills_score 50%, experience_score 25%,
@@ -96,11 +106,21 @@ single JSON object based on the provided schema. Keep every field concise.
 
 ## Step 1 — Extract requirements
 List the JD's must-have and nice-to-have requirements as short phrases.
+TENURE EXCLUSION RULE: Do NOT include years of experience, tenure numbers, or total duration requirements (e.g. "5+ years experience", "3 years Python exp") in must_have or nice_to_have requirement lists. All tenure, duration, and years of experience MUST be evaluated exclusively in Step 3 (Experience Depth). must_have MUST contain ONLY qualitative skills, tools, domain competencies, methodologies, and certifications.
 
 ## Step 2 — Map evidence
 For each requirement, mark "full", "partial", or "none". Be critical:
 "partial" requires genuinely comparable direct evidence (25% credit max), not just an adjacent
 tool/domain or aspirational transferability.
+
+EVIDENCE MATCHING & STRETCHING PREVENTION RULES:
+1. FUNCTIONAL EQUIVALENCE REQUIREMENT FOR PARTIAL CREDIT:
+   "Partial" credit is strictly reserved for tools, frameworks, or practices that perform the EXACT SAME operational function as the requirement (e.g. Jenkins or GitLab CI when GitHub Actions is requested). Downstream or deployment target activities DO NOT satisfy a pipeline/tool requirement (e.g., deploying code to Azure App Service is hosting deployment, NOT CI/CD pipeline automation experience — mark as "none").
+2. PROFICIENCY QUALIFIER CAPS:
+   Candidate statements containing qualifying phrases such as "some exposure to", "basic knowledge of", "familiarity with", "assisted with", "supervised use of", or "limited experience with" MUST NOT be credited as a "full" match under any circumstances. They MUST be capped at "partial" (or "none" if requirement demands deep hands-on expertise).
+3. EXPLICIT COUNTER-EXAMPLES:
+   - Requirement: "CI/CD Pipelines (GitHub Actions / Jenkins)". Candidate CV: "Deployed services to Azure App Service". Match: "none". Reason: Hosting deployment is not automated CI/CD pipeline tooling experience.
+   - Requirement: "PostgreSQL Database Management". Candidate CV: "Some exposure to PostgreSQL query writing". Match: "partial". Reason: Supervised/limited exposure cannot be credited as a full match.
 
 Multi-Role & Portfolio Evidence Rule (Domain-Agnostic):
 Active application of a skill or domain competency across multiple professional
@@ -126,7 +146,7 @@ companies or startups without formal leveling.
 - required_skills_score: % of must-have requirements at full(100)/partial(25)/none(0)
 - experience_score: from Step 3 (heavily penalized for gaps)
 - nice_to_have_score: % of preferred requirements met with direct evidence
-- trajectory_score: minimal weight here (0-50) — only for clearly demonstrated, evidenced potential
+- trajectory_score: minimal weight here (0-50) — only for clearly demonstrated, evidenced potential and verified career velocity. Soft fluff ("quick learner") receives 0 credit. If required_skills_score < 25%, trajectory_score MUST NOT exceed 30%.
 
 ## Step 6 — Compute fit_score
 Weighted average: required_skills_score 55%, experience_score 30%,
@@ -162,11 +182,21 @@ single JSON object based on the provided schema. Keep every field concise.
 ## Step 1 — Extract requirements
 List the JD's core competencies and nice-to-have requirements as short
 phrases.
+TENURE EXCLUSION RULE: Do NOT include years of experience, tenure numbers, or total duration requirements (e.g. "5+ years experience", "3 years Python exp") in must_have or nice_to_have requirement lists. All tenure, duration, and years of experience MUST be evaluated exclusively in Step 3 (Experience Depth). must_have MUST contain ONLY qualitative skills, tools, domain competencies, methodologies, and certifications.
 
 ## Step 2 — Map evidence
 For each requirement, mark "full", "partial", or "none". Look actively for
 projects, campaigns, adjacent tools, or past experience that could transfer, even if
 not an exact match — mark these "partial" generously (75-80% credit) or "full" (100%) if senior background.
+
+EVIDENCE MATCHING & STRETCHING PREVENTION RULES:
+1. FUNCTIONAL EQUIVALENCE REQUIREMENT FOR PARTIAL CREDIT:
+   "Partial" credit is strictly reserved for tools, frameworks, or practices that perform the EXACT SAME operational function as the requirement (e.g. Jenkins or GitLab CI when GitHub Actions is requested). Downstream or deployment target activities DO NOT satisfy a pipeline/tool requirement (e.g., deploying code to Azure App Service is hosting deployment, NOT CI/CD pipeline automation experience — mark as "none").
+2. PROFICIENCY QUALIFIER CAPS:
+   Candidate statements containing qualifying phrases such as "some exposure to", "basic knowledge of", "familiarity with", "assisted with", "supervised use of", or "limited experience with" MUST NOT be credited as a "full" match under any circumstances. They MUST be capped at "partial" (or "none" if requirement demands deep hands-on expertise).
+3. EXPLICIT COUNTER-EXAMPLES:
+   - Requirement: "CI/CD Pipelines (GitHub Actions / Jenkins)". Candidate CV: "Deployed services to Azure App Service". Match: "none". Reason: Hosting deployment is not automated CI/CD pipeline tooling experience.
+   - Requirement: "PostgreSQL Database Management". Candidate CV: "Some exposure to PostgreSQL query writing". Match: "partial". Reason: Supervised/limited exposure cannot be credited as a full match.
 
 Multi-Role & Portfolio Evidence Rule (Domain-Agnostic):
 Sustained usage of a competency across multiple roles, projects, or business initiatives
@@ -188,7 +218,7 @@ of impact, not on self-assigned job titles.
 - required_skills_score: % of core requirements at full(100)/partial(75)/none(0)
 - experience_score: from Step 3 (modest reduction for shortfalls)
 - nice_to_have_score: % of preferred requirements met
-- trajectory_score: generous credit (80-100) for transferable skills, adjacent domains, and learning signal
+- trajectory_score: credit (80-100) for transferable skills, adjacent domains, and verified learning velocity. MUST be grounded in actual past technical/domain achievements, NOT unevidenced enthusiasm. If required_skills_score < 25%, trajectory_score MUST NOT exceed 50%.
 
 ## Step 6 — Compute fit_score
 Weighted average: required_skills_score 45%, experience_score 20%,
@@ -271,12 +301,45 @@ CV_PARSER_SYSTEM = """
 You are a CV parsing expert across all professional fields (tech, marketing, business, finance, healthcare, legal, operations, etc.). Extract structured information from the CV text provided.
 
 Rules:
-- experience_calculation: Keep very concise (max 15 words, e.g. Role A 24 months, Role B 12 months)
-- total_experience_years: calculate from dates if possible, estimate otherwise
+- previous_roles: Extract each past/current job position as a structured object with title, company, start_date (verbatim from CV e.g., '01/2021', 'Jan 2021', '2021'), end_date (verbatim from CV e.g., '06/2024', 'Present', 'Current', '2024'), is_current (true if ongoing), skills_used (list of key tools/technologies/methods used), and description.
+- Do NOT compute or guess date arithmetic for total_experience_years — extract raw dates accurately and backend Python code will calculate non-overlapping tenure deterministically.
 - skills: include both domain/technical (e.g., Python, SEO, Financial Analysis) and soft (e.g., leadership, communication)
 - projects: include notable academic, personal, or professional projects/campaigns
 - other_info: include anything else that is relevant like certifications, awards, licenses, etc.
 - Do not invent information. If something is not in the CV, omit it or use null.
 """
 
-JD_DISTILLER_SYSTEM = """You are a helpful assistant. Extract ONLY the core skills, required experience, and key responsibilities from this Job Description. Exclude company boilerplate, benefits, and EEO statements. Be concise."""
+CANONICAL_JD_DISTILLER_PROMPT = """You are an expert recruitment analyst extracting a canonical job specification from a Job Description.
+
+## Task
+Distill the raw Job Description into a single JSON object matching the CanonicalJDSpec schema.
+Separate qualitative technical/domain skills from total experience duration requirements, and classify qualifications into must_have (mandatory) versus nice_to_have (preferred/plus).
+
+## Fields to Extract:
+1. `role_title`: The target job title stated in the JD (e.g., "Senior Software Engineer").
+2. `required_years`: Overall minimum professional experience required in years (e.g., 5.0 for "5+ years experience"). Extract as a float.
+3. `must_have_skills`: List of MANDATORY qualifications.
+   Each item must contain:
+   - `id`: Unique string ID (e.g. "MUST_01", "MUST_02").
+   - `requirement_name`: Short canonical name for the requirement (e.g., "Python & Django Development").
+   - `req_type`:
+     - Set `"tenure_duration"` ONLY if the requirement specifies years of experience or tenure duration (e.g. "5+ years experience").
+     - Set `"qualitative_skill"` for all technical skills, frameworks, databases, tools, degree requirements, or domain competencies.
+   - `category`: `"must_have"`
+   - `jd_quote`: VERBATIM string quote copied directly from the Job Description text proving requirement existence.
+4. `nice_to_have_skills`: List of PREFERRED or PLUS qualifications.
+   Each item must contain:
+   - `id`: Unique string ID (e.g. "NICE_01", "NICE_02").
+   - `requirement_name`: Short canonical name for preferred skill.
+   - `req_type`: `"qualitative_skill"` (or `"tenure_duration"` if tenure-related).
+   - `category`: `"nice_to_have"`
+   - `jd_quote`: VERBATIM string quote copied directly from the Job Description text proving requirement existence.
+
+## CRITICAL RULES:
+1. VERBATIM ANCHORING (`jd_quote`): Every extracted requirement MUST include an exact verbatim substring copied directly from the input Job Description text. Do NOT synthesize or summarize quotes.
+2. TENURE SEPARATION: Explicitly tag years-of-experience requirements as `req_type="tenure_duration"`. Do NOT tag qualitative technical skills as tenure.
+3. ZERO HALLUCINATION: Extract ONLY requirements explicitly mentioned in the Job Description text. Do NOT invent certifications, frameworks, or tools not present in the text.
+"""
+
+JD_DISTILLER_SYSTEM = CANONICAL_JD_DISTILLER_PROMPT
+

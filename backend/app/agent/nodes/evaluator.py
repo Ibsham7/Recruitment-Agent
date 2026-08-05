@@ -193,6 +193,8 @@ Ensure your output populates:
     max_retries = 3
     report = None
     total_cost = 0.0
+    stage_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
     for attempt in range(max_retries):
         max_tokens = 4000 if attempt == 0 else 8000
         model = get_model("smart", max_tokens=max_tokens)
@@ -207,8 +209,12 @@ Ensure your output populates:
                 err = result.get("parsing_error") if isinstance(result, dict) else None
                 raise ValueError(f"Failed to parse EvaluationReport: {err or 'LLM output was truncated or unparseable'}")
             report = parsed_res
-            from app.agent.utils import extract_cost
-            total_cost = extract_cost(result)
+            from app.agent.utils import extract_cost_and_tokens
+            cost, token_info = extract_cost_and_tokens(result, model_name="google/gemini-2.5-flash")
+            total_cost += cost
+            stage_tokens["input_tokens"] += token_info.get("input_tokens", 0)
+            stage_tokens["output_tokens"] += token_info.get("output_tokens", 0)
+            stage_tokens["total_tokens"] += token_info.get("total_tokens", 0)
             
             # Populate & synthesize ai_generated_likelihood_score and anti_cheat_flags
             llm_ai_score = float(report.ai_generated_likelihood_score or 0.0)
@@ -239,5 +245,11 @@ Ensure your output populates:
         "evaluation_report": report,
         "pipeline_status": "review",   # signal ready for human review
         "log": [f"Evaluated: {report.recommendation.upper()} (score={report.overall_score}, ai_likelihood={report.ai_generated_likelihood_score})"],
-        "total_cost": total_cost
-    }
+        "total_cost": round(total_cost, 6),
+        "stage_costs": {
+            "evaluator": {
+                "cost": round(total_cost, 6),
+                "tokens": stage_tokens
+            }
+        }
+    }

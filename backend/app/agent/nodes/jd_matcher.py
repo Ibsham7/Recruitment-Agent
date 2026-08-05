@@ -1,15 +1,180 @@
 import json
-from app.agent.config import get_model
-from app.agent.schemas import ScreeningResult
+import re
+from app.agent.config import get_model, MODELS
+from app.agent.schemas import (
+    ScreeningResult,
+    CompactScreeningOutput,
+    CanonicalJDSpec,
+    CanonicalJDRequirement,
+    RequirementMatch,
+    ScoreBreakdown
+)
 from app.agent.state import RecruitmentState
-from app.agent.utils import extract_cost, extract_json, clean_surrogates
+from app.agent.utils import extract_cost_and_tokens, extract_json, clean_surrogates
 from langchain_core.messages import HumanMessage, SystemMessage
-from app.agent.prompts import JD_MATCHER_PROMPTS
+from app.agent.prompts import JD_MATCHER_PROMPTS, CANONICAL_JD_DISTILLER_PROMPT
 from app.core.logging import logger
+from app.agent.tools.scoring import TENURE_PATTERN, calculate_weighted_fit_score
+
+# In-memory cache for canonical JD specifications to freeze requirements per JD text
+_JD_SPEC_CACHE: dict[str, CanonicalJDSpec] = {}
+
+# In-memory cache for match assessments: keyed by (candidate_name, jd_fingerprint).
+# Ensures all screening modes (lenient / moderate / strict) share the SAME LLM-assigned
+# full/partial/none match levels — mode differentiation is handled deterministically by
+# MATCH_MULTIPLIERS in scoring.py (75% / 50% / 25% partial credit).
+# Guarantees structural L >= M >= S monotonicity with zero LLM re-invocation cost.
+_MATCH_ASSESSMENT_CACHE: dict[str, CompactScreeningOutput] = {}
+
+
+def verify_and_clean_quote(quote: str, raw_jd: str) -> tuple[bool, str]:
+    """Verify if jd_quote is present in raw_jd text via case-insensitive & whitespace-normalized substring matching."""
+    if not quote or not quote.strip():
+        return False, ""
+
+    # Strip outer quotation marks (including smart/curly unicode quotes) AND surrounding/padded whitespace
+    clean_q = quote.strip()
+    quote_chars = "\"'`‘’‚‛“”„‟«»‹›"
+    prev = None
+    while clean_q != prev:
+        prev = clean_q
+        clean_q = clean_q.strip(quote_chars).strip()
+
+    if not clean_q:
+        return False, ""
+
+    clean_q_lower = clean_q.lower()
+    clean_raw = raw_jd.strip().lower()
+
+    # 1. Exact substring match
+    if clean_q_lower in clean_raw:
+        return True, clean_q
+
+    # 2. Collapse internal whitespace (newlines/tabs -> single space)
+    norm_q = re.sub(r"\s+", " ", clean_q_lower)
+    norm_raw = re.sub(r"\s+", " ", clean_raw)
+    if norm_q in norm_raw:
+        return True, clean_q
+
+    # 3. Partial window match (at least 4 consecutive words found in raw JD)
+    words = norm_q.split()
+    if len(words) >= 4:
+        four_words = " ".join(words[:4])
+        if four_words in norm_raw:
+            return True, clean_q
+
+    return False, ""
+
+
+async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
+    """Distill raw Job Description into a canonical specification upfront with model escalation and quote verification."""
+    jd_clean = clean_surrogates(jd_text)
+    cache_key = jd_clean.strip()
+    if cache_key in _JD_SPEC_CACHE:
+        logger.info("[JD Distiller] Returning cached CanonicalJDSpec")
+        return _JD_SPEC_CACHE[cache_key]
+
+    logger.info("[JD Distiller] Extracting canonical JD requirements upfront")
+
+    model_escalation = [
+        ("fast", 4096, True),
+        ("smart", 8192, True),
+        ("smart", 8192, False),
+    ]
+
+    human_content = f"JOB DESCRIPTION:\n{jd_clean}"
+    last_exception = None
+
+    for attempt, (tier, token_limit, use_structured) in enumerate(model_escalation):
+        model_name = MODELS.get(tier, "google/gemini-2.5-flash-lite")
+        try:
+            m = get_model(tier, max_tokens=token_limit)
+            if use_structured:
+                sm = m.with_structured_output(CanonicalJDSpec, method="json_schema", include_raw=True)
+                response = await sm.ainvoke([
+                    SystemMessage(content=CANONICAL_JD_DISTILLER_PROMPT),
+                    HumanMessage(content=human_content)
+                ])
+                r = response.get("parsed") if isinstance(response, dict) else None
+                if not r and isinstance(response, dict):
+                    raw_msg = response.get("raw")
+                    raw_text = raw_msg.content if hasattr(raw_msg, "content") else (str(raw_msg) if raw_msg else None)
+                    if raw_text:
+                        extracted = extract_json(raw_text)
+                        parsed_dict = json.loads(extracted)
+                        r = CanonicalJDSpec.model_validate(parsed_dict)
+            else:
+                raw_prompt = CANONICAL_JD_DISTILLER_PROMPT + "\nOutput a single valid JSON object matching the CanonicalJDSpec schema."
+                raw_resp = await m.ainvoke([
+                    SystemMessage(content=raw_prompt),
+                    HumanMessage(content=human_content)
+                ])
+                raw_text = raw_resp.content if hasattr(raw_resp, "content") else str(raw_resp)
+                extracted = extract_json(raw_text)
+                parsed_dict = json.loads(extracted)
+                r = CanonicalJDSpec.model_validate(parsed_dict)
+
+            if not r or not (r.must_have_skills or r.nice_to_have_skills or r.required_years > 0):
+                raise ValueError("Incomplete CanonicalJDSpec extracted from LLM")
+
+            # Post-processing: Substring verification & tenure separation
+            final_must_have: list[CanonicalJDRequirement] = []
+            final_nice_to_have: list[CanonicalJDRequirement] = []
+            max_tenure_years = r.required_years
+
+            all_raw_requirements = list(r.must_have_skills) + list(r.nice_to_have_skills)
+
+            for req in all_raw_requirements:
+                # Check for tenure match using regex pattern or req_type
+                is_tenure = (
+                    req.req_type == "tenure_duration" or
+                    TENURE_PATTERN.search(req.requirement_name) is not None or
+                    TENURE_PATTERN.search(req.jd_quote) is not None
+                )
+
+                if is_tenure:
+                    years_match = re.search(r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?|yr)", req.requirement_name + " " + req.jd_quote, re.IGNORECASE)
+                    if years_match:
+                        extracted_yrs = float(years_match.group(1))
+                        max_tenure_years = max(max_tenure_years, extracted_yrs)
+                    continue  # Exclude tenure requirements from qualitative skill lists!
+
+                # Substring verification of quote against raw JD text
+                is_valid_quote, cleaned_quote = verify_and_clean_quote(req.jd_quote, jd_clean)
+                if not is_valid_quote:
+                    is_valid_name, _ = verify_and_clean_quote(req.requirement_name, jd_clean)
+                    if not is_valid_name:
+                        logger.warning(f"[JD Distiller] Dropping unverified hallucinated requirement: '{req.requirement_name}'")
+                        continue
+                    cleaned_quote = req.requirement_name
+
+                req.jd_quote = cleaned_quote
+                req.req_type = "qualitative_skill"
+
+                if req.category == "must_have":
+                    final_must_have.append(req)
+                else:
+                    final_nice_to_have.append(req)
+
+            spec = CanonicalJDSpec(
+                role_title=r.role_title or "Software Engineer",
+                required_years=max_tenure_years,
+                must_have_skills=final_must_have,
+                nice_to_have_skills=final_nice_to_have
+            )
+
+            _JD_SPEC_CACHE[cache_key] = spec
+            return spec
+
+        except Exception as e:
+            last_exception = e
+            logger.warning(f"[JD Distiller] Attempt {attempt+1} (tier={tier}, model={model_name}) failed: {e}")
+
+    raise RuntimeError(f"Failed to distill canonical JD specification after {len(model_escalation)} attempts: {last_exception}")
 
 
 async def jd_matcher_node(state: RecruitmentState) -> dict:
-    """Score the candidate against the job description."""
+    """Score the candidate against the job description using Flash-Lite with full deterministic XAI hydration."""
     profile = state.get("candidate_profile")
     if profile is None:
         raise ValueError("candidate_profile is required for JD matching")
@@ -17,38 +182,61 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     logger.info(f"[JD Matcher] Scoring: {profile.name}")
 
     jd = clean_surrogates(state["job_description"])
-    
-    # We put JD in the system prompt for effective prompt caching across candidates
+
+    # 1. Obtain upfront canonical JD specification (distilled & frozen once per JD)
+    canonical_spec = state.get("canonical_jd_spec")
+    if not isinstance(canonical_spec, CanonicalJDSpec):
+        canonical_spec = await distill_jd_requirements(jd)
+
+    # 2. Format frozen requirement context into system prompt
+    must_have_lines = [f"- [{req.id}] {req.requirement_name} (Quote: \"{req.jd_quote}\")" for req in canonical_spec.must_have_skills]
+    nice_to_have_lines = [f"- [{req.id}] {req.requirement_name} (Quote: \"{req.jd_quote}\")" for req in canonical_spec.nice_to_have_skills]
+
+    canonical_context = (
+        f"FROZEN CANONICAL JD SPECIFICATION:\n"
+        f"Target Role: {canonical_spec.role_title}\n"
+        f"Required Experience Years: {canonical_spec.required_years}\n"
+        f"Must-Have Skills ({len(canonical_spec.must_have_skills)} items):\n" + "\n".join(must_have_lines) + "\n"
+        f"Nice-To-Have Skills ({len(canonical_spec.nice_to_have_skills)} items):\n" + "\n".join(nice_to_have_lines) + "\n\n"
+    )
+
     eval_mode = state.get("jd_matcher_prompt_variant") or "default"
     base_prompt = JD_MATCHER_PROMPTS.get(eval_mode, JD_MATCHER_PROMPTS["default"])
-    system_prompt = base_prompt + f"\n\nJOB DESCRIPTION:\n{jd}"
+    system_prompt = f"JOB DESCRIPTION:\n{jd}\n\n{canonical_context}" + base_prompt
 
-    # Include profile dict with raw_cv_text capped at 2000 chars to ensure accurate scoring without token bloat
+    # Include profile dict with raw_cv_text capped at 2000 chars to save tokens
     profile_dict = profile.model_dump()
     raw_cv = clean_surrogates(profile_dict.get("raw_cv_text", ""))
     if len(raw_cv) > 2000:
         profile_dict["raw_cv_text"] = raw_cv[:2000] + "... [truncated]"
     else:
         profile_dict["raw_cv_text"] = raw_cv
-    
+
     async def invoke_model(system_prompt, candidate_dict):
         model_escalation = [
-            ("fast", 8192),
-            ("smart", 8192),
-            ("smart", 8192),
+            ("fast", 4096, True),
+            ("smart", 8192, True),
+            ("smart", 8192, False),
         ]
-        human_content = clean_surrogates(f"CANDIDATE PROFILE (JSON):\n{json.dumps(candidate_dict, indent=2)}")
-        
-        for attempt, (tier, token_limit) in enumerate(model_escalation):
+
+        cand_dict_clean = {k: v for k, v in candidate_dict.items() if k != "raw_cv_text"}
+        human_content = clean_surrogates(f"CANDIDATE PROFILE (JSON):\n{json.dumps(cand_dict_clean, separators=(',', ':'))}")
+
+        accumulated_cost = 0.0
+        stage_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        last_exception = None
+
+        for attempt, (tier, token_limit, use_structured) in enumerate(model_escalation):
+            model_name = MODELS.get(tier, "google/gemini-2.5-flash-lite")
             try:
                 attempt_prompt = system_prompt
                 if attempt > 0:
                     attempt_prompt += "\n\nCRITICAL NOTICE: Ensure all required schema fields including must_have, experience_assessment, and reasoning_summary are completely populated."
-                
+
                 m = get_model(tier, max_tokens=token_limit)
-                sm = m.with_structured_output(ScreeningResult, method="json_schema", include_raw=True)
-                
-                try:
+
+                if use_structured:
+                    sm = m.with_structured_output(CompactScreeningOutput, method="json_schema", include_raw=True)
                     response = await sm.ainvoke([
                         SystemMessage(content=attempt_prompt),
                         HumanMessage(content=human_content)
@@ -60,36 +248,105 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                         if raw_text:
                             extracted = extract_json(raw_text)
                             parsed_dict = json.loads(extracted)
-                            r = ScreeningResult.model_validate(parsed_dict)
-                    
-                    if r and (not r.must_have or not r.reasoning_summary or not r.reasoning_summary.strip()):
-                        raise ValueError(f"Incomplete ScreeningResult: must_have count={len(r.must_have) if r.must_have else 0}, summary='{r.reasoning_summary}'")
-                        
-                    if r:
-                        c = extract_cost(response)
-                        return r, c
-                except Exception as inner_e:
-                    logger.warning(f"[JD Matcher] Structured output attempt {attempt+1} ({tier}) failed ({inner_e}). Trying fallback raw JSON parsing...")
+                            r = CompactScreeningOutput.model_validate(parsed_dict)
+
+                    c, token_info = extract_cost_and_tokens(response, model_name=model_name)
+                else:
+                    raw_prompt = attempt_prompt + "\nOutput a single valid JSON object matching the CompactScreeningOutput schema with non-empty must_have and reasoning_summary."
                     raw_resp = await m.ainvoke([
-                        SystemMessage(content=attempt_prompt + "\nOutput a single valid JSON object matching the ScreeningResult schema with non-empty must_have and reasoning_summary."),
+                        SystemMessage(content=raw_prompt),
                         HumanMessage(content=human_content)
                     ])
-                    extracted = extract_json(raw_resp.content)
+                    raw_text = raw_resp.content if hasattr(raw_resp, "content") else str(raw_resp)
+                    extracted = extract_json(raw_text)
                     parsed_dict = json.loads(extracted)
-                    r = ScreeningResult.model_validate(parsed_dict)
-                    if not r.must_have or not r.reasoning_summary or not r.reasoning_summary.strip():
-                        raise ValueError("Incomplete ScreeningResult from raw JSON fallback")
-                    c = extract_cost(raw_resp)
-                    return r, c
+                    r = CompactScreeningOutput.model_validate(parsed_dict)
+
+                    c, token_info = extract_cost_and_tokens(raw_resp, model_name=model_name)
+
+                accumulated_cost += c
+                stage_tokens["input_tokens"] += token_info.get("input_tokens", 0)
+                stage_tokens["output_tokens"] += token_info.get("output_tokens", 0)
+                stage_tokens["total_tokens"] += token_info.get("total_tokens", 0)
+
+                if not r or not r.reasoning_summary or not r.reasoning_summary.strip():
+                    raise ValueError(f"Incomplete CompactScreeningOutput: missing reasoning_summary")
+
+                if not r.must_have and canonical_spec.must_have_skills:
+                    r.must_have = [RequirementMatch(requirement=req.requirement_name, match="none") for req in canonical_spec.must_have_skills]
+
+                return r, round(accumulated_cost, 6), stage_tokens
+
             except Exception as e:
-                logger.warning(f"[JD Matcher] Attempt {attempt+1} ({tier}) failed: {e}.")
-                if attempt == len(model_escalation) - 1:
-                    raise RuntimeError(f"Failed to evaluate candidate against JD after {len(model_escalation)} attempts: {e}")
-                    
-    result, cost = await invoke_model(system_prompt, profile_dict)
-    
+                last_exception = e
+                logger.warning(f"[JD Matcher] Attempt {attempt+1} (tier={tier}, model={model_name}, max_tokens={token_limit}, structured={use_structured}) failed: {e}.")
+
+        raise RuntimeError(f"Failed to evaluate candidate against JD after {len(model_escalation)} escalation attempts: {last_exception}")
+
+    # Cache key: candidate identity + JD fingerprint (first 120 chars, mode-agnostic)
+    # All 3 modes share the SAME match assessment to guarantee monotonicity.
+    match_cache_key = f"{profile.name}::{jd[:120]}"
+
+    if match_cache_key in _MATCH_ASSESSMENT_CACHE:
+        compact_output = _MATCH_ASSESSMENT_CACHE[match_cache_key]
+        cost = 0.0
+        stage_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        logger.info(f"[JD Matcher] Reusing cached match assessment for {profile.name} (mode={eval_mode})")
+    else:
+        # Always assess with the neutral DEFAULT prompt — partial credit is applied by
+        # the deterministic scoring engine (scoring.py MATCH_MULTIPLIERS), not the LLM.
+        neutral_prompt = (
+            f"JOB DESCRIPTION:\n{jd}\n\n{canonical_context}"
+            + JD_MATCHER_PROMPTS["default"]
+        )
+        compact_output, cost, stage_tokens = await invoke_model(neutral_prompt, profile_dict)
+        _MATCH_ASSESSMENT_CACHE[match_cache_key] = compact_output
+        logger.info(f"[JD Matcher] Cached new match assessment for {profile.name} (mode={eval_mode})")
+
+    # 3. Align compact_output matches against canonical_spec requirements
+    aligned_must_have: list[RequirementMatch] = []
+    for canonical_req in canonical_spec.must_have_skills:
+        c_name = canonical_req.requirement_name
+        found = None
+        for m in compact_output.must_have:
+            m_req = m.requirement.strip().lower()
+            c_req = c_name.strip().lower()
+            if m_req == c_req or c_req in m_req or m_req in c_req:
+                found = m
+                break
+        if found:
+            aligned_must_have.append(RequirementMatch(requirement=c_name, match=found.match, evidence=found.evidence))
+        else:
+            aligned_must_have.append(RequirementMatch(requirement=c_name, match="none", evidence="No direct evidence found on CV"))
+
+    aligned_nice_to_have: list[RequirementMatch] = []
+    for canonical_req in canonical_spec.nice_to_have_skills:
+        c_name = canonical_req.requirement_name
+        found = None
+        for m in compact_output.nice_to_have:
+            m_req = m.requirement.strip().lower()
+            c_req = c_name.strip().lower()
+            if m_req == c_req or c_req in m_req or m_req in c_req:
+                found = m
+                break
+        if found:
+            aligned_nice_to_have.append(RequirementMatch(requirement=c_name, match=found.match, evidence=found.evidence))
+        else:
+            aligned_nice_to_have.append(RequirementMatch(requirement=c_name, match="none", evidence="No direct evidence found on CV"))
+
+    compact_output.must_have = aligned_must_have
+    compact_output.nice_to_have = aligned_nice_to_have
+
+    # Hydrate full ScreeningResult object from aligned CompactScreeningOutput
+    result = ScreeningResult(
+        must_have=compact_output.must_have,
+        nice_to_have=compact_output.nice_to_have,
+        experience_assessment=compact_output.experience_assessment,
+        reasoning_summary=compact_output.reasoning_summary,
+        score_breakdown=ScoreBreakdown(),
+    )
+
     # Calculate final weighted score, penalty deductions, and decision deterministically
-    from app.agent.tools.scoring import calculate_weighted_fit_score
     penalties = state.get("penalties", [])
     final_score, decision, score_note = calculate_weighted_fit_score(
         result.score_breakdown,
@@ -100,40 +357,50 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         experience_assessment=result.experience_assessment,
         candidate_profile=profile
     )
-    
+
     result.fit_score = final_score
     result.decision = decision
     if "Penalty applied" in score_note:
         result.reasoning_summary += f" [{score_note}]"
 
+    stage_cost_dict = {
+        "jd_matcher": {
+            "cost": cost,
+            "tokens": stage_tokens
+        }
+    }
+
+    res_dict = {
+        "canonical_jd_spec": canonical_spec,
+        "screening_result": result,
+        "total_cost": cost,
+        "stage_costs": stage_cost_dict
+    }
+
     if result.decision == "reject":
-        return {
-            "screening_result": result,
+        res_dict.update({
             "pipeline_status": "rejected",
             "rejection_reason": f"Screening score {result.fit_score}/100 — below threshold. {result.reasoning_summary}",
-            "log": [f"Screened: REJECT (score={result.fit_score})"],
-            "total_cost": cost
-        }
-    
+            "log": [f"Screened: REJECT (score={result.fit_score})"]
+        })
+        return res_dict
+
     if result.decision == "hold":
-        return {
-            "screening_result": result,
+        res_dict.update({
             "pipeline_status": "awaiting_human",
-            "log": [f"Screened: HOLD (score={result.fit_score}) - Borderline candidate awaiting human review"],
-            "total_cost": cost
-        }
+            "log": [f"Screened: HOLD (score={result.fit_score}) - Borderline candidate awaiting human review"]
+        })
+        return res_dict
 
     if not state.get("enable_interviews", True):
-        return {
-            "screening_result": result,
+        res_dict.update({
             "pipeline_status": "shortlisted",
-            "log": [f"Screened: ADVANCE (score={result.fit_score}) (Interviews Disabled - Auto Shortlisted)"],
-            "total_cost": cost
-        }
+            "log": [f"Screened: ADVANCE (score={result.fit_score}) (Interviews Disabled - Auto Shortlisted)"]
+        })
+        return res_dict
 
-    return {
-        "screening_result": result,
+    res_dict.update({
         "pipeline_status": "shortlisted",
-        "log": [f"Screened: ADVANCE (score={result.fit_score}) -> Shortlisted for Interview Invitation"],
-        "total_cost": cost
-    }
+        "log": [f"Screened: ADVANCE (score={result.fit_score}) -> Shortlisted for Interview Invitation"]
+    })
+    return res_dict

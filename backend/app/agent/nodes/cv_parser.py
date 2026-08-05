@@ -10,7 +10,7 @@ from app.agent.schemas import CandidateProfile, CandidateProfileOutput
 from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import CV_PARSER_SYSTEM
-from app.agent.utils import clean_surrogates, extract_json, extract_cost
+from app.agent.utils import clean_surrogates, extract_json, extract_cost_and_tokens
 import asyncio
 from app.database import prisma
 from app.core.logging import logger
@@ -147,18 +147,21 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
             os.remove(temp_path)
 
 
-async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float]:
+async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float, Dict]:
     """Fallback method that converts PDF pages to images and uses a Vision model to extract directly to JSON."""
     logger.info(f"[OCR Fallback] Initiating Vision OCR for {pdf_path}...")
     if not fitz:
         logger.warning("[OCR Fallback] PyMuPDF (fitz) is not installed. Cannot perform OCR.")
-        return None, 0.0
+        return None, 0.0, {}
         
     try:
         def process_pdf():
             doc = fitz.open(pdf_path)
             base64_images = []
-            for page in doc:
+            for i, page in enumerate(doc):
+                if i >= 3:
+                    logger.info(f"[OCR Fallback] Max page limit reached (3 pages). Skipping remaining {len(doc) - 3} pages for cost optimization.")
+                    break
                 pix = page.get_pixmap(dpi=150)
                 img_data = pix.tobytes("jpeg")
                 b64 = base64.b64encode(img_data).decode("utf-8")
@@ -184,14 +187,14 @@ async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float]:
         structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
         result = await structured_model.ainvoke([HumanMessage(content=content_parts)])
         logger.info("[OCR Fallback] Successfully parsed JSON via Vision OCR.")
-        from app.agent.utils import extract_cost
-        cost = extract_cost(result)
+        cost, token_info = extract_cost_and_tokens(result, model_name="google/gemini-2.5-flash-lite")
         profile_data = result["parsed"].model_dump()
-        return profile_data, cost
+        return profile_data, cost, token_info
 
     except Exception as e:
         logger.error(f"[OCR Fallback] Failed: {e}")
-        return None, 0.0
+        return None, 0.0, {}
+
 
 #todo : can save token by adding raw cv text manually instead of sending to LLM
 
@@ -244,9 +247,14 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             "total_cost": total_cost
         }
 
+    stage_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
     if pre_parsed_profile:
         logger.info("[CV Parser] Using directly parsed profile from Vision OCR.")
         profile_data = pre_parsed_profile
+        if ocr_tokens:
+            stage_tokens["input_tokens"] += ocr_tokens.get("input_tokens", 0)
+            stage_tokens["output_tokens"] += ocr_tokens.get("output_tokens", 0)
+            stage_tokens["total_tokens"] += ocr_tokens.get("total_tokens", 0)
     else:
         # Tiered escalation: Attempt 1 uses fast tier with full 8K token budget; Attempt 2 escalates to smart tier safety net
         model_escalation = [
@@ -255,6 +263,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         ]
         profile_data = None
         for attempt, (tier, token_limit) in enumerate(model_escalation):
+            model_name = "google/gemini-2.5-flash-lite" if tier == "fast" else "google/gemini-2.5-flash"
             model = get_model(tier, max_tokens=token_limit)
             structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
             try:
@@ -272,7 +281,11 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                             parsed_dict = json.loads(extracted)
                             parsed_res = CandidateProfileOutput.model_validate(parsed_dict)
                     if parsed_res:
-                        total_cost += extract_cost(result)
+                        call_cost, token_info = extract_cost_and_tokens(result, model_name=model_name)
+                        total_cost += call_cost
+                        stage_tokens["input_tokens"] += token_info.get("input_tokens", 0)
+                        stage_tokens["output_tokens"] += token_info.get("output_tokens", 0)
+                        stage_tokens["total_tokens"] += token_info.get("total_tokens", 0)
                         profile_data = parsed_res.model_dump()
                         break
                 except Exception as inner_e:
@@ -284,7 +297,11 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                     extracted = extract_json(raw_resp.content)
                     parsed_dict = json.loads(extracted)
                     parsed_res = CandidateProfileOutput.model_validate(parsed_dict)
-                    total_cost += extract_cost(raw_resp)
+                    call_cost, token_info = extract_cost_and_tokens(raw_resp, model_name=model_name)
+                    total_cost += call_cost
+                    stage_tokens["input_tokens"] += token_info.get("input_tokens", 0)
+                    stage_tokens["output_tokens"] += token_info.get("output_tokens", 0)
+                    stage_tokens["total_tokens"] += token_info.get("total_tokens", 0)
                     profile_data = parsed_res.model_dump()
                     break
             except Exception as e:
@@ -308,11 +325,14 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         profile_data["projects"] = []
 
     # Apply deterministic TimelineCalculator to merge non-overlapping employment intervals
-    from app.agent.tools.timeline import calculate_total_experience_years
+    from app.agent.tools.timeline import calculate_total_experience_years, generate_experience_calculation_summary
     llm_exp = profile_data.get("total_experience_years", 0.0)
     profile_data["total_experience_years"] = calculate_total_experience_years(
         profile_data.get("previous_roles", []),
         fallback_years=float(llm_exp) if llm_exp else 0.0
+    )
+    profile_data["experience_calculation"] = generate_experience_calculation_summary(
+        profile_data.get("previous_roles", [])
     )
         
     candidate_profile = CandidateProfile(**profile_data)
@@ -345,5 +365,11 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         "candidate_profile": candidate_profile,
         "pipeline_status": "running",
         "log": [f"CV parsed: {candidate_profile.name}, {candidate_profile.total_experience_years} yrs exp"],
-        "total_cost": total_cost
-    }
+        "total_cost": round(total_cost, 6),
+        "stage_costs": {
+            "cv_parser": {
+                "cost": round(total_cost, 6),
+                "tokens": stage_tokens
+            }
+        }
+    }
