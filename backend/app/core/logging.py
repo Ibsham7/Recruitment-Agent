@@ -85,6 +85,12 @@ class JSONFormatter(logging.Formatter):
 
 def setup_logging(level: int = logging.INFO, log_format: str = None):
     """Configures system-wide root logger to emit readable logs in dev or JSON in production."""
+    # Ensure stdout and stderr handle UTF-8 characters cleanly (e.g., Unicode arrows) on Windows
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
     if log_format is None:
         log_format = os.getenv("LOG_FORMAT", "console" if os.getenv("ENV") != "production" else "json")
 

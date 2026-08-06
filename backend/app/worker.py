@@ -1,6 +1,7 @@
 import os
 import sys
 import asyncio
+import ssl
 from urllib.parse import urlparse, urlunparse
 
 if sys.platform == "win32":
@@ -77,6 +78,8 @@ def _get_redis_settings() -> RedisSettings:
     settings = RedisSettings.from_dsn(url)
     settings.conn_timeout = 10
     settings.conn_retries = 5
+    if url.startswith("rediss://"):
+        settings.ssl_cert_reqs = "none"
     return settings
 
 MAX_CONCURRENT_PIPELINES = int(os.getenv("MAX_CONCURRENT_PIPELINES", "3"))

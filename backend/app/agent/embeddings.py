@@ -5,8 +5,8 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from app.agent.prompts import JD_DISTILLER_SYSTEM
 from app.agent.config import get_model, EMBEDDING_MODEL
 
-async def get_embedding_async(text: str) -> list[float]:
-    """Get embedding using configured model via OpenRouter asynchronously."""
+async def get_embedding_with_cost_async(text: str) -> tuple[list[float], float, dict]:
+    """Get embedding using configured model via OpenRouter asynchronously and compute token cost."""
     api_key = os.getenv("OPENROUTER_API_KEY_PAID")
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY_PAID not set. Cannot get embeddings.")
@@ -32,12 +32,29 @@ async def get_embedding_async(text: str) -> list[float]:
                 if response.status_code != 200:
                     raise RuntimeError(f"Failed to get embedding ({response.status_code}): {response.text}")
                 
-                return response.json()["data"][0]["embedding"]
+                resp_json = response.json()
+                embedding = resp_json["data"][0]["embedding"]
+                usage = resp_json.get("usage", {})
+                prompt_tokens = usage.get("prompt_tokens") or usage.get("total_tokens") or len(text.split())
+                cost = round((prompt_tokens / 1_000_000) * 0.02, 6)
+                token_info = {
+                    "input_tokens": prompt_tokens,
+                    "output_tokens": 0,
+                    "total_tokens": prompt_tokens,
+                    "cost": cost
+                }
+                return embedding, cost, token_info
         except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPError) as e:
             if attempt == max_retries - 1:
                 raise RuntimeError(f"Failed to get embedding after {max_retries} attempts: {e}") from e
             import asyncio
             await asyncio.sleep(2 ** attempt)
+
+async def get_embedding_async(text: str) -> list[float]:
+    """Get embedding using configured model via OpenRouter asynchronously."""
+    vec, _, _ = await get_embedding_with_cost_async(text)
+    return vec
+
 
 def cosine_similarity(v1: list[float], v2: list[float]) -> float:
     a = np.array(v1)

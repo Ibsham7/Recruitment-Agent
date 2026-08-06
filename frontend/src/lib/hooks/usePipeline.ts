@@ -25,15 +25,6 @@ export async function fetchPipelineData(id: string) {
     ["shortlisted", "invited", "interviewing", "interview_completed", "finalized", "complete"].includes(c.status)
   ).length;
 
-  const campaign: Campaign = {
-    ...campaignData,
-    total,
-    processed,
-    shortlisted,
-    status: campaignData.status || "active",
-    location: campaignData.location || "Remote",
-  };
-
   const mappedCandidates: Candidate[] = candidatesData.map((c: any) => {
     let stage: CandidateStage = "screening";
     if (["pending", "screening", "screening_hold"].includes(c.status)) {
@@ -50,6 +41,9 @@ export async function fetchPipelineData(id: string) {
       stage = "rejected";
     }
 
+    const apiCost = typeof c.apiCost === 'number' ? c.apiCost : (typeof c.api_cost === 'number' ? c.api_cost : 0);
+    const costBreakdown = c.costBreakdown || c.cost_breakdown || null;
+
     return {
       ...c,
       score: Math.min(100, Math.max(0, c.fitScore || c.evaluation?.overallScore || 0)),
@@ -57,11 +51,26 @@ export async function fetchPipelineData(id: string) {
       stage,
       currentRole: c.structuredProfile?.currentRole || "",
       experience: c.structuredProfile?.experience || "",
+      apiCost,
+      costBreakdown,
     };
   });
 
+  const sumTotalCost = mappedCandidates.reduce((acc, c) => acc + (c.apiCost || 0), 0);
+
+  const campaign: Campaign = {
+    ...campaignData,
+    total,
+    processed,
+    shortlisted,
+    status: campaignData.status || "active",
+    location: campaignData.location || "Remote",
+    totalCost: typeof campaignData.totalCost === 'number' && campaignData.totalCost > 0 ? campaignData.totalCost : sumTotalCost,
+  };
+
   return { campaign, candidates: mappedCandidates };
 }
+
 
 export function usePipeline(id: string | undefined) {
   const queryClient = useQueryClient();

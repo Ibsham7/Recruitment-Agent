@@ -341,10 +341,12 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     result = ScreeningResult(
         must_have=compact_output.must_have,
         nice_to_have=compact_output.nice_to_have,
+        relevant_experience_years=compact_output.relevant_experience_years,
         experience_assessment=compact_output.experience_assessment,
         reasoning_summary=compact_output.reasoning_summary,
         score_breakdown=ScoreBreakdown(),
     )
+    result.score_breakdown.relevant_experience_years = compact_output.relevant_experience_years
 
     # Calculate final weighted score, penalty deductions, and decision deterministically
     penalties = state.get("penalties", [])

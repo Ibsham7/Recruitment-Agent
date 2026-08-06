@@ -242,9 +242,12 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             })
             
         if final_state.get("total_cost") is not None:
-            update_data["apiCost"] = final_state.get("total_cost", 0.0)
+            update_data["apiCost"] = round(float(final_state.get("total_cost", 0.0)), 6)
+        if final_state.get("stage_costs"):
+            update_data["costBreakdown"] = Json(final_state["stage_costs"])
             
         await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
+
         
         # Save evaluation report if available
         evaluation_report = final_state.get("evaluation_report")
@@ -444,13 +447,23 @@ async def _run_evaluator_background(candidate_id: str, candidate: Any, transcrip
                     "antiCheatMetadata": Json(cumulative_anti_cheat_metadata)
                 }
             )
+            current_breakdown = candidate.costBreakdown or {}
+            if isinstance(current_breakdown, str):
+                import json
+                current_breakdown = json.loads(current_breakdown)
+            stage_costs = eval_res.get("stage_costs") or {}
+            from app.agent.state import merge_dicts
+            updated_breakdown = merge_dicts(current_breakdown, stage_costs)
+
             await prisma.candidate.update(
                 where={"id": candidate_id},
                 data={
                     "status": "review",
-                    "apiCost": candidate.apiCost + eval_res.get("total_cost", 0.0)
+                    "apiCost": round(candidate.apiCost + eval_res.get("total_cost", 0.0), 6),
+                    "costBreakdown": Json(updated_breakdown)
                 }
             )
+
     except Exception as e:
         print(f"[Interview] Evaluator background task failed for {candidate_id}: {e}")
 
@@ -736,9 +749,12 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
             })
             
         if final_state.get("total_cost") is not None:
-            update_data["apiCost"] = final_state.get("total_cost", 0.0)
+            update_data["apiCost"] = round(float(final_state.get("total_cost", 0.0)), 6)
+        if final_state.get("stage_costs"):
+            update_data["costBreakdown"] = Json(final_state["stage_costs"])
             
         await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
+
         
         # Save evaluation report if available
         evaluation_report = final_state.get("evaluation_report")

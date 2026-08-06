@@ -25,7 +25,7 @@ async def question_generator_node(state: RecruitmentState) -> dict:
 
     missing_reqs = [req.requirement for req in screening.must_have if req.match == "none"]
     
-    roles_str = ", ".join(profile.previous_roles) if profile.previous_roles else "None specified"
+    roles_str = ", ".join([str(r) for r in profile.previous_roles]) if profile.previous_roles else "None specified"
     skills_str = ", ".join(profile.skills) if profile.skills else "None specified"
     projects_str = "\n  - ".join(profile.projects) if profile.projects else "None specified"
     achievements_str = "\n  - ".join(profile.key_achievements) if profile.key_achievements else "None specified"
@@ -70,6 +70,8 @@ Generate 3 targeted, anchor-grounded interview questions for this specific candi
     max_retries = 3
     questions = []
     total_cost = 0.0
+    stage_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
     for attempt in range(max_retries):
         model = get_model("fast", max_tokens=None)
         structured_model = model.with_structured_output(InterviewQuestionList, method="json_schema", include_raw=True)
@@ -83,14 +85,18 @@ Generate 3 targeted, anchor-grounded interview questions for this specific candi
                 err = result.get("parsing_error") if isinstance(result, dict) else None
                 raise ValueError(f"Failed to parse InterviewQuestionList: {err or 'LLM output was truncated or unparseable'}")
             questions = parsed_res.questions
-            from app.agent.utils import extract_cost
-            total_cost = extract_cost(result)
+            from app.agent.utils import extract_cost_and_tokens
+            cost, token_info = extract_cost_and_tokens(result, model_name="google/gemini-2.5-flash-lite")
+            total_cost += cost
+            stage_tokens["input_tokens"] += token_info.get("input_tokens", 0)
+            stage_tokens["output_tokens"] += token_info.get("output_tokens", 0)
+            stage_tokens["total_tokens"] += token_info.get("total_tokens", 0)
             break
         except Exception as e:
             logger.warning(f"[Question Gen] Attempt {attempt+1} (fast) failed: {e}.")
             if attempt == max_retries - 1:
                 logger.warning(f"[Question Gen] All {max_retries} attempts failed. Falling back to resume-anchored default questions.")
-                role_ref = profile.previous_roles[0] if profile.previous_roles else "your recent role"
+                role_ref = str(profile.previous_roles[0]) if profile.previous_roles else "your recent role"
                 skill_ref = profile.skills[0] if profile.skills else "your core technology"
                 project_ref = profile.projects[0] if profile.projects else "your key project"
                 questions = [
@@ -114,5 +120,11 @@ Generate 3 targeted, anchor-grounded interview questions for this specific candi
     return {
         "interview_questions": questions,
         "log": [f"Generated {len(questions)} interview questions"],
-        "total_cost": total_cost
-    }
+        "total_cost": round(total_cost, 6),
+        "stage_costs": {
+            "question_generator": {
+                "cost": round(total_cost, 6),
+                "tokens": stage_tokens
+            }
+        }
+    }

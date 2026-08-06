@@ -60,8 +60,10 @@ model Candidate {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   
-  // COST_TRACKING: Remove after testing
+  // COST_TRACKING & TELEMETRY BREAKDOWN
   apiCost         Float       @default(0)
+  costBreakdown   Json?
+
 
   @@index([campaignId])
   @@index([resumeId])

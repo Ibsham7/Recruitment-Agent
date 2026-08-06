@@ -15,6 +15,7 @@ import {
   ScoreBreakdownPanel,
   TranscriptPanel,
   AntiCheatInspectionCard,
+  CostBreakdownCard,
   DecisionBar,
 } from "./components";
 
@@ -40,9 +41,10 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
   }
 
   const hasInterviewData = Boolean(
-    (candidate.transcript && candidate.transcript.length > 0) || 
+    (candidate.transcript && candidate.transcript.some((t: any) => t.role === "candidate")) || 
     (candidate.scores && (candidate.scores.technical > 0 || candidate.scores.communication > 0 || candidate.scores.culturalFit > 0)) ||
-    Boolean(candidate.antiCheatMetadata || candidate.evaluation?.antiCheatMetadata)
+    Boolean(candidate.antiCheatMetadata && Object.keys(candidate.antiCheatMetadata).length > 0) ||
+    Boolean(candidate.evaluation?.antiCheatMetadata && Object.keys(candidate.evaluation.antiCheatMetadata).length > 0)
   );
 
   return (
@@ -56,12 +58,14 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
         >
           {hasInterviewData && <ScorePanel candidate={candidate} theme={t} />}
           {hasInterviewData && <AntiCheatInspectionCard candidate={candidate} theme={t} />}
+          <CostBreakdownCard candidate={candidate} theme={t} />
           <ResumeCard cvUrl={candidate.cvUrl} theme={t} />
           <AISummaryCard summary={candidate.summary || "No summary available."} theme={t} />
           <ChainOfThoughtCard chainOfThought={candidate.chainOfThought || "No reasoning provided."} theme={t} />
           <ScoreBreakdownPanel candidate={candidate} theme={t} />
           <StrengthsConcernsPanel strengths={candidate.strengths || []} concerns={candidate.concerns || []} theme={t} />
         </div>
+
 
         {hasInterviewData && (
           <TranscriptPanel transcript={candidate.transcript || []} candidateName={candidate.name} theme={t} />

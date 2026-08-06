@@ -1,5 +1,6 @@
 import time
 import asyncio
+import pytest
 from app.agent.config import get_model
 from langchain_core.messages import HumanMessage
 import httpx
@@ -8,6 +9,7 @@ import os
 import fitz
 import base64
 
+@pytest.mark.asyncio
 async def test():
     url = "https://res.cloudinary.com/db3i07nwj/image/upload/v1784216859/olibqxbxmkrfkrfawmi1.pdf"
     async with httpx.AsyncClient() as client:
@@ -41,4 +43,5 @@ async def test():
         print('Error:', type(e), e)
     print('Time:', time.time() - start)
 
-asyncio.run(test())
+if __name__ == "__main__":
+    asyncio.run(test())

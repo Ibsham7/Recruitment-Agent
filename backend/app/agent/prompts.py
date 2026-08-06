@@ -45,8 +45,10 @@ EVIDENCE MATCHING & STRETCHING PREVENTION RULES:
 1. FUNCTIONAL EQUIVALENCE REQUIREMENT FOR PARTIAL CREDIT:
    "Partial" credit is strictly reserved for tools, frameworks, or practices that perform the EXACT SAME operational function as the requirement (e.g. Jenkins or GitLab CI when GitHub Actions is requested; MariaDB when MySQL is requested). Downstream, complementary, or deployment target activities DO NOT satisfy a pipeline/tool requirement (e.g., deploying code to a PaaS hosting target like Azure App Service, Heroku, or AWS EC2 is hosting deployment, NOT CI/CD pipeline automation experience — mark as "none").
 2. PROFICIENCY QUALIFIER CAPS:
-   Candidate statements containing qualifying phrases such as "some exposure to", "basic knowledge of", "familiarity with", "assisted with", "supervised use of", or "limited experience with" MUST NOT be credited as a "full" match under any circumstances. They MUST be capped at "partial" (or "none" if requirement demands deep hands-on expertise).
-3. EXPLICIT COUNTER-EXAMPLES:
+   Candidate statements containing qualifying phrases such as "some exposure to", "basic knowledge of", "familiarity with", "assisted with", "supervised use of", "limited experience with", "learning", or "personal projects" MUST NOT be credited as a "full" match under any circumstances. They MUST be capped at "partial" (or "none" if requirement demands deep hands-on expertise).
+3. PATTERN & FUNCTIONAL SUBSTANCE RULE:
+   Evaluate pattern-based requirements (e.g., Microservices Architecture, Event-Driven Systems, P&L Ownership, Multi-channel Campaigns) based on described functional execution (e.g., building separate REST/gRPC services for discrete domain capabilities such as catalog, checkout, tracking) even if the candidate does not use the exact buzzword ("microservices"). Award "full" credit if functional execution of the pattern is clearly demonstrated.
+4. EXPLICIT COUNTER-EXAMPLES:
    - Requirement: "CI/CD Pipelines (GitHub Actions / Jenkins)". Candidate CV: "Deployed services to Azure App Service". Match: "none". Reason: Hosting deployment is not automated CI/CD pipeline tooling experience.
    - Requirement: "PostgreSQL Database Management". Candidate CV: "Some exposure to PostgreSQL query writing". Match: "partial". Reason: Supervised/limited exposure cannot be credited as a full match.
 
@@ -55,12 +57,9 @@ Demonstrated active usage or application of a skill/competency across multiple
 roles, projects, campaigns, or deliverables (e.g., scripting across roles, marketing campaigns across brands, P&L management across units) counts as at least "partial" credit (50%+), and "full" credit if demonstrated extensively, even if the CV does not explicitly state an isolated per-skill tenure figure. Do not mark a requirement as "none" (0%) if multi-role execution or project evidence is present.
 
 ## Step 3 — Assess experience depth separately from skills
-Compare required years/depth to the candidate's *directly relevant*
-experience. A shortfall reduces the experience sub-score proportionally —
-it must NOT zero out the overall fit_score. Years of experience is never
-an automatic disqualifier on its own. Only treat a requirement as an
-automatic disqualifier if it is a hard legal/eligibility requirement
-(required license, security clearance, work authorization).
+Compare required years/depth to the candidate's *directly relevant* domain experience.
+- Extract `relevant_experience_years`: estimate the actual number of years the candidate spent working directly in the target role's domain/stack (e.g. if candidate has 6 years total but only 1 year in Python/FastAPI backend, relevant_experience_years = 1.0).
+- A shortfall reduces the experience sub-score proportionally — it must NOT zero out the overall fit_score. Years of experience is never an automatic disqualifier on its own. Only treat a requirement as an automatic disqualifier if it is a hard legal/eligibility requirement (required license, security clearance, work authorization).
 
 ## Step 4 — Judge substance over title
 Base seniority/scope judgments on the candidate's actual described
@@ -117,8 +116,10 @@ EVIDENCE MATCHING & STRETCHING PREVENTION RULES:
 1. FUNCTIONAL EQUIVALENCE REQUIREMENT FOR PARTIAL CREDIT:
    "Partial" credit is strictly reserved for tools, frameworks, or practices that perform the EXACT SAME operational function as the requirement (e.g. Jenkins or GitLab CI when GitHub Actions is requested). Downstream or deployment target activities DO NOT satisfy a pipeline/tool requirement (e.g., deploying code to Azure App Service is hosting deployment, NOT CI/CD pipeline automation experience — mark as "none").
 2. PROFICIENCY QUALIFIER CAPS:
-   Candidate statements containing qualifying phrases such as "some exposure to", "basic knowledge of", "familiarity with", "assisted with", "supervised use of", or "limited experience with" MUST NOT be credited as a "full" match under any circumstances. They MUST be capped at "partial" (or "none" if requirement demands deep hands-on expertise).
-3. EXPLICIT COUNTER-EXAMPLES:
+   Candidate statements containing qualifying phrases such as "some exposure to", "basic knowledge of", "familiarity with", "assisted with", "supervised use of", "limited experience with", "learning", or "personal projects" MUST NOT be credited as a "full" match under any circumstances. They MUST be capped at "partial" (or "none" if requirement demands deep hands-on expertise).
+3. PATTERN & FUNCTIONAL SUBSTANCE RULE:
+   Evaluate pattern-based requirements (e.g., Microservices Architecture, Event-Driven Systems, P&L Ownership, Multi-channel Campaigns) based on described functional execution (e.g., building separate REST/gRPC services for discrete domain capabilities such as catalog, checkout, tracking) even if the candidate does not use the exact buzzword ("microservices"). Award "full" credit if functional execution of the pattern is clearly demonstrated.
+4. EXPLICIT COUNTER-EXAMPLES:
    - Requirement: "CI/CD Pipelines (GitHub Actions / Jenkins)". Candidate CV: "Deployed services to Azure App Service". Match: "none". Reason: Hosting deployment is not automated CI/CD pipeline tooling experience.
    - Requirement: "PostgreSQL Database Management". Candidate CV: "Some exposure to PostgreSQL query writing". Match: "partial". Reason: Supervised/limited exposure cannot be credited as a full match.
 
@@ -128,14 +129,9 @@ roles or concrete deliverables must be recognized as at least partial evidence
 (25% credit) rather than marked "none" (0%), provided real execution is shown, even without an explicit per-skill year count.
 
 ## Step 3 — Assess experience depth separately from skills
-Compare required years/depth to the candidate's *directly relevant*
-experience. Penalize shortfalls heavily within experience_score itself
-(e.g. a 2+ year shortfall should push experience_score toward 0-25) — but
-this must still flow through the Step 6 weighted formula rather than
-overriding fit_score directly. Do not skip straight to zero. The only true
-automatic disqualifier is a hard legal/eligibility requirement (required
-license, security clearance, work authorization) — not years of experience
-alone.
+Compare required years/depth to the candidate's *directly relevant* domain experience.
+- Extract `relevant_experience_years`: estimate the actual number of years the candidate spent working directly in the target role's domain/stack (e.g. if candidate has 6 years total but only 1 year in Python/FastAPI backend, relevant_experience_years = 1.0).
+- Penalize shortfalls heavily within experience_score itself (e.g. a 2+ year shortfall should push experience_score toward 0-25) — but this must still flow through the Step 6 weighted formula rather than overriding fit_score directly. Do not skip straight to zero. The only true automatic disqualifier is a hard legal/eligibility requirement (required license, security clearance, work authorization) — not years of experience alone.
 
 ## Step 4 — Judge substance over title
 Base seniority/scope judgments strictly on described responsibilities and
@@ -193,8 +189,10 @@ EVIDENCE MATCHING & STRETCHING PREVENTION RULES:
 1. FUNCTIONAL EQUIVALENCE REQUIREMENT FOR PARTIAL CREDIT:
    "Partial" credit is strictly reserved for tools, frameworks, or practices that perform the EXACT SAME operational function as the requirement (e.g. Jenkins or GitLab CI when GitHub Actions is requested). Downstream or deployment target activities DO NOT satisfy a pipeline/tool requirement (e.g., deploying code to Azure App Service is hosting deployment, NOT CI/CD pipeline automation experience — mark as "none").
 2. PROFICIENCY QUALIFIER CAPS:
-   Candidate statements containing qualifying phrases such as "some exposure to", "basic knowledge of", "familiarity with", "assisted with", "supervised use of", or "limited experience with" MUST NOT be credited as a "full" match under any circumstances. They MUST be capped at "partial" (or "none" if requirement demands deep hands-on expertise).
-3. EXPLICIT COUNTER-EXAMPLES:
+   Candidate statements containing qualifying phrases such as "some exposure to", "basic knowledge of", "familiarity with", "assisted with", "supervised use of", "limited experience with", "learning", or "personal projects" MUST NOT be credited as a "full" match under any circumstances. They MUST be capped at "partial" (or "none" if requirement demands deep hands-on expertise).
+3. PATTERN & FUNCTIONAL SUBSTANCE RULE:
+   Evaluate pattern-based requirements (e.g., Microservices Architecture, Event-Driven Systems, P&L Ownership, Multi-channel Campaigns) based on described functional execution (e.g., building separate REST/gRPC services for discrete domain capabilities such as catalog, checkout, tracking) even if the candidate does not use the exact buzzword ("microservices"). Award "full" credit if functional execution of the pattern is clearly demonstrated.
+4. EXPLICIT COUNTER-EXAMPLES:
    - Requirement: "CI/CD Pipelines (GitHub Actions / Jenkins)". Candidate CV: "Deployed services to Azure App Service". Match: "none". Reason: Hosting deployment is not automated CI/CD pipeline tooling experience.
    - Requirement: "PostgreSQL Database Management". Candidate CV: "Some exposure to PostgreSQL query writing". Match: "partial". Reason: Supervised/limited exposure cannot be credited as a full match.
 
@@ -204,11 +202,9 @@ warrants generous partial (75-80%) or full (100%) credit even if isolated year c
 are not explicitly broken out.
 
 ## Step 3 — Assess experience depth separately from skills
-Compare required years/depth to the candidate's *directly relevant*
-experience. A shortfall reduces the experience sub-score modestly (e.g. a 1-2 year shortfall
-should keep experience_score at 75-85) — it must NOT zero out the overall fit_score. The only true automatic disqualifier
-is a hard legal/eligibility requirement (required license, security
-clearance, work authorization) — not years of experience alone.
+Compare required years/depth to the candidate's *directly relevant* domain experience.
+- Extract `relevant_experience_years`: estimate the actual number of years the candidate spent working directly in the target role's domain/stack (e.g. if candidate has 6 years total but only 1 year in Python/FastAPI backend, relevant_experience_years = 1.0).
+- A shortfall reduces the experience sub-score modestly (e.g. a 1-2 year shortfall should keep experience_score at 75-85) — it must NOT zero out the overall fit_score. The only true automatic disqualifier is a hard legal/eligibility requirement (required license, security clearance, work authorization) — not years of experience alone.
 
 ## Step 4 — Judge substance over title
 Base seniority/scope judgments on described responsibilities and evidence

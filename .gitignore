@@ -13,3 +13,20 @@ __pycache__/
 backend/log.txt
 frontend/dist
 .agents/
+
+# Testing & Test Scripts
+.pytest_cache/
+**/test_*.py
+test_*.py
+test/
+test pdfs/
+test.pdf
+backend/debug_output.json
+backend/outputs/
+backend/fetch_evals.py
+backend/get_models.py
+backend/migrate_strictness.py
+backend/reset_db.py
+backend/temp_migrate.py
+backend/test_ocr.py
+backend/test_pg.py

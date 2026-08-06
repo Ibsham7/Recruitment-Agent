@@ -25,7 +25,14 @@ def _filter_tenure_requirements(items: list) -> list:
 
 LOW_PROFICIENCY_KEYWORDS = (
     "some exposure", "limited exposure", "basic exposure", "basic knowledge",
-    "familiarity with", "assisted with", "supervised use", "introductory"
+    "familiarity with", "assisted with", "supervised use", "introductory",
+    "learning", "(learning)", "personal project", "personal projects",
+    "beginner", "self-taught", "coursework", "academic use", "student"
+)
+
+NEGATIVE_EVIDENCE_PHRASES = (
+    "no evidence", "no specific", "not mentioned", "no direct",
+    "lack of", "absence of", "no explicit", "unmentioned", "not listed"
 )
 
 CICD_REQ_KEYWORDS = ("ci/cd", "continuous integration", "continuous deployment", "jenkins", "github actions", "gitlab ci", "circleci")
@@ -35,17 +42,18 @@ CICD_EXPLICIT_TOOLS = ("github actions", "jenkins", "gitlab ci", "circleci", "az
 def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: Any = None, eval_mode: str = "default") -> Tuple[str, str]:
     """
     Deterministic evidence guardrail to prevent evidence inflation/stretching:
-    1. Proficiency Qualifier Cap: If evidence contains 'some exposure', 'basic', 'assisted', cap match_val at 'partial'.
-    2. CI/CD vs Hosting Guardrail: If requirement is CI/CD, but evidence only mentions cloud hosting deployment without pipeline tooling, override match_val to 'none' in moderate and strict modes.
+    1. Proficiency Qualifier Cap: If evidence contains 'some exposure', 'basic', 'assisted', 'learning', cap match_val at 'partial'.
+    2. CI/CD vs Hosting Guardrail: If requirement is CI/CD, but evidence only mentions cloud hosting deployment without pipeline tooling, override match_val to 'none'.
+    3. Self-Contradiction Guardrail: If match is non-none, but evidence explicitly states absence of evidence ('no specific', 'no evidence', 'not mentioned'), force match_val to 'none'.
     """
     req_lower = req_name.lower()
     ev_lower = evidence_val.lower()
     override_note = ""
 
-    # Rule 1: Low-proficiency qualifier cap
+    # Rule 1: Low-proficiency / hedging qualifier cap
     if match_val == "full" and any(k in ev_lower for k in LOW_PROFICIENCY_KEYWORDS):
         match_val = "partial"
-        override_note = " [Capped to partial due to low-proficiency qualifier in evidence]"
+        override_note = " [Capped to partial due to low-proficiency / hedging qualifier in evidence]"
 
     # Rule 2: CI/CD vs Hosting Target (Strict & Default/Moderate modes)
     if eval_mode != "lenient" and any(k in req_lower for k in CICD_REQ_KEYWORDS):
@@ -54,6 +62,11 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
         if match_val != "none" and (has_hosting and not has_pipeline_tool or not ev_lower or "no " in ev_lower or "none" in ev_lower):
             match_val = "none"
             override_note = " [Overridden to none: hosting deployment target is not CI/CD pipeline experience]"
+
+    # Rule 3: Self-Contradiction Guardrail (Evidence text explicitly states absence of requirement/evidence)
+    if match_val != "none" and any(p in ev_lower for p in NEGATIVE_EVIDENCE_PHRASES):
+        match_val = "none"
+        override_note = " [Overridden to none: evidence explicitly states absence of requirement or evidence]"
 
     if item is not None and match_val != getattr(item, "match", None):
         if hasattr(item, "match"):
@@ -215,8 +228,25 @@ def calculate_weighted_fit_score(
         # If JD has no nice-to-have items, candidate gets full credit
         nice_score = 100.0
 
-    # Experience Score (Floor Removal: Direct Ratio Y_cand / Y_req clamped [0, 100])
+    # Experience Score (Floor Removal: Direct Ratio Y_relevant / Y_req clamped [0, 100])
     cand_years = float(getattr(candidate_profile, "total_experience_years", 0.0) if candidate_profile else 0.0)
+
+    # Determine relevant years (from score_breakdown, candidate_profile, or experience_assessment)
+    rel_years = None
+    if hasattr(score_breakdown, "relevant_experience_years") and score_breakdown.relevant_experience_years is not None:
+        rel_years = float(score_breakdown.relevant_experience_years)
+    elif candidate_profile and hasattr(candidate_profile, "relevant_experience_years") and candidate_profile.relevant_experience_years is not None:
+        rel_years = float(candidate_profile.relevant_experience_years)
+
+    if rel_years is None and experience_assessment:
+        match_rel = re.search(r"(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\s+(?:directly\s+)?relevant", experience_assessment, re.IGNORECASE)
+        if match_rel:
+            try:
+                rel_years = float(match_rel.group(1))
+            except (ValueError, TypeError):
+                rel_years = None
+
+    effective_exp_years = rel_years if rel_years is not None else cand_years
 
     # Determine required years
     req_years = None
@@ -248,7 +278,7 @@ def calculate_weighted_fit_score(
     if req_years == 0.0:
         exp_score = 100.0
     elif req_years > 0:
-        exp_score = min(100.0, max(0.0, (cand_years / req_years) * 100.0))
+        exp_score = min(100.0, max(0.0, (effective_exp_years / req_years) * 100.0))
     else:
         exp_score = 100.0
 
@@ -330,8 +360,9 @@ def calculate_weighted_fit_score(
         max_points=weights["exp"] * 100.0,
         required_years=req_years,
         candidate_years=cand_years,
-        calculation=cand_calc or f"Direct ratio: {cand_years:.1f} cand yrs / {req_years:.1f} req yrs",
-        assessment=experience_assessment or f"Candidate experience ({cand_years or 0} yrs) evaluated against required depth ({req_years} yrs)."
+        relevant_years=effective_exp_years,
+        calculation=cand_calc or f"Direct ratio: {effective_exp_years:.1f} relevant yrs / {req_years:.1f} req yrs (total career tenure: {cand_years:.1f} yrs)",
+        assessment=experience_assessment or f"Candidate relevant experience ({effective_exp_years:.1f} yrs, {cand_years:.1f} yrs total) evaluated against required depth ({req_years} yrs)."
     )
 
     # Trajectory Breakdown

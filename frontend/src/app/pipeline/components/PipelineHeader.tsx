@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Loader2, DollarSign, BarChart3 } from "lucide-react";
 import { Campaign, Theme } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 
@@ -8,17 +8,24 @@ interface PipelineHeaderProps {
   G: ReturnType<typeof getGlass>;
   retrying: boolean;
   onRetryFailed: () => void;
+  onOpenCostAnalysis?: () => void;
 }
 
-export function PipelineHeader({ campaign, theme: t, G, retrying, onRetryFailed }: PipelineHeaderProps) {
+export function PipelineHeader({ campaign, theme: t, G, retrying, onRetryFailed, onOpenCostAnalysis }: PipelineHeaderProps) {
   const progress = campaign.total && campaign.total > 0 ? Math.round(((campaign.processed || 0) / campaign.total) * 100) : 0;
   const isProcessing = campaign.total && campaign.total > 0 ? campaign.processed! < campaign.total : false;
 
   const statItems = [
-    { v: campaign.total, l: "Total CVs", c: t.numHero },
-    { v: campaign.processed, l: "Processed", c: t.txtPrimary },
-    { v: campaign.shortlisted, l: "Shortlisted", c: t.numPos },
-    { v: campaign.totalCost ? `$${campaign.totalCost.toFixed(4)}` : "$0.00", l: "API Cost", c: t.numNeg }
+    { v: campaign.total, l: "Total CVs", c: t.numHero, onClick: undefined },
+    { v: campaign.processed, l: "Processed", c: t.txtPrimary, onClick: undefined },
+    { v: campaign.shortlisted, l: "Shortlisted", c: t.numPos, onClick: undefined },
+    {
+      v: campaign.totalCost ? `$${campaign.totalCost.toFixed(4)}` : "$0.00",
+      l: "API Cost",
+      c: t.numNeg,
+      onClick: onOpenCostAnalysis,
+      isInteractive: true,
+    }
   ];
 
   return (
@@ -43,25 +50,52 @@ export function PipelineHeader({ campaign, theme: t, G, retrying, onRetryFailed 
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-10">
-          <button 
-            onClick={onRetryFailed} 
-            disabled={retrying}
-            className="px-5 py-2.5 text-sm font-semibold rounded-xl transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-50"
-            style={{ 
-              background: hexToRgba(t.accentPrimary, 0.15), 
-              color: t.accentText || t.accentPrimary, 
-              border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}`,
-              boxShadow: `0 4px 12px ${hexToRgba(t.accentPrimary, 0.1)}`
-            }}
-          >
-            {retrying ? "Retrying..." : "Retry Failed"}
-          </button>
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={onRetryFailed} 
+              disabled={retrying}
+              className="px-4 py-2.5 text-sm font-semibold rounded-xl transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-50"
+              style={{ 
+                background: hexToRgba(t.accentPrimary, 0.15), 
+                color: t.accentText || t.accentPrimary, 
+                border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}`,
+                boxShadow: `0 4px 12px ${hexToRgba(t.accentPrimary, 0.1)}`
+              }}
+            >
+              {retrying ? "Retrying..." : "Retry Failed"}
+            </button>
+            {onOpenCostAnalysis && (
+              <button
+                onClick={onOpenCostAnalysis}
+                className="px-4 py-2.5 text-sm font-semibold rounded-xl transition-all hover:-translate-y-0.5 cursor-pointer flex items-center gap-2"
+                style={{
+                  background: hexToRgba(t.numNeg, 0.15),
+                  color: t.numNeg,
+                  border: `1px solid ${hexToRgba(t.numNeg, 0.3)}`,
+                  boxShadow: `0 4px 12px ${hexToRgba(t.numNeg, 0.1)}`
+                }}
+                title="View detailed candidate cost & model breakdown"
+              >
+                <BarChart3 size={16} /> Cost Breakdown
+              </button>
+            )}
+          </div>
           <div className="flex gap-8">
             {statItems.map((s) => (
-              <div key={s.l} className="text-center">
-                <div className="text-4xl font-bold mb-1" style={{ fontFamily: "'Fraunces',serif", color: s.c }}>{s.v}</div>
-                <div className="text-xs font-medium uppercase tracking-widest" style={{ color: t.txtGhost }}>{s.l}</div>
+              <div 
+                key={s.l} 
+                className={`text-center transition-all ${s.isInteractive ? "cursor-pointer hover:scale-105 group" : ""}`}
+                onClick={s.onClick}
+                title={s.isInteractive ? "Click to open candidate cost breakdown analysis" : undefined}
+              >
+                <div className="text-4xl font-bold mb-1 flex items-center justify-center gap-1" style={{ fontFamily: "'Fraunces',serif", color: s.c }}>
+                  {s.v}
+                </div>
+                <div className="text-xs font-medium uppercase tracking-widest flex items-center justify-center gap-1" style={{ color: t.txtGhost }}>
+                  {s.l}
+                  {s.isInteractive && <span className="text-[10px] text-amber-500 font-bold group-hover:underline">🔍</span>}
+                </div>
               </div>
             ))}
           </div>
@@ -70,3 +104,4 @@ export function PipelineHeader({ campaign, theme: t, G, retrying, onRetryFailed 
     </div>
   );
 }
+

@@ -152,10 +152,13 @@ export interface Candidate {
   transcript?: any[];
   aiGeneratedLikelihoodScore?: number;
   antiCheatFlags?: AntiCheatFlag[];
-  antiCheatMetadata?: AntiCheatMetadata;
-  
+  // Telemetry & Cost Breakdown
+  apiCost?: number;
+  costBreakdown?: Record<string, any>;
+
   evaluation?: Evaluation;
 }
+
 
 export interface Theme {
   name: string;

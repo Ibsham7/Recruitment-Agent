@@ -5,7 +5,9 @@ from app.agent.state import RecruitmentState
 from app.agent.config import get_model
 from langchain_core.messages import HumanMessage
 
-async def generate_followup_probe(question_text: str, brief_answer: str) -> str:
+from app.agent.utils import extract_cost_and_tokens
+
+async def generate_followup_probe(question_text: str, brief_answer: str) -> tuple[str, float, dict]:
     """Generate a polite, targeted follow-up probe asking the candidate to elaborate on key points."""
     prompt = (
         f"You are an interview agent. The candidate was asked:\n'{question_text}'\n\n"
@@ -16,9 +18,10 @@ async def generate_followup_probe(question_text: str, brief_answer: str) -> str:
     try:
         model = get_model("fast")
         res = await model.ainvoke([HumanMessage(content=prompt)])
-        return res.content.strip()
+        cost, token_info = extract_cost_and_tokens(res, model_name="google/gemini-2.5-flash-lite")
+        return res.content.strip(), cost, token_info
     except Exception:
-        return "Could you please elaborate with a specific example or more details on your role in this?"
+        return "Could you please elaborate with a specific example or more details on your role in this?", 0.0, {}
 
 def create_adaptive_probe_dict(probe_question_text: str, category: str = "Technical", what_to_look_for: str = "Detailed elaboration and concrete technical evidence") -> dict:
     """Helper to structure an adaptive follow-up probe turn with a 45-second timer."""
@@ -66,11 +69,13 @@ async def interviewer_node(state: RecruitmentState) -> dict:
     })
 
     answer_str = str(answer).strip()
+    probe_cost = 0.0
+    probe_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
     # Bounded Adaptive Probing: Check if response is short/vague (< 20 words) and no probe asked yet
     words = answer_str.split()
     if len(words) < 20 and probes_asked < 1:
-        probe_question = await generate_followup_probe(current_q.question, answer_str)
+        probe_question, probe_cost, probe_tokens = await generate_followup_probe(current_q.question, answer_str)
         transcript.probe_counts[idx] = 1
 
         # Interrupt again for the adaptive probe - marked with 45s timer for adaptive sub-question
@@ -95,10 +100,20 @@ async def interviewer_node(state: RecruitmentState) -> dict:
 
     transcript.current_question_index = idx + 1
 
-    return {
+    ret = {
         "interview_transcript": transcript,
         "log": [f"Q{idx+1} answered: {answer_str[:80]}..."]
     }
+    if probe_cost > 0:
+        ret["total_cost"] = round(probe_cost, 6)
+        ret["stage_costs"] = {
+            "interviewer_probe": {
+                "cost": round(probe_cost, 6),
+                "tokens": probe_tokens
+            }
+        }
+    return ret
+
 
 def current_question_with_probe(q: InterviewQuestion, probe_text: str) -> InterviewQuestion:
     return InterviewQuestion(

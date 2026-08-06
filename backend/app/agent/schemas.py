@@ -121,10 +121,11 @@ class ExperienceBreakdown(BaseModel):
     max_points: float = 25.0
     required_years: Optional[float] = None
     candidate_years: Optional[float] = None
+    relevant_years: Optional[float] = None
     calculation: Optional[str] = None
     assessment: Optional[str] = None
 
-    @field_validator("required_years", "candidate_years", mode="before")
+    @field_validator("required_years", "candidate_years", "relevant_years", mode="before")
     @classmethod
     def convert_years_to_float(cls, v):
         if isinstance(v, str):
@@ -155,6 +156,7 @@ class ScoreBreakdown(BaseModel):
     # Granular transparent attributions
     weights: Optional[dict[str, float]] = None
     eval_mode: Optional[str] = None
+    relevant_experience_years: Optional[float] = None
     formula_summary: Optional[str] = None
     must_have_breakdown: list[RequirementItemBreakdown] = Field(default_factory=list)
     nice_to_have_breakdown: list[RequirementItemBreakdown] = Field(default_factory=list)
@@ -173,8 +175,23 @@ class CompactScreeningOutput(BaseModel):
     """Lean extraction schema for LLM matching stage to ensure minimal completion token footprint."""
     must_have: list[RequirementMatch] = Field(default_factory=list, description="Must-have requirements mapped against candidate CV")
     nice_to_have: list[RequirementMatch] = Field(default_factory=list, description="Nice-to-have requirements mapped against candidate CV")
+    relevant_experience_years: Optional[float] = Field(default=None, ge=0, description="Estimated years of directly relevant domain experience extracted from CV")
     experience_assessment: str = Field(default="", description="1-2 sentences: required vs. directly relevant experience depth")
     reasoning_summary: str = Field(default="", description="2-3 sentence qualitative screening summary")
+
+    @field_validator("relevant_experience_years", mode="before")
+    @classmethod
+    def convert_relevant_years(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, str):
+            import re
+            match = re.search(r"(\d+(?:\.\d+)?)", v)
+            if match:
+                return float(match.group(1))
+        return None
 
     @field_validator("experience_assessment", mode="before")
     @classmethod
@@ -204,6 +221,7 @@ class ScreeningResult(BaseModel):
     """Output of the JD Matcher LLM."""
     must_have: list[RequirementMatch] = Field(default_factory=list)
     nice_to_have: list[RequirementMatch] = Field(default_factory=list)
+    relevant_experience_years: Optional[float] = Field(default=None, description="Estimated years of directly relevant domain experience")
     experience_assessment: str = Field(default="", description="1-2 sentences: required vs. directly relevant experience, and how any gap was weighted (not zeroed)")
     score_breakdown: ScoreBreakdown = Field(default_factory=ScoreBreakdown)
     fit_score: int = Field(default=0, description="A score out of 100 representing how well the candidate matches the job description.")

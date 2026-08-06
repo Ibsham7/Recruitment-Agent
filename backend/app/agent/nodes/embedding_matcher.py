@@ -2,17 +2,16 @@ import os
 import json
 import asyncio
 from app.database import prisma
-from app.agent.embeddings import get_embedding_async, cosine_similarity, _distill_jd_async
+from app.agent.embeddings import get_embedding_async, get_embedding_with_cost_async, cosine_similarity, _distill_jd_async
 from app.agent.state import RecruitmentState
 
 import httpx
 import hashlib
 
-async def _ensure_resume_embedding_async(file_hash: str, text_to_embed: str) -> list[float] | None:
+async def _ensure_resume_embedding_async(file_hash: str, text_to_embed: str) -> tuple[list[float] | None, float, dict]:
     """
     Ensures that the Resume embedding exists in the database.
-    Returns the vector list only if generated on the fly;
-    otherwise returns None to avoid transferring unneeded vector data over network.
+    Returns the vector list and cost info only if generated on the fly.
     """
     result = await prisma.query_raw('''
         SELECT (embedding IS NOT NULL) AS has_embedding 
@@ -22,10 +21,10 @@ async def _ensure_resume_embedding_async(file_hash: str, text_to_embed: str) -> 
     ''', file_hash)
     
     if result and result[0].get('has_embedding'):
-        return None
+        return None, 0.0, {}
         
     # Generate the embedding asynchronously if not present
-    embedding = await get_embedding_async(text_to_embed)
+    embedding, cost, token_info = await get_embedding_with_cost_async(text_to_embed)
     
     # Store it for the global Resume record
     await prisma.execute_raw('''
@@ -34,11 +33,11 @@ async def _ensure_resume_embedding_async(file_hash: str, text_to_embed: str) -> 
         WHERE "fileHash" = $2
     ''', str(embedding), file_hash)
     
-    return embedding
+    return embedding, cost, token_info
 
 async def _get_or_create_embedding_async(file_hash: str, text_to_embed: str) -> list[float]:
     """Legacy helper maintained for backward compatibility."""
-    vector = await _ensure_resume_embedding_async(file_hash, text_to_embed)
+    vector, _, _ = await _ensure_resume_embedding_async(file_hash, text_to_embed)
     if vector is not None:
         return vector
     result = await prisma.query_raw('''
@@ -66,7 +65,7 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     cv_summary = (
         f"Skills: {', '.join(profile.skills)}. "
         f"Experience: {profile.total_experience_years} years. "
-        f"Roles: {', '.join(profile.previous_roles)}. "
+        f"Roles: {', '.join([str(r) for r in profile.previous_roles])}. "
         f"Education: {', '.join(getattr(profile, 'education', []))}. "
         f"Projects: {', '.join(getattr(profile, 'projects', []))}. "
         f"Other Info: {getattr(profile, 'other_info', '')}."
@@ -77,7 +76,7 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     file_hash = hashlib.sha256(raw_text.encode('utf-8', errors='replace')).hexdigest()
     
     # Ensure Resume embedding exists in DB (generated on-the-fly if missing)
-    cv_vector = await _ensure_resume_embedding_async(file_hash, cv_summary)
+    cv_vector, embed_cost, embed_tokens = await _ensure_resume_embedding_async(file_hash, cv_summary)
     
     candidate_id = state.get("candidate_id")
     
@@ -157,27 +156,34 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     # Read strategy from env or default to threshold
     strategy = os.getenv("EMBEDDING_STRATEGY", "threshold")
     
+    ret_dict = {
+        "semantic_score": similarity,
+        "log": [f"Semantic score: {similarity:.2f}"]
+    }
+    if embed_cost > 0:
+        ret_dict["total_cost"] = round(embed_cost, 6)
+        ret_dict["stage_costs"] = {
+            "embedding_matcher": {
+                "cost": round(embed_cost, 6),
+                "tokens": embed_tokens
+            }
+        }
+    
     if strategy == "threshold":
         threshold = float(os.getenv("EMBEDDING_THRESHOLD", "0.4"))
         if similarity < threshold:
             reason = f"Candidate semantic similarity ({similarity:.2f}) is below threshold ({threshold})."
             logger.info(f"[Embedding Matcher] [FAIL] Rejected: {reason}")
-            return {
-                "pipeline_status": "rejected",
-                "rejection_reason": reason,
-                "semantic_score": similarity,
-                "log": [f"Semantic score: {similarity:.2f} (Rejected: below threshold {threshold})"]
-            }
+            ret_dict["pipeline_status"] = "rejected"
+            ret_dict["rejection_reason"] = reason
+            ret_dict["log"] = [f"Semantic score: {similarity:.2f} (Rejected: below threshold {threshold})"]
+            return ret_dict
         logger.info("[Embedding Matcher] [OK] Passed embedding threshold.")
-        return {
-            "semantic_score": similarity,
-            "log": [f"Semantic score: {similarity:.2f} (Passed threshold {threshold})"]
-        }
+        ret_dict["log"] = [f"Semantic score: {similarity:.2f} (Passed threshold {threshold})"]
+        return ret_dict
     else:
         # Batch mode: we let everyone pass this node, but record their score.
         # batch_run.py will later filter the top N%.
         logger.info("[Embedding Matcher] [INFO] Batch mode active. Score recorded.")
-        return {
-            "semantic_score": similarity,
-            "log": [f"Semantic score: {similarity:.2f} (Batch mode)"]
-        }
+        ret_dict["log"] = [f"Semantic score: {similarity:.2f} (Batch mode)"]
+        return ret_dict

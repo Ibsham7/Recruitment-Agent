@@ -10,6 +10,7 @@ import uvicorn
 import asyncio
 import os
 import sys
+import ssl
 
 # Ensure stdout and stderr handle UTF-8 cleanly on Windows standard console
 if hasattr(sys.stdout, "reconfigure"):
@@ -36,6 +37,8 @@ def _get_redis_settings() -> RedisSettings:
     settings = RedisSettings.from_dsn(url)
     settings.conn_timeout = 10
     settings.conn_retries = 5
+    if url.startswith("rediss://"):
+        settings.ssl_cert_reqs = "none"
     return settings
 
 async def lifespan(app: FastAPI):
@@ -47,12 +50,15 @@ async def lifespan(app: FastAPI):
     # Shutdown: Disconnect database pool and Redis Queue
     await prisma.disconnect()
     await close_db_pool()
-    if hasattr(app.state.redis, "aclose"):
-        await app.state.redis.aclose()
-    elif hasattr(app.state.redis, "close"):
-        res = app.state.redis.close()
-        if asyncio.iscoroutine(res):
-            await res
+    try:
+        if hasattr(app.state.redis, "aclose"):
+            await app.state.redis.aclose()
+        elif hasattr(app.state.redis, "close"):
+            res = app.state.redis.close()
+            if asyncio.iscoroutine(res):
+                await res
+    except Exception:
+        pass
 
 from app.core.logging import setup_logging, logger
 from app.middleware.correlation import CorrelationIdMiddleware
@@ -272,7 +278,18 @@ def _format_candidate_dict(cand_dict: dict) -> dict:
                     q_item = iq[-1]
                     cand_dict["currentQuestion"] = q_item.get("question") if isinstance(q_item, dict) else str(q_item)
 
+    if cand_dict.get("costBreakdown"):
+        if isinstance(cand_dict["costBreakdown"], str):
+            import json
+            try:
+                cand_dict["costBreakdown"] = json.loads(cand_dict["costBreakdown"])
+            except Exception:
+                pass
+    cand_dict["cost_breakdown"] = cand_dict.get("costBreakdown")
+    cand_dict["api_cost"] = cand_dict.get("apiCost", 0.0)
+
     return cand_dict
+
 
 @app.get("/api/campaigns")
 async def get_campaigns(user: dict = Depends(verify_jwt)):
