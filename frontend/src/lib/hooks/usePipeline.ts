@@ -44,13 +44,34 @@ export async function fetchPipelineData(id: string) {
     const apiCost = typeof c.apiCost === 'number' ? c.apiCost : (typeof c.api_cost === 'number' ? c.api_cost : 0);
     const costBreakdown = c.costBreakdown || c.cost_breakdown || null;
 
+    const evalData = c.evaluation || {};
+
     return {
       ...c,
-      score: Math.min(100, Math.max(0, c.fitScore || c.evaluation?.overallScore || 0)),
-      recommendation: c.decision || c.evaluation?.recommendation || "pending",
+      cvUrl: c.cvUrl || c.resumePath || c.resume?.cvUrl || c.resume?.resumePath || null,
+      score: Math.min(100, Math.max(0, Number((evalData.overallScore ?? c.fitScore ?? 0).toFixed(2)))),
+      recommendation: c.decision || evalData.recommendation || "pending",
       stage,
-      currentRole: c.structuredProfile?.currentRole || "",
+      currentRole: c.structuredProfile?.currentRole || "Candidate",
       experience: c.structuredProfile?.experience || "",
+      scores: {
+        technical: Number((evalData.technicalScore || 0).toFixed(2)),
+        communication: Number((evalData.communicationScore || 0).toFixed(2)),
+        culturalFit: Number((evalData.culturalFitScore || 0).toFixed(2)),
+        overall: Math.min(100, Math.max(0, Number((evalData.overallScore || c.fitScore || 0).toFixed(2)))),
+      },
+      summary: c.rejectionReason
+        ? (evalData.summary ? `Rejection Reason: ${c.rejectionReason}\n\n${evalData.summary}` : c.rejectionReason)
+        : (evalData.summary || "No summary available."),
+      strengths: evalData.strengths || [],
+      concerns: evalData.concerns || [],
+      scoreBreakdown: evalData.scoreBreakdown || null,
+      chainOfThought: evalData.chainOfThought || "No reasoning provided.",
+      transcript: evalData.interviewTranscript || [],
+      aiGeneratedLikelihoodScore: evalData.aiGeneratedLikelihoodScore ?? c.aiGeneratedLikelihoodScore ?? 0,
+      antiCheatFlags: evalData.antiCheatFlags || c.antiCheatFlags || [],
+      antiCheatMetadata: evalData.antiCheatMetadata || c.antiCheatMetadata || null,
+      evaluation: evalData,
       apiCost,
       costBreakdown,
     };

@@ -7,6 +7,8 @@ from app.agent.schemas import (
     PenaltyBreakdownItem,
 )
 
+from app.agent.tools.timeline import generate_experience_calculation_summary
+
 TENURE_PATTERN = re.compile(
     r"(\b\d+\+?\s*(years?|yrs?|yr)\b|\byears?\s+of\s+(professional\s+)?(software\s+engineering\s+|development\s+)?experience\b|\bminimum\s+\d+\s+years?\b|\b\d+\+\s*years?\b)",
     re.IGNORECASE
@@ -35,38 +37,55 @@ NEGATIVE_EVIDENCE_PHRASES = (
     "lack of", "absence of", "no explicit", "unmentioned", "not listed"
 )
 
-CICD_REQ_KEYWORDS = ("ci/cd", "continuous integration", "continuous deployment", "jenkins", "github actions", "gitlab ci", "circleci")
-HOSTING_ONLY_EVIDENCE = ("azure app service", "aws ec2", "heroku", "vercel", "s3 bucket", "elastic beanstalk")
-CICD_EXPLICIT_TOOLS = ("github actions", "jenkins", "gitlab ci", "circleci", "azure pipelines", "travis", "argocd", "bamboo", "harness")
-
-def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: Any = None, eval_mode: str = "default") -> Tuple[str, str]:
+def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: Any = None, eval_mode: str = "default", candidate_profile: Any = None) -> Tuple[str, str]:
     """
-    Deterministic evidence guardrail to prevent evidence inflation/stretching:
-    1. Proficiency Qualifier Cap: If evidence contains 'some exposure', 'basic', 'assisted', 'learning', cap match_val at 'partial'.
-    2. CI/CD vs Hosting Guardrail: If requirement is CI/CD, but evidence only mentions cloud hosting deployment without pipeline tooling, override match_val to 'none'.
+    Domain-agnostic evidence guardrail to prevent evidence inflation/stretching:
+    1. Proficiency Qualifier Cap: If evidence or profile raw skills contain 'some exposure', 'basic', 'assisted', 'learning', cap match_val at 'partial'.
+    2. Parenthetical Alternatives Upgrade: If requirement lists alternatives in parentheses (e.g. "CRM (Salesforce / HubSpot)", "CI/CD (Jenkins / GitHub Actions)", "Assessment (Kahoot / Forms)") and evidence names one explicitly, upgrade partial -> full.
     3. Self-Contradiction Guardrail: If match is non-none, but evidence explicitly states absence of evidence ('no specific', 'no evidence', 'not mentioned'), force match_val to 'none'.
+    4. Soft / Unevidenced Skill Listing Guardrail: If evidence for nice-to-have or soft requirements merely states "listed '...' as a skill" or generic on-call participation without substantive evidence, force match_val to 'none'.
     """
     req_lower = req_name.lower()
     ev_lower = evidence_val.lower()
     override_note = ""
 
     # Rule 1: Low-proficiency / hedging qualifier cap
-    if match_val == "full" and any(k in ev_lower for k in LOW_PROFICIENCY_KEYWORDS):
-        match_val = "partial"
-        override_note = " [Capped to partial due to low-proficiency / hedging qualifier in evidence]"
+    has_hedge = any(k in ev_lower for k in LOW_PROFICIENCY_KEYWORDS)
+    if not has_hedge and candidate_profile and match_val == "full":
+        cand_skills = getattr(candidate_profile, "skills", []) or []
+        tech_words = [w.lower() for w in re.findall(r'\b[a-zA-Z0-9+#/\-]{3,}\b', req_name) if w.lower() not in {"experience", "with", "and", "or", "services", "core", "preferred", "requirement"}]
+        for s in cand_skills:
+            s_lower = str(s).lower()
+            if any(tw in s_lower for tw in tech_words) and any(k in s_lower for k in LOW_PROFICIENCY_KEYWORDS):
+                has_hedge = True
+                break
 
-    # Rule 2: CI/CD vs Hosting Target (Strict & Default/Moderate modes)
-    if eval_mode != "lenient" and any(k in req_lower for k in CICD_REQ_KEYWORDS):
-        has_hosting = any(h in ev_lower for h in HOSTING_ONLY_EVIDENCE)
-        has_pipeline_tool = any(t in ev_lower for t in CICD_EXPLICIT_TOOLS)
-        if match_val != "none" and (has_hosting and not has_pipeline_tool or not ev_lower or "no " in ev_lower or "none" in ev_lower):
-            match_val = "none"
-            override_note = " [Overridden to none: hosting deployment target is not CI/CD pipeline experience]"
+    if match_val == "full" and has_hedge:
+        match_val = "partial"
+        override_note = " [Capped to partial due to low-proficiency / hedging qualifier in evidence or profile]"
+
+    # Rule 2: Parenthetical Alternatives Upgrade (Domain-Agnostic)
+    if match_val == "partial" and not has_hedge:
+        paren_match = re.search(r'\(([^)]+)\)', req_lower)
+        if paren_match:
+            alternatives = [t.strip() for t in re.split(r'[/,|]', paren_match.group(1))]
+            if any(alt in ev_lower for alt in alternatives if len(alt) > 2):
+                match_val = "full"
+                override_note = " [Upgraded to full: evidence names an exact alternative from requirement's listed options]"
 
     # Rule 3: Self-Contradiction Guardrail (Evidence text explicitly states absence of requirement/evidence)
     if match_val != "none" and any(p in ev_lower for p in NEGATIVE_EVIDENCE_PHRASES):
         match_val = "none"
         override_note = " [Overridden to none: evidence explicitly states absence of requirement or evidence]"
+
+    # Rule 4: Soft / Unevidenced Skill Listing Guardrail (Nice-to-have or soft competencies)
+    if match_val != "none":
+        if re.search(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", ev_lower) or "listed as a skill" in ev_lower:
+            substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower)
+            substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive).strip(" ;,.-")
+            if not substantive or len(substantive) < 5:
+                match_val = "none"
+                override_note = " [Overridden to none: generic skill listing without substantive evidence of requirement execution]"
 
     if item is not None and match_val != getattr(item, "match", None):
         if hasattr(item, "match"):
@@ -75,6 +94,207 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             item["match"] = match_val
 
     return match_val, override_note
+
+def classify_degree_relevance(education_list: list, jd_keywords: list = None) -> Tuple[float, str, str]:
+    """
+    Evaluates education records against JD domain keywords.
+    Returns (points_earned, evidence_summary, relevance_status).
+    """
+    if not education_list:
+        return 0.0, "No formal degree or educational records found on CV.", "none"
+
+    edu_strings = []
+    for item in education_list:
+        if isinstance(item, str):
+            if item.strip():
+                edu_strings.append(item.strip())
+        elif isinstance(item, dict):
+            deg = item.get("degree") or item.get("title") or ""
+            inst = item.get("institution") or item.get("school") or ""
+            if deg or inst:
+                edu_strings.append(f"{deg} - {inst}".strip(" -"))
+
+    if not edu_strings:
+        return 0.0, "No formal degree or educational records found on CV.", "none"
+
+    all_edu_text = " ".join(edu_strings).lower()
+    jd_text = " ".join([str(k) for k in (jd_keywords or [])]).lower()
+    
+    # Extract domain tokens from JD
+    from app.agent.tools.timeline import extract_domain_tokens
+    domain_tokens = extract_domain_tokens(jd_keywords) if jd_keywords else set()
+
+    edu_tokens = set(re.findall(r'[a-zA-Z0-9+#/\-]+', all_edu_text))
+    
+    direct_match = domain_tokens & edu_tokens
+    is_advanced = any(deg in all_edu_text for deg in ["master", "m.s.", "m.a.", "ph.d", "phd", "doctorate", "mba"])
+
+    # High-relevance discipline pairs
+    tech_jd = any(k in jd_text for k in ["python", "java", "backend", "frontend", "software", "developer", "engineer", "data", "cloud", "api"])
+    tech_deg = any(k in all_edu_text for k in ["computer", "software", "information technology", "data science", "electrical"])
+
+    math_jd = any(k in jd_text for k in ["math", "mathematics", "physics", "teaching", "teacher", "curriculum", "education"])
+    math_deg = any(k in all_edu_text for k in ["math", "mathematics", "education", "physics", "science"])
+
+    biz_jd = any(k in jd_text for k in ["business", "marketing", "sales", "finance", "accounting", "management"])
+    biz_deg = any(k in all_edu_text for k in ["business", "mba", "finance", "economics", "marketing", "accounting"])
+
+    is_domain_relevant = bool(direct_match or (tech_jd and tech_deg) or (math_jd and math_deg) or (biz_jd and biz_deg))
+    
+    if is_domain_relevant:
+        pts = 25.0 if (len(edu_strings) >= 2 or is_advanced) else 20.0
+        return pts, f"Domain-Relevant Degree ({'; '.join(edu_strings)}) matching target field.", "full"
+
+    broad_disciplines = {"science", "engineering", "technology", "mathematics", "computer", "business", "finance", "economics", "education", "management", "law", "medicine", "nursing"}
+    if broad_disciplines & edu_tokens:
+        pts = 18.0 if (len(edu_strings) >= 2 or is_advanced) else 14.0
+        return pts, f"Foundational Degree ({'; '.join(edu_strings)}) providing general core discipline background.", "partial"
+
+    return 5.0, f"Unrelated Degree Completed ({'; '.join(edu_strings)}). Low direct relevance to target role domain.", "partial"
+
+def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, eval_mode: str, jd_keywords: list = None) -> Tuple[float, list, str]:
+    """
+    Domain-agnostic trajectory calculated from verifiable structural profile signals.
+    Returns (score, sub_criteria_list, calculation_summary).
+    """
+    from app.agent.schemas import TrajectorySubCriterion
+
+    if not candidate_profile:
+        fallback_score = 40.0 if eval_mode == "strict" else 60.0
+        return fallback_score, [], f"Default baseline trajectory ({fallback_score:.0f} pts)."
+
+    sub_criteria = []
+
+    # 1. Career Progression
+    roles = getattr(candidate_profile, "previous_roles", [])
+    unique_titles = []
+    for r in roles:
+        t = getattr(r, "title", "") if hasattr(r, "title") else (r.get("title", "") if isinstance(r, dict) else "")
+        if t and str(t).strip() and str(t).strip() not in unique_titles:
+            unique_titles.append(str(t).strip())
+
+    if len(unique_titles) >= 3:
+        p1 = 25.0
+        s1 = "full"
+        e1 = f"{len(unique_titles)} distinct roles showing career growth: " + ", ".join(unique_titles[:3])
+    elif len(unique_titles) >= 2:
+        p1 = 15.0
+        s1 = "partial"
+        e1 = f"{len(unique_titles)} distinct roles listed: " + ", ".join(unique_titles)
+    elif len(unique_titles) >= 1:
+        p1 = 7.0
+        s1 = "partial"
+        e1 = f"1 role listed on CV: {unique_titles[0]}"
+    else:
+        p1 = 0.0
+        s1 = "none"
+        e1 = "No prior work experience roles listed."
+
+    sub_criteria.append(TrajectorySubCriterion(
+        criterion_name="Career Title Progression",
+        points_earned=p1,
+        max_points=25.0,
+        rubric_rule="≥3 distinct roles = 25 pts | 2 roles = 15 pts | 1 role = 7 pts",
+        evidence=e1,
+        status=s1
+    ))
+
+    # 2. Skill Portfolio Breadth
+    skills = getattr(candidate_profile, "skills", []) or []
+    skill_names = [str(s) for s in skills if s]
+    if len(skill_names) >= 8:
+        p2 = 25.0
+        s2 = "full"
+        e2 = f"{len(skill_names)} competencies listed on CV: " + ", ".join(skill_names[:12]) + ("..." if len(skill_names) > 12 else "")
+    elif len(skill_names) >= 4:
+        p2 = 15.0
+        s2 = "partial"
+        e2 = f"{len(skill_names)} competencies listed: " + ", ".join(skill_names)
+    elif len(skill_names) >= 1:
+        p2 = 7.0
+        s2 = "partial"
+        e2 = f"{len(skill_names)} skill listed: " + ", ".join(skill_names)
+    else:
+        p2 = 0.0
+        s2 = "none"
+        e2 = "No explicit skills extracted from CV."
+
+    sub_criteria.append(TrajectorySubCriterion(
+        criterion_name="Skill Portfolio Breadth",
+        points_earned=p2,
+        max_points=25.0,
+        rubric_rule="≥8 skills = 25 pts | 4-7 skills = 15 pts | 1-3 skills = 7 pts",
+        evidence=e2,
+        status=s2
+    ))
+
+    # 3. Proven Deliverables & Projects
+    projects = getattr(candidate_profile, "projects", []) or []
+    achievements = getattr(candidate_profile, "key_achievements", []) or []
+    proj_names = []
+    for p in projects:
+        if isinstance(p, str):
+            proj_names.append(p)
+        elif isinstance(p, dict):
+            proj_names.append(str(p.get("title") or p.get("name") or str(p)))
+        else:
+            t = getattr(p, "title", None) or getattr(p, "name", None)
+            proj_names.append(str(t) if t and not callable(t) else str(p))
+
+    achieve_names = [str(a) for a in achievements if a]
+
+    # Filter out generic responsibility phrases that are unquantified duties
+    GENERIC_DUTY_PATTERNS = [
+        r"^participated\s+in", r"^attended\s+", r"^assisted\s+with", r"^responsible\s+for",
+        r"^helped\s+with", r"^monitored\s+", r"^on-call\s+rotation"
+    ]
+    raw_evidence = proj_names + achieve_names
+    evidence_items = []
+    for item_str in raw_evidence:
+        item_lower = item_str.lower().strip()
+        if any(re.search(pat, item_lower) for pat in GENERIC_DUTY_PATTERNS) and not any(char.isdigit() for char in item_str):
+            continue
+        evidence_items.append(item_str)
+    
+    if len(evidence_items) >= 3:
+        p3 = 25.0
+        s3 = "full"
+        e3 = f"{len(evidence_items)} projects/achievements documented: " + "; ".join(evidence_items[:3])
+    elif len(evidence_items) >= 1:
+        p3 = 12.0
+        s3 = "partial"
+        e3 = f"{len(evidence_items)} project/achievement documented: " + "; ".join(evidence_items[:2])
+    else:
+        p3 = 0.0
+        s3 = "none"
+        e3 = "No independent projects or key achievements documented."
+
+    sub_criteria.append(TrajectorySubCriterion(
+        criterion_name="Proven Deliverables & Projects",
+        points_earned=p3,
+        max_points=25.0,
+        rubric_rule="≥3 projects/achievements = 25 pts | 1-2 projects = 12 pts",
+        evidence=e3,
+        status=s3
+    ))
+
+    # 4. Educational Attainment & Degree Relevance
+    education = getattr(candidate_profile, "education", []) or []
+    p4, e4, s4 = classify_degree_relevance(education, jd_keywords)
+
+    sub_criteria.append(TrajectorySubCriterion(
+        criterion_name="Educational Relevance & Credentials",
+        points_earned=p4,
+        max_points=25.0,
+        rubric_rule="Relevant Degree = 18-25 pts | Adjacent = 10-14 pts | Unrelated = 5 pts",
+        evidence=e4,
+        status=s4
+    ))
+
+    total_score = min(100.0, p1 + p2 + p3 + p4)
+    calc_summary = f"Career Progression ({p1:.0f}/25) + Skill Breadth ({p2:.0f}/25) + Deliverables ({p3:.0f}/25) + Education ({p4:.0f}/25) = {total_score:.0f}/100 pts"
+
+    return total_score, sub_criteria, calc_summary
 
 MATCH_MULTIPLIERS = {
     # Lenient: partial credit is generous (75%), rewarding adjacent/transferable skills
@@ -151,7 +371,7 @@ def calculate_weighted_fit_score(
             raw_match_val = getattr(item, "match", item.get("match", "none") if isinstance(item, dict) else "none")
             evidence_val = getattr(item, "evidence", item.get("evidence", "") if isinstance(item, dict) else "")
             
-            match_val, override_note = _sanitize_match_val(req_name, raw_match_val, evidence_val, item=item, eval_mode=eval_mode_key)
+            match_val, override_note = _sanitize_match_val(req_name, raw_match_val, evidence_val, item=item, eval_mode=eval_mode_key, candidate_profile=candidate_profile)
             
             mult = multipliers.get(match_val, 0.0)
             pct = mult * 100.0
@@ -187,7 +407,7 @@ def calculate_weighted_fit_score(
             raw_match_val = getattr(item, "match", item.get("match", "none") if isinstance(item, dict) else "none")
             evidence_val = getattr(item, "evidence", item.get("evidence", "") if isinstance(item, dict) else "")
             
-            match_val, override_note = _sanitize_match_val(req_name, raw_match_val, evidence_val, item=item, eval_mode=eval_mode_key)
+            match_val, override_note = _sanitize_match_val(req_name, raw_match_val, evidence_val, item=item, eval_mode=eval_mode_key, candidate_profile=candidate_profile)
             
             mult = multipliers.get(match_val, 0.0)
             pct = mult * 100.0
@@ -228,7 +448,7 @@ def calculate_weighted_fit_score(
         # If JD has no nice-to-have items, candidate gets full credit
         nice_score = 100.0
 
-    # Experience Score (Floor Removal: Direct Ratio Y_relevant / Y_req clamped [0, 100])
+    # Experience Score (Floor Removal: Ratio Y_relevant / Y_req with relevance proportion discount)
     cand_years = float(getattr(candidate_profile, "total_experience_years", 0.0) if candidate_profile else 0.0)
 
     # Determine relevant years (from score_breakdown, candidate_profile, or experience_assessment)
@@ -278,7 +498,13 @@ def calculate_weighted_fit_score(
     if req_years == 0.0:
         exp_score = 100.0
     elif req_years > 0:
-        exp_score = min(100.0, max(0.0, (effective_exp_years / req_years) * 100.0))
+        ratio_score = min(100.0, max(0.0, (effective_exp_years / req_years) * 100.0))
+        # Relevance proportion discount: blend 70% requirement ratio + 30% career relevance ratio
+        if cand_years > 0 and effective_exp_years < cand_years:
+            relevance_ratio = effective_exp_years / cand_years
+            exp_score = (ratio_score * 0.7) + (relevance_ratio * 100.0 * 0.3)
+        else:
+            exp_score = ratio_score
     else:
         exp_score = 100.0
 
@@ -294,12 +520,26 @@ def calculate_weighted_fit_score(
         max_allowed_exp = min(100.0, max(25.0, skills_score + 35.0))
     exp_score = min(exp_score, max_allowed_exp)
 
-    # Growth Trajectory (Bounded by Technical Skill Performance)
+    # Extract JD keywords for education domain matching
+    jd_kw_list = []
+    if must_have:
+        for item in must_have:
+            req_name = item.get("requirement") if isinstance(item, dict) else getattr(item, "requirement", "")
+            if req_name:
+                jd_kw_list.append(str(req_name))
+    if canonical_jd_spec and getattr(canonical_jd_spec, "role_title", None):
+        jd_kw_list.append(str(canonical_jd_spec.role_title))
+
+    # Growth Trajectory (Evidence-Derived, Structural & Domain-Agnostic)
     raw_traj = getattr(score_breakdown, "trajectory_score", None)
     if raw_traj is not None:
         traj_score = float(raw_traj)
+        traj_sub_criteria = []
+        traj_calc_summary = f"Pre-computed trajectory score ({traj_score:.0f} pts)."
     else:
-        traj_score = 80.0 if eval_mode_key == "lenient" else 40.0 if eval_mode_key == "strict" else 60.0
+        traj_score, traj_sub_criteria, traj_calc_summary = _compute_evidence_trajectory(
+            candidate_profile, skills_score, eval_mode_key, jd_keywords=jd_kw_list
+        )
 
     # Trajectory Skill Bounding:
     # Growth trajectory cannot inflate candidate score beyond technical competence
@@ -352,7 +592,13 @@ def calculate_weighted_fit_score(
     final_score = int(round(max(0.0, min(100.0, raw_score - scaled_deduction))))
 
     # Experience Breakdown
-    cand_calc = getattr(candidate_profile, "experience_calculation", None) if candidate_profile else None
+    if candidate_profile and hasattr(candidate_profile, "previous_roles") and candidate_profile.previous_roles:
+        calc_summary = generate_experience_calculation_summary(candidate_profile.previous_roles)
+    else:
+        calc_summary = getattr(candidate_profile, "experience_calculation", None) if candidate_profile else None
+        if not calc_summary:
+            calc_summary = f"Direct ratio: {effective_exp_years:.1f} relevant yrs / {req_years:.1f} req yrs (total career tenure: {cand_years:.1f} yrs)"
+
     exp_pts_earned = round(exp_score * weights["exp"], 1)
     exp_breakdown_obj = ExperienceBreakdown(
         score=int(round(exp_score)),
@@ -361,20 +607,23 @@ def calculate_weighted_fit_score(
         required_years=req_years,
         candidate_years=cand_years,
         relevant_years=effective_exp_years,
-        calculation=cand_calc or f"Direct ratio: {effective_exp_years:.1f} relevant yrs / {req_years:.1f} req yrs (total career tenure: {cand_years:.1f} yrs)",
+        calculation=calc_summary,
         assessment=experience_assessment or f"Candidate relevant experience ({effective_exp_years:.1f} yrs, {cand_years:.1f} yrs total) evaluated against required depth ({req_years} yrs)."
     )
 
     # Trajectory Breakdown
     traj_pts_earned = round(traj_score * weights["traj"], 1)
-    traj_assessment = "Growth capacity evaluated from project complexity, educational background, and skill acquisition rate."
+    traj_assessment = "Growth capacity evaluated from career progression, skill acquisition breadth, project evidence, and degree domain relevance."
     if traj_cap_applied:
         traj_assessment += f" [Capped from {original_traj_score:.0f} to {traj_score:.0f} due to domain skills baseline ({skills_score:.0f}%)]"
+        traj_calc_summary += f" (Capped to {traj_score:.0f} pts due to domain skill baseline of {skills_score:.0f}%)"
 
     traj_breakdown_obj = TrajectoryBreakdown(
         score=int(round(traj_score)),
         points_earned=traj_pts_earned,
         max_points=weights["traj"] * 100.0,
+        sub_criteria=traj_sub_criteria or [],
+        calculation_summary=traj_calc_summary,
         assessment=traj_assessment
     )
 

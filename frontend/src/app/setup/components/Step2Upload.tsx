@@ -74,14 +74,21 @@ export default function Step2Upload({
 
   const totalFileSize = uploadTasks.reduce((acc, task) => acc + task.file.size, 0);
   const problematicTasks = uploadTasks.filter(t => t.status === 'error' || t.file.size === 0);
+  const retryableTasks = uploadTasks.filter(t => t.status === 'error' && t.file.size > 0);
   const validTasks = uploadTasks.filter(t => t.status !== 'error' && t.file.size > 0);
+
+  const handleRetryAllFailed = () => {
+    retryableTasks.forEach(t => {
+      uploadToCloudinaryWithProgress(t.id, t.file).catch(() => {});
+    });
+  };
 
   return (
     <div className="lg:col-span-7 xl:col-span-8 space-y-6">
       <input 
         type="file" 
         multiple 
-        accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" 
+        accept=".pdf,.docx,.doc,.txt" 
         className="hidden" 
         ref={fileInputRef} 
         onChange={handleFileSelect} 
@@ -146,20 +153,36 @@ export default function Step2Upload({
                 <span>{problematicTasks.length} {problematicTasks.length === 1 ? 'Problematic Resume Detected' : 'Problematic Resumes Detected'}</span>
               </div>
               <div className="text-[11px] text-red-400/90 mt-0.5 font-medium">
-                Contains empty (0 B) or invalid files. Remove them to launch campaign smoothly.
+                {retryableTasks.length > 0 
+                  ? "Cloudinary rate limit or network error occurred on some files. Tap Retry or remove problematic files."
+                  : "Contains empty (0 B) or invalid files. Remove them to launch campaign smoothly."}
               </div>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setUploadTasks(prev => prev.filter(task => task.status !== 'error' && task.file.size > 0))}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 self-end sm:self-auto shadow-sm hover:opacity-90 active:scale-95"
-            style={{ background: '#ef4444', color: '#ffffff' }}
-          >
-            <Trash2 size={13} />
-            <span>Remove {problematicTasks.length === 1 ? 'Problematic CV' : 'All Problematic CVs'}</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+            {retryableTasks.length > 0 && (
+              <button
+                type="button"
+                onClick={handleRetryAllFailed}
+                disabled={uploading}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 disabled:opacity-50"
+                style={{ background: t.accentPrimary, color: t.accentText }}
+              >
+                <RefreshCw size={13} />
+                <span>Retry Failed Uploads</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setUploadTasks(prev => prev.filter(task => task.status !== 'error' && task.file.size > 0))}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
+              style={{ background: '#ef4444', color: '#ffffff' }}
+            >
+              <Trash2 size={13} />
+              <span>Remove {problematicTasks.length === 1 ? 'Problematic CV' : 'All Problematic CVs'}</span>
+            </button>
+          </div>
         </div>
       )}
 

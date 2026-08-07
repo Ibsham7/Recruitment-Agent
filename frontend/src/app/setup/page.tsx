@@ -38,7 +38,32 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
   const [uploading, setUploading] = useState(false);
   const [dbWakingUp, setDbWakingUp] = useState(false);
 
-  const uploadToCloudinaryWithProgress = (taskId: string, file: File): Promise<string> => {
+  const runWithConcurrencyLimit = async <T, R>(
+    items: T[],
+    limit: number,
+    fn: (item: T) => Promise<R>
+  ): Promise<PromiseSettledResult<R>[]> => {
+    const results: PromiseSettledResult<R>[] = new Array(items.length);
+    let index = 0;
+
+    const worker = async () => {
+      while (index < items.length) {
+        const i = index++;
+        try {
+          const res = await fn(items[i]);
+          results[i] = { status: 'fulfilled', value: res };
+        } catch (err: any) {
+          results[i] = { status: 'rejected', reason: err };
+        }
+      }
+    };
+
+    const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+    await Promise.all(workers);
+    return results;
+  };
+
+  const uploadToCloudinarySingle = (taskId: string, file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const val = validateFile(file);
       if (val.isError) {
@@ -91,9 +116,16 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               errDetail = errRes.error.message;
             }
           } catch (e) {}
-          console.error("Cloudinary error:", errDetail);
-          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: errDetail } : t));
-          reject(new Error(errDetail));
+          
+          const isRateLimit = xhr.status === 429 || errDetail.toLowerCase().includes("slow down") || errDetail.toLowerCase().includes("capacity");
+          const finalReason = isRateLimit ? "Cloudinary rate limit (429)" : errDetail;
+          
+          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: finalReason } : t));
+          
+          const errObj = new Error(finalReason);
+          (errObj as any).isRateLimit = isRateLimit;
+          (errObj as any).status = xhr.status;
+          reject(errObj);
         }
       };
 
@@ -108,6 +140,29 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
       xhr.send(formData);
     });
+  };
+
+  const uploadToCloudinaryWithProgress = async (taskId: string, file: File, maxRetries = 3): Promise<string> => {
+    let attempt = 0;
+    while (true) {
+      try {
+        return await uploadToCloudinarySingle(taskId, file);
+      } catch (err: any) {
+        attempt++;
+        if (attempt <= maxRetries && (err?.isRateLimit || err?.status === 429 || (err?.message && err.message.toLowerCase().includes("slow down")))) {
+          const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+          setUploadTasks(prev => prev.map(t => t.id === taskId ? { 
+            ...t, 
+            status: 'uploading', 
+            progress: 0, 
+            errorReason: `Rate limited. Retrying (${attempt}/${maxRetries}) in ${Math.round(delay/1000)}s...` 
+          } : t));
+          await new Promise(r => setTimeout(r, delay));
+        } else {
+          throw err;
+        }
+      }
+    }
   };
 
   const onComplete = async () => {
@@ -154,11 +209,11 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
       
       const newlyUploadedUrls: Record<string, string> = {};
       if (tasksToUpload.length > 0) {
-        const uploadPromises = tasksToUpload.map(async t => {
+        // Concurrency limit of max 2 simultaneous uploads to Cloudinary
+        const uploadResults = await runWithConcurrencyLimit(tasksToUpload, 2, async (t) => {
           const url = await uploadToCloudinaryWithProgress(t.id, t.file);
           return { id: t.id, url };
         });
-        const uploadResults = await Promise.allSettled(uploadPromises);
         
         const hasErrors = uploadResults.some(r => r.status === 'rejected');
         if (hasErrors) {

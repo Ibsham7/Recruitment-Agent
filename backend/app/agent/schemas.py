@@ -136,10 +136,20 @@ class ExperienceBreakdown(BaseModel):
             return None
         return v
 
+class TrajectorySubCriterion(BaseModel):
+    criterion_name: str = ""
+    points_earned: float = 0.0
+    max_points: float = 25.0
+    rubric_rule: str = ""
+    evidence: str = ""
+    status: str = "none"
+
 class TrajectoryBreakdown(BaseModel):
     score: int = 0
     points_earned: float = 0.0
     max_points: float = 10.0
+    sub_criteria: list[TrajectorySubCriterion] = Field(default_factory=list)
+    calculation_summary: str = ""
     assessment: Optional[str] = None
 
 class PenaltyBreakdownItem(BaseModel):

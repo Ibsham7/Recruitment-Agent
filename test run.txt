@@ -1,0 +1,775 @@
+(
+hireagent
+
+Campaigns
+
+Interviews
+
+Analytics
+
+Candidates
+
+Settings
+ib
+Muhammad Ibsham
+ibsham.tariq123@gmail.com
+
+Sign out
+
+Candidate Review
+
+Paper & Ink
+
+Back to Pipeline
+JS
+Jake Sullivan
+Not Recommended
+Candidate ·
+[email protected]
+•
+View CV
+Candidate CV
+6
+Overall Score
+API Cost & Model Telemetry Analysis
+Total Candidate API Consumption: $0.000483 (4,026 tokens)
+
+Inspect Breakdown
+Candidate Resume / CV
+Original resume document uploaded for screening
+Open Full CV
+AI Summary
+Rejection Reason: Screening score 6/100 — below threshold. This candidate is a career switcher with a strong frontend background but lacks all core backend and AWS experience required for this senior role. While they express willingness to learn, their current profile does not meet the minimum qualifications for a Senior Backend Engineer.
+
+This candidate is a career switcher with a strong frontend background but lacks all core backend and AWS experience required for this senior role. While they express willingness to learn, their current profile does not meet the minimum qualifications for a Senior Backend Engineer.
+
+JD Match Reasoning
+Experience Assessment: The candidate has 6 years of total experience, but none of it is directly relevant to backend engineering, API development, or cloud infrastructure as required by the role. Their experience is primarily in frontend development and marketing.
+
+Score Attribution:
+• Required Skills (50%): 7/100
+• Experience Depth (25%): 0/100
+• Nice-to-Have Skills (15%): 0/100
+• Trajectory & Growth (10%): 27/100
+Overall Fit Score: 6/100
+
+Decision Summary: This candidate is a career switcher with a strong frontend background but lacks all core backend and AWS experience required for this senior role. While they express willingness to learn, their current profile does not meet the minimum qualifications for a Senior Backend Engineer.
+
+Transparent XAI Scoring Audit
+100% Explained
+Granular point-by-point breakdown & mathematical attribution
+
+
+Formula
+-94 Pts Deducted
+Equation:
+Fit Score (6) = 3.5 (Skills) + 0 (Exp) + 0 (Nice) + 2.7 (Traj)
+
+Required Skills
+50% weight
+7 criteria
+3.5 / 50 pts(7/100)
+RESTful API Development (Django, FastAPI, or Flask)
+none (0%)
++0 / 7.1 pts
+"No explicit experience mentioned. Candidate states 'No backend API design... experience'."
+⚠️ Requirement missing (0% credit). Deduction: -7.1 pts
+Core AWS Services (Lambda, EC2, RDS, S3, IAM)
+none (0%)
++0 / 7.1 pts
+"Candidate explicitly states 'No AWS... experience'."
+⚠️ Requirement missing (0% credit). Deduction: -7.1 pts
+Relational Databases (PostgreSQL)
+none (0%)
++0 / 7.1 pts
+"Candidate explicitly states 'No... database design experience'."
+⚠️ Requirement missing (0% credit). Deduction: -7.1 pts
+Containerization (Docker) and Orchestration (Kubernetes)
+none (0%)
++0 / 7.1 pts
+"Candidate explicitly states 'No Docker, Kubernetes... experience'."
+⚠️ Requirement missing (0% credit). Deduction: -7.1 pts
+Microservices Architecture
+none (0%)
++0 / 7.1 pts
+"Candidate explicitly states 'No... microservices experience'."
+⚠️ Requirement missing (0% credit). Deduction: -7.1 pts
+CI/CD Pipelines (GitHub Actions, Jenkins, or CircleCI)
+none (0%)
++0 / 7.1 pts
+"No mention of CI/CD pipelines in the candidate profile."
+⚠️ Requirement missing (0% credit). Deduction: -7.1 pts
+Bachelor's Degree in Computer Science or Software Engineering
+partial (50%)
++3.6 / 7.1 pts
+"Has a B.A. in Communications, not CS/SE, but has a relevant bootcamp."
+⚠️ Partial match (50% credit). Deduction: -3.6 pts
+
+Experience & Tenure
+25% weight
+1 criteria
+0 / 25 pts(0/100)
+
+Nice-to-Have Skills
+15% weight
+7 criteria
+0 / 15 pts(0/100)
+
+Growth Trajectory
+10% weight
+1 criteria
+2.7 / 10 pts(27/100)
+Mathematical attribution: Overall Fit Score (6/100) is deterministically computed from per-item match criteria and tenure depth formulas with zero LLM math variance.
+Strengths
+Strong foundational qualifications
+Concerns & Gaps
+CRITICAL GAP
+Missing Must-Have: RESTful API Development (Django, FastAPI, or Flask) (No explicit experience mentioned. Candidate states 'No backend API design... experience'.)
+CRITICAL GAP
+Missing Must-Have: Core AWS Services (Lambda, EC2, RDS, S3, IAM) (Candidate explicitly states 'No AWS... experience'.)
+CRITICAL GAP
+Missing Must-Have: Relational Databases (PostgreSQL) (Candidate explicitly states 'No... database design experience'.)
+CRITICAL GAP
+Missing Must-Have: Containerization (Docker) and Orchestration (Kubernetes) (Candidate explicitly states 'No Docker, Kubernetes... experience'.)
+CRITICAL GAP
+Missing Must-Have: Microservices Architecture (Candidate explicitly states 'No... microservices experience'.)
+CRITICAL GAP
+Missing Must-Have: CI/CD Pipelines (GitHub Actions, Jenkins, or CircleCI) (No mention of CI/CD pipelines in the candidate profile.)
+MODERATE GAP
+Partial Skill Match: Bachelor's Degree in Computer Science or Software Engineering - Has a B.A. in Communications, not CS/SE, but has a relevant bootcamp.
+TENURE GAP
+Experience Shortfall (Score 0/100): The candidate has 6 years of total experience, but none of it is directly relevant to backend engineering, API development, or cloud infrastructure as required by the role. Their experience is primarily in frontend development and marketing.
+MINOR GAP
+Preferred Requirement Missing: Fintech, Banking, Payments, or Regulated Industry Experience
+MINOR GAP
+Preferred Requirement Missing: AWS Certification (Solutions Architect Associate or Developer Associate)
+MINOR GAP
+Preferred Requirement Missing: Event-Driven Architecture (Kafka, SQS/SNS)
+MINOR GAP
+Preferred Requirement Missing: Compliance/Security Frameworks (PCI-DSS, SOC 2)
+MINOR GAP
+Preferred Requirement Missing: Mentoring Junior Engineers or Leading Technical Initiatives
+MINOR GAP
+Preferred Requirement Missing: Terraform or Infrastructure-as-Code Tools
+MINOR GAP
+Preferred Requirement Missing: Open Source Contributions in Python Ecosystem
+Final decision for Jake Sullivan · TEST 5.2 rerun moderate (personal yakki)
+Hold
+Reject Candidate
+Approve Candidate
+
+)
+(
+hireagent
+
+Campaigns
+
+Interviews
+
+Analytics
+
+Candidates
+
+Settings
+ib
+Muhammad Ibsham
+ibsham.tariq123@gmail.com
+
+Sign out
+
+Candidate Review
+
+Paper & Ink
+
+Back to Pipeline
+PN
+Priya Nair
+Not Recommended
+Candidate ·
+[email protected]
+•
+View CV
+Candidate CV
+27
+Overall Score
+API Cost & Model Telemetry Analysis
+Total Candidate API Consumption: $0.000503 (4,144 tokens)
+
+Inspect Breakdown
+Candidate Resume / CV
+Original resume document uploaded for screening
+Open Full CV
+AI Summary
+Rejection Reason: Screening score 27/100 — below threshold. The candidate has some foundational Python and basic AWS S3 knowledge from personal projects and self-study, but lacks critical production experience in core backend technologies, microservices, containerization, and CI/CD. The business degree and lack of direct experience in required areas make this a poor match for a senior role.
+
+The candidate has some foundational Python and basic AWS S3 knowledge from personal projects and self-study, but lacks critical production experience in core backend technologies, microservices, containerization, and CI/CD. The business degree and lack of direct experience in required areas make this a poor match for a senior role.
+
+JD Match Reasoning
+Experience Assessment: The candidate has 4 years of total experience, but the directly relevant backend engineering experience is limited to personal projects and self-study, with no production experience in core required technologies like Django/FastAPI/Flask, Docker, Kubernetes, or CI/CD.
+
+Score Attribution:
+• Required Skills (50%): 19/100
+• Experience Depth (25%): 54/100
+• Nice-to-Have Skills (15%): 0/100
+• Trajectory & Growth (10%): 39/100
+Overall Fit Score: 27/100
+
+Decision Summary: The candidate has some foundational Python and basic AWS S3 knowledge from personal projects and self-study, but lacks critical production experience in core backend technologies, microservices, containerization, and CI/CD. The business degree and lack of direct experience in required areas make this a poor match for a senior role.
+
+Transparent XAI Scoring Audit
+100% Explained
+Granular point-by-point breakdown & mathematical attribution
+
+
+Formula
+-73 Pts Deducted
+Equation:
+Fit Score (27) = 9.5 (Skills) + 13.5 (Exp) + 0 (Nice) + 3.9 (Traj)
+
+Required Skills
+50% weight
+8 criteria
+9.5 / 50 pts(19/100)
+RESTful API Development (Django, FastAPI, or Flask)
+partial (50%)
++3.1 / 6.2 pts
+"Built a small internal dashboard using Flask (personal project, no production traffic)."
+⚠️ Partial match (50% credit). Deduction: -3.1 pts
+AWS Core Services (Lambda, EC2, RDS, S3, IAM)
+partial (50%)
++3.1 / 6.2 pts
+"AWS S3 (basic), AWS Cloud Practitioner Essentials (self-study)."
+⚠️ Partial match (50% credit). Deduction: -3.1 pts
+Relational Databases (PostgreSQL preferred)
+partial (50%)
++3.1 / 6.2 pts
+"Basic SQL, no mention of PostgreSQL or optimization."
+⚠️ Partial match (50% credit). Deduction: -3.1 pts
+Containerization (Docker)
+none (0%)
++0 / 6.2 pts
+"No experience with Docker mentioned."
+⚠️ Requirement missing (0% credit). Deduction: -6.2 pts
+Container Orchestration (Kubernetes)
+none (0%)
++0 / 6.2 pts
+"No experience with Kubernetes mentioned."
+⚠️ Requirement missing (0% credit). Deduction: -6.2 pts
+Microservices Architecture Design & Maintenance
+none (0%)
++0 / 6.2 pts
+"No experience with microservices mentioned."
+⚠️ Requirement missing (0% credit). Deduction: -6.2 pts
+CI/CD Pipelines (GitHub Actions, Jenkins, or CircleCI)
+none (0%)
++0 / 6.2 pts
+"No experience with CI/CD pipelines mentioned."
+⚠️ Requirement missing (0% credit). Deduction: -6.2 pts
+Computer Science or Software Engineering Degree or Equivalent Experience
+none (0%)
++0 / 6.2 pts
+"B.A. Business Administration, not a technical degree."
+⚠️ Requirement missing (0% credit). Deduction: -6.2 pts
+
+Experience & Tenure
+25% weight
+1 criteria
+13.5 / 25 pts(54/100)
+
+Nice-to-Have Skills
+15% weight
+7 criteria
+0 / 15 pts(0/100)
+
+Growth Trajectory
+10% weight
+1 criteria
+3.9 / 10 pts(39/100)
+Mathematical attribution: Overall Fit Score (27/100) is deterministically computed from per-item match criteria and tenure depth formulas with zero LLM math variance.
+Strengths
+Strong foundational qualifications
+Concerns & Gaps
+CRITICAL GAP
+Missing Must-Have: Containerization (Docker) (No experience with Docker mentioned.)
+CRITICAL GAP
+Missing Must-Have: Container Orchestration (Kubernetes) (No experience with Kubernetes mentioned.)
+CRITICAL GAP
+Missing Must-Have: Microservices Architecture Design & Maintenance (No experience with microservices mentioned.)
+CRITICAL GAP
+Missing Must-Have: CI/CD Pipelines (GitHub Actions, Jenkins, or CircleCI) (No experience with CI/CD pipelines mentioned.)
+CRITICAL GAP
+Missing Must-Have: Computer Science or Software Engineering Degree or Equivalent Experience (B.A. Business Administration, not a technical degree.)
+MODERATE GAP
+Partial Skill Match: RESTful API Development (Django, FastAPI, or Flask) - Built a small internal dashboard using Flask (personal project, no production traffic).
+MODERATE GAP
+Partial Skill Match: AWS Core Services (Lambda, EC2, RDS, S3, IAM) - AWS S3 (basic), AWS Cloud Practitioner Essentials (self-study).
+MODERATE GAP
+Partial Skill Match: Relational Databases (PostgreSQL preferred) - Basic SQL, no mention of PostgreSQL or optimization.
+TENURE GAP
+Experience Shortfall (Score 54/100): The candidate has 4 years of total experience, but the directly relevant backend engineering experience is limited to personal projects and self-study, with no production experience in core required technologies like Django/FastAPI/Flask, Docker, Kubernetes, or CI/CD.
+MINOR GAP
+Preferred Requirement Missing: Fintech, Banking, Payments, or Regulated Industry Experience
+MINOR GAP
+Preferred Requirement Missing: AWS Certification (Solutions Architect Associate or Developer Associate)
+MINOR GAP
+Preferred Requirement Missing: Event-Driven Architecture (Kafka, SQS/SNS)
+MINOR GAP
+Preferred Requirement Missing: Compliance/Security Frameworks (PCI-DSS, SOC 2)
+MINOR GAP
+Preferred Requirement Missing: Mentoring Junior Engineers or Leading Technical Initiatives
+MINOR GAP
+Preferred Requirement Missing: Infrastructure-as-Code (Terraform)
+MINOR GAP
+Preferred Requirement Missing: Open Source Contributions (Python Ecosystem)
+Final decision for Priya Nair · TEST 5.2 rerun moderate (personal yakki)
+Hold
+Reject Candidate
+Approve Candidate
+)
+(
+hireagent
+
+Campaigns
+
+Interviews
+
+Analytics
+
+Candidates
+
+Settings
+ib
+Muhammad Ibsham
+ibsham.tariq123@gmail.com
+
+Sign out
+
+Candidate Review
+
+Paper & Ink
+
+Back to Pipeline
+TR
+Thomas Reyes
+Hold / Borderline Match
+Candidate ·
+[email protected]
+•
+View CV
+Candidate CV
+69
+Overall Score
+API Cost & Model Telemetry Analysis
+Total Candidate API Consumption: $0.000498 (4,127 tokens)
+
+Inspect Breakdown
+Candidate Resume / CV
+Original resume document uploaded for screening
+Open Full CV
+AI Summary
+Thomas demonstrates strong experience in Python/FastAPI, microservices, and relational databases, meeting several key requirements. However, significant gaps exist in Kubernetes, CI/CD, and AWS core services, alongside a lack of regulated industry experience. The candidate shows potential but requires development in critical areas.
+
+JD Match Reasoning
+Experience Assessment: The candidate has 6 years of total experience, with direct experience in backend development, microservices, and Python/FastAPI, aligning well with the role's core requirements.
+
+Score Attribution:
+• Required Skills (50%): 69/100
+• Experience Depth (25%): 100/100
+• Nice-to-Have Skills (15%): 7/100
+• Trajectory & Growth (10%): 89/100
+Overall Fit Score: 69/100
+
+Decision Summary: Thomas demonstrates strong experience in Python/FastAPI, microservices, and relational databases, meeting several key requirements. However, significant gaps exist in Kubernetes, CI/CD, and AWS core services, alongside a lack of regulated industry experience. The candidate shows potential but requires development in critical areas.
+
+Transparent XAI Scoring Audit
+100% Explained
+Granular point-by-point breakdown & mathematical attribution
+
+
+Formula
+-31 Pts Deducted
+Equation:
+Fit Score (69) = 34.5 (Skills) + 25 (Exp) + 1.1 (Nice) + 8.9 (Traj)
+
+Required Skills
+50% weight
+8 criteria
+34.5 / 50 pts(69/100)
+RESTful API Development (Django, FastAPI, or Flask)
+full (100%)
++6.2 / 6.2 pts
+"Wrote REST endpoints and unit tests; Contributed to Python/FastAPI rewrite"
+AWS Core Services (Lambda, EC2, RDS, S3, IAM)
+partial (50%)
++3.1 / 6.2 pts
+"Completed AWS fundamentals course; Used Azure Blob Storage"
+⚠️ Partial match (50% credit). Deduction: -3.1 pts
+Relational Databases (PostgreSQL preferred)
+full (100%)
++6.2 / 6.2 pts
+"Proficient in PostgreSQL and SQL Server"
+Containerization (Docker)
+full (100%)
++6.2 / 6.2 pts
+"Experience with Docker"
+Container Orchestration (Kubernetes)
+none (0%)
++0 / 6.2 pts
+"No production Kubernetes experience"
+⚠️ Requirement missing (0% credit). Deduction: -6.2 pts
+Microservices Architecture Design & Maintenance
+full (100%)
++6.2 / 6.2 pts
+"Built and maintained Java/Spring Boot microservices; Microservices listed as skill"
+CI/CD Pipelines (GitHub Actions, Jenkins, or CircleCI)
+none (0%)
++0 / 6.2 pts
+"Deployed services to Azure App Service, no CI/CD tools mentioned"
+⚠️ Requirement missing (0% credit). Deduction: -6.2 pts
+Computer Science or Software Engineering Degree or Equivalent Experience
+full (100%)
++6.2 / 6.2 pts
+"B.Sc. Information Technology degree"
+
+Experience & Tenure
+25% weight
+1 criteria
+25 / 25 pts(100/100)
+
+Nice-to-Have Skills
+15% weight
+7 criteria
+1.1 / 15 pts(7/100)
+
+Growth Trajectory
+10% weight
+1 criteria
+8.9 / 10 pts(89/100)
+Mathematical attribution: Overall Fit Score (69/100) is deterministically computed from per-item match criteria and tenure depth formulas with zero LLM math variance.
+Strengths
+RESTful API Development (Django, FastAPI, or Flask) (Wrote REST endpoints and unit tests; Contributed to Python/FastAPI rewrite)
+Relational Databases (PostgreSQL preferred) (Proficient in PostgreSQL and SQL Server)
+Containerization (Docker) (Experience with Docker)
+Microservices Architecture Design & Maintenance (Built and maintained Java/Spring Boot microservices; Microservices listed as skill)
+Computer Science or Software Engineering Degree or Equivalent Experience (B.Sc. Information Technology degree)
+Mentoring Junior Engineers or Leading Technical Initiatives (Listed 'Leadership' as a skill; participated in on-call rotation)
+Concerns & Gaps
+CRITICAL GAP
+Missing Must-Have: Container Orchestration (Kubernetes) (No production Kubernetes experience)
+CRITICAL GAP
+Missing Must-Have: CI/CD Pipelines (GitHub Actions, Jenkins, or CircleCI) (Deployed services to Azure App Service, no CI/CD tools mentioned)
+MODERATE GAP
+Partial Skill Match: AWS Core Services (Lambda, EC2, RDS, S3, IAM) - Completed AWS fundamentals course; Used Azure Blob Storage
+MINOR GAP
+Preferred Requirement Missing: Fintech, Banking, Payments, or Regulated Industry Experience
+MINOR GAP
+Preferred Requirement Missing: AWS Certification (Solutions Architect Associate or Developer Associate)
+MINOR GAP
+Preferred Requirement Missing: Event-Driven Architecture (Kafka, SQS/SNS)
+MINOR GAP
+Preferred Requirement Missing: Compliance/Security Frameworks (PCI-DSS, SOC 2)
+MINOR GAP
+Preferred Requirement Missing: Infrastructure-as-Code (Terraform)
+MINOR GAP
+Preferred Requirement Missing: Open Source Contributions (Python Ecosystem)
+Final decision for Thomas Reyes · TEST 5.2 rerun moderate (personal yakki)
+Hold
+Reject Candidate
+Approve Candidate
+)
+(hireagent
+
+Campaigns
+
+Interviews
+
+Analytics
+
+Candidates
+
+Settings
+ib
+Muhammad Ibsham
+ibsham.tariq123@gmail.com
+
+Sign out
+
+Candidate Review
+
+Paper & Ink
+
+Back to Pipeline
+MI
+Meera Iyer
+Hold / Borderline Match
+Candidate ·
+[email protected]
+•
+View CV
+Candidate CV
+74
+Overall Score
+API Cost & Model Telemetry Analysis
+Total Candidate API Consumption: $0.000510 (4,138 tokens)
+
+Inspect Breakdown
+Candidate Resume / CV
+Original resume document uploaded for screening
+Open Full CV
+AI Summary
+The candidate is a strong match for core backend skills, including Python, Django, Flask, PostgreSQL, Docker, and CI/CD with Jenkins. They have partial experience with AWS core services and microservices but lack Kubernetes and specific AWS services like Lambda. The absence of Kubernetes and limited AWS experience, along with no fintech background, are the main areas for concern.
+
+JD Match Reasoning
+Experience Assessment: The candidate has 5 years of total experience, which appears to be directly relevant to backend engineering roles. However, they lack experience in Kubernetes and specific AWS services like Lambda.
+
+Score Attribution:
+• Required Skills (50%): 81/100
+• Experience Depth (25%): 100/100
+• Nice-to-Have Skills (15%): 0/100
+• Trajectory & Growth (10%): 85/100
+Overall Fit Score: 74/100
+
+Decision Summary: The candidate is a strong match for core backend skills, including Python, Django, Flask, PostgreSQL, Docker, and CI/CD with Jenkins. They have partial experience with AWS core services and microservices but lack Kubernetes and specific AWS services like Lambda. The absence of Kubernetes and limited AWS experience, along with no fintech background, are the main areas for concern.
+
+Transparent XAI Scoring Audit
+100% Explained
+Granular point-by-point breakdown & mathematical attribution
+
+
+Formula
+-26 Pts Deducted
+Equation:
+Fit Score (74) = 40.5 (Skills) + 25 (Exp) + 0 (Nice) + 8.5 (Traj)
+
+Required Skills
+50% weight
+8 criteria
+40.5 / 50 pts(81/100)
+RESTful API Development (Django, FastAPI, or Flask)
+full (100%)
++6.2 / 6.2 pts
+"Built and maintained REST APIs in Django; Developed internal APIs using Flask."
+AWS Core Services (Lambda, EC2, RDS, S3, IAM)
+full (100%)
++6.2 / 6.2 pts
+"Deployed services on AWS EC2; used S3 for document storage; Gained first exposure to cloud infrastructure (AWS EC2, RDS)."
+Relational Databases (PostgreSQL preferred)
+full (100%)
++6.2 / 6.2 pts
+"Migrated checkout service database from MySQL to PostgreSQL; Skills include PostgreSQL and MySQL."
+Containerization (Docker)
+full (100%)
++6.2 / 6.2 pts
+"Introduced Docker for local development environments; Used Docker Compose."
+Container Orchestration (Kubernetes)
+none (0%)
++0 / 6.2 pts
+"No explicit Kubernetes experience mentioned; only Docker Compose."
+⚠️ Requirement missing (0% credit). Deduction: -6.2 pts
+Microservices Architecture Design & Maintenance
+partial (50%)
++3.1 / 6.2 pts
+"Built and maintained REST APIs; Developed internal APIs; Deployed services on AWS EC2."
+⚠️ Partial match (50% credit). Deduction: -3.1 pts
+CI/CD Pipelines (GitHub Actions, Jenkins, or CircleCI)
+full (100%)
++6.2 / 6.2 pts
+"Set up basic CI pipeline using Jenkins for automated testing."
+Computer Science or Software Engineering Degree or Equivalent Experience
+full (100%)
++6.2 / 6.2 pts
+"B.Sc. Computer Science from Arizona State University."
+
+Experience & Tenure
+25% weight
+1 criteria
+25 / 25 pts(100/100)
+
+Nice-to-Have Skills
+15% weight
+7 criteria
+0 / 15 pts(0/100)
+
+Growth Trajectory
+10% weight
+1 criteria
+8.5 / 10 pts(85/100)
+Mathematical attribution: Overall Fit Score (74/100) is deterministically computed from per-item match criteria and tenure depth formulas with zero LLM math variance.
+Strengths
+RESTful API Development (Django, FastAPI, or Flask) (Built and maintained REST APIs in Django; Developed internal APIs using Flask.)
+AWS Core Services (Lambda, EC2, RDS, S3, IAM) (Deployed services on AWS EC2; used S3 for document storage; Gained first exposure to cloud infrastructure (AWS EC2, RDS).)
+Relational Databases (PostgreSQL preferred) (Migrated checkout service database from MySQL to PostgreSQL; Skills include PostgreSQL and MySQL.)
+Containerization (Docker) (Introduced Docker for local development environments; Used Docker Compose.)
+CI/CD Pipelines (GitHub Actions, Jenkins, or CircleCI) (Set up basic CI pipeline using Jenkins for automated testing.)
+Computer Science or Software Engineering Degree or Equivalent Experience (B.Sc. Computer Science from Arizona State University.)
+Concerns & Gaps
+CRITICAL GAP
+Missing Must-Have: Container Orchestration (Kubernetes) (No explicit Kubernetes experience mentioned; only Docker Compose.)
+MODERATE GAP
+Partial Skill Match: Microservices Architecture Design & Maintenance - Built and maintained REST APIs; Developed internal APIs; Deployed services on AWS EC2.
+MINOR GAP
+Preferred Requirement Missing: Fintech, Banking, Payments, or Regulated Industry Experience
+MINOR GAP
+Preferred Requirement Missing: AWS Certification (Solutions Architect Associate or Developer Associate)
+MINOR GAP
+Preferred Requirement Missing: Event-Driven Architecture (Kafka, SQS/SNS)
+MINOR GAP
+Preferred Requirement Missing: Compliance/Security Frameworks (PCI-DSS, SOC 2)
+MINOR GAP
+Preferred Requirement Missing: Mentoring Junior Engineers or Leading Technical Initiatives
+MINOR GAP
+Preferred Requirement Missing: Infrastructure-as-Code (Terraform)
+MINOR GAP
+Preferred Requirement Missing: Open Source Contributions (Python Ecosystem)
+Final decision for Meera Iyer · TEST 5.2 rerun moderate (personal yakki)
+Hold
+Reject Candidate
+Approve Candidate
+
+)
+(
+hireagent
+
+Campaigns
+
+Interviews
+
+Analytics
+
+Candidates
+
+Settings
+ib
+Muhammad Ibsham
+ibsham.tariq123@gmail.com
+
+Sign out
+
+Candidate Review
+
+Paper & Ink
+
+Back to Pipeline
+TR
+Thomas Reyes
+Hold / Borderline Match
+Candidate ·
+[email protected]
+•
+View CV
+Candidate CV
+69
+Overall Score
+API Cost & Model Telemetry Analysis
+Total Candidate API Consumption: $0.000498 (4,127 tokens)
+
+Inspect Breakdown
+Candidate Resume / CV
+Original resume document uploaded for screening
+Open Full CV
+AI Summary
+Thomas demonstrates strong experience in Python/FastAPI, microservices, and relational databases, meeting several key requirements. However, significant gaps exist in Kubernetes, CI/CD, and AWS core services, alongside a lack of regulated industry experience. The candidate shows potential but requires development in critical areas.
+
+JD Match Reasoning
+Experience Assessment: The candidate has 6 years of total experience, with direct experience in backend development, microservices, and Python/FastAPI, aligning well with the role's core requirements.
+
+Score Attribution:
+• Required Skills (50%): 69/100
+• Experience Depth (25%): 100/100
+• Nice-to-Have Skills (15%): 7/100
+• Trajectory & Growth (10%): 89/100
+Overall Fit Score: 69/100
+
+Decision Summary: Thomas demonstrates strong experience in Python/FastAPI, microservices, and relational databases, meeting several key requirements. However, significant gaps exist in Kubernetes, CI/CD, and AWS core services, alongside a lack of regulated industry experience. The candidate shows potential but requires development in critical areas.
+
+Transparent XAI Scoring Audit
+100% Explained
+Granular point-by-point breakdown & mathematical attribution
+
+
+Formula
+-31 Pts Deducted
+Equation:
+Fit Score (69) = 34.5 (Skills) + 25 (Exp) + 1.1 (Nice) + 8.9 (Traj)
+
+Required Skills
+50% weight
+8 criteria
+34.5 / 50 pts(69/100)
+
+Experience & Tenure
+25% weight
+1 criteria
+25 / 25 pts(100/100)
+
+Nice-to-Have Skills
+15% weight
+7 criteria
+1.1 / 15 pts(7/100)
+
+Growth Trajectory
+10% weight
+1 criteria
+8.9 / 10 pts(89/100)
+Trajectory Score:
+89 / 100 (8.9 pts earned)
+How Growth Trajectory is Scored
+Growth Trajectory evaluates verifiable historical profile signals (0-100 pts) across 4 dimensions:
+
+Career Progression (25 pts): ≥3 titles (25 pts), 2 titles (15 pts), 1 title (7 pts)
+Skill Breadth (25 pts): ≥8 skills (25 pts), 4-7 skills (15 pts), 1-3 skills (7 pts)
+Proven Deliverables (25 pts): ≥3 projects/achievements (25 pts), 1-2 projects (12 pts)
+Degree Relevance Guardrail (25 pts): Domain-relevant (18-25 pts), Adjacent/STEM (10-14 pts), Unrelated (5 pts)
+Sub-Criteria Breakdown & CV Evidence:
+Career Title Progression
++25 / 25 pts
+Rule: ≥3 distinct roles = 25 pts | 2 roles = 15 pts | 1 role = 7 pts
+"3 distinct roles showing career growth: Software Engineer, Backend Engineer, QA Engineer"
+Skill Portfolio Breadth
++25 / 25 pts
+Rule: ≥8 skills = 25 pts | 4-7 skills = 15 pts | 1-3 skills = 7 pts
+"19 competencies listed on CV: Java, Spring Boot, Python, FastAPI, SQL Server, PostgreSQL..."
+Proven Deliverables & Projects
++25 / 25 pts
+Rule: ≥3 projects/achievements = 25 pts | 1-2 projects = 12 pts
+"9 projects/achievements documented: AWS fundamentals course (self-paced, 2024); Contributing to a Python/FastAPI rewrite of a legacy Java claims processing service; Writing REST endpoints and unit tests"
+Educational Relevance & Credentials
++20 / 25 pts
+Rule: Relevant Degree = 18-25 pts | Adjacent = 10-14 pts | Unrelated = 5 pts
+"Domain-Relevant Degree (B.Sc. Information Technology — University of Houston (2018)) matching target field."
+Trajectory Formula:
+Career Progression (25/25) + Skill Breadth (25/25) + Deliverables (25/25) + Education (20/25) = 95/100 pts (Capped to 89 pts due to domain skill baseline of 69%)
+
+Assessment Rationale: Growth capacity evaluated from career progression, skill acquisition breadth, project evidence, and degree domain relevance. [Capped from 95 to 89 due to domain skills baseline (69%)]
+Mathematical attribution: Overall Fit Score (69/100) is deterministically computed from per-item match criteria and tenure depth formulas with zero LLM math variance.
+Strengths
+RESTful API Development (Django, FastAPI, or Flask) (Wrote REST endpoints and unit tests; Contributed to Python/FastAPI rewrite)
+Relational Databases (PostgreSQL preferred) (Proficient in PostgreSQL and SQL Server)
+Containerization (Docker) (Experience with Docker)
+Microservices Architecture Design & Maintenance (Built and maintained Java/Spring Boot microservices; Microservices listed as skill)
+Computer Science or Software Engineering Degree or Equivalent Experience (B.Sc. Information Technology degree)
+Mentoring Junior Engineers or Leading Technical Initiatives (Listed 'Leadership' as a skill; participated in on-call rotation)
+Concerns & Gaps
+CRITICAL GAP
+Missing Must-Have: Container Orchestration (Kubernetes) (No production Kubernetes experience)
+CRITICAL GAP
+Missing Must-Have: CI/CD Pipelines (GitHub Actions, Jenkins, or CircleCI) (Deployed services to Azure App Service, no CI/CD tools mentioned)
+MODERATE GAP
+Partial Skill Match: AWS Core Services (Lambda, EC2, RDS, S3, IAM) - Completed AWS fundamentals course; Used Azure Blob Storage
+MINOR GAP
+Preferred Requirement Missing: Fintech, Banking, Payments, or Regulated Industry Experience
+MINOR GAP
+Preferred Requirement Missing: AWS Certification (Solutions Architect Associate or Developer Associate)
+MINOR GAP
+Preferred Requirement Missing: Event-Driven Architecture (Kafka, SQS/SNS)
+MINOR GAP
+Preferred Requirement Missing: Compliance/Security Frameworks (PCI-DSS, SOC 2)
+MINOR GAP
+Preferred Requirement Missing: Infrastructure-as-Code (Terraform)
+MINOR GAP
+Preferred Requirement Missing: Open Source Contributions (Python Ecosystem)
+Final decision for Thomas Reyes · TEST 5.2 rerun moderate (personal yakki)
+Hold
+Reject Candidate
+Approve Candidate
+)

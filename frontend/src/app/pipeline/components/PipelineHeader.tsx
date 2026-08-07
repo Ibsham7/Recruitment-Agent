@@ -1,4 +1,4 @@
-import { Loader2, DollarSign, BarChart3 } from "lucide-react";
+import { Loader2, DollarSign, BarChart3, Download } from "lucide-react";
 import { Campaign, Theme } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 
@@ -9,9 +9,10 @@ interface PipelineHeaderProps {
   retrying: boolean;
   onRetryFailed: () => void;
   onOpenCostAnalysis?: () => void;
+  onOpenExport?: () => void;
 }
 
-export function PipelineHeader({ campaign, theme: t, G, retrying, onRetryFailed, onOpenCostAnalysis }: PipelineHeaderProps) {
+export function PipelineHeader({ campaign, theme: t, G, retrying, onRetryFailed, onOpenCostAnalysis, onOpenExport }: PipelineHeaderProps) {
   const progress = campaign.total && campaign.total > 0 ? Math.round(((campaign.processed || 0) / campaign.total) * 100) : 0;
   const isProcessing = campaign.total && campaign.total > 0 ? campaign.processed! < campaign.total : false;
 
@@ -52,6 +53,21 @@ export function PipelineHeader({ campaign, theme: t, G, retrying, onRetryFailed,
         </div>
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
+            {onOpenExport && (
+              <button
+                onClick={onOpenExport}
+                className="px-4 py-2.5 text-sm font-semibold rounded-xl transition-all hover:-translate-y-0.5 cursor-pointer flex items-center gap-2"
+                style={{
+                  background: hexToRgba(t.numPos, 0.15),
+                  color: t.numPos,
+                  border: `1px solid ${hexToRgba(t.numPos, 0.3)}`,
+                  boxShadow: `0 4px 12px ${hexToRgba(t.numPos, 0.1)}`
+                }}
+                title="Export candidate scores, score breakdown, XAI strengths & concerns in MD or JSON"
+              >
+                <Download size={16} /> Export Report
+              </button>
+            )}
             <button 
               onClick={onRetryFailed} 
               disabled={retrying}

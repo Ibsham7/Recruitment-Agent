@@ -335,14 +335,67 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
 
                   {/* Growth Trajectory Expanded */}
                   {item.id === "traj" && (
-                    <div className="p-3 rounded-lg space-y-1.5 text-[11px]" style={{ background: hexToRgba(t.accentBadge, 0.06), border: `1px solid ${hexToRgba(t.accentBadge, 0.2)}` }}>
+                    <div className="p-3 rounded-lg space-y-3 text-[11px]" style={{ background: hexToRgba(t.accentBadge, 0.06), border: `1px solid ${hexToRgba(t.accentBadge, 0.2)}` }}>
                       <div className="flex items-center justify-between font-mono">
                         <span style={{ color: t.txtMuted }}>Trajectory Score:</span>
                         <span className="font-bold" style={{ color: t.accentBadge }}>{trajScore} / 100 ({trajContrib} pts earned)</span>
                       </div>
-                      <p className="text-[10px] leading-relaxed" style={{ color: t.txtBody }}>
+
+                      {/* Explanation & Rubric Info Banner */}
+                      <div className="p-2.5 rounded bg-black/20 space-y-1.5 border border-white/10 text-[10px]">
+                        <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider" style={{ color: t.accentBadge }}>
+                          <Info size={12} />
+                          <span>How Growth Trajectory is Scored</span>
+                        </div>
+                        <p style={{ color: t.txtSecondary }}>
+                          Growth Trajectory evaluates verifiable historical profile signals (0-100 pts) across 4 dimensions:
+                        </p>
+                        <ul className="list-disc pl-4 space-y-1 text-[10px]" style={{ color: t.txtMuted }}>
+                          <li><strong>Career Progression (25 pts):</strong> ≥3 titles (25 pts), 2 titles (15 pts), 1 title (7 pts)</li>
+                          <li><strong>Skill Breadth (25 pts):</strong> ≥8 skills (25 pts), 4-7 skills (15 pts), 1-3 skills (7 pts)</li>
+                          <li><strong>Proven Deliverables (25 pts):</strong> ≥3 projects/achievements (25 pts), 1-2 projects (12 pts)</li>
+                          <li><strong>Degree Relevance Guardrail (25 pts):</strong> Domain-relevant (18-25 pts), Adjacent/STEM (10-14 pts), Unrelated (5 pts)</li>
+                        </ul>
+                      </div>
+
+                      {/* Itemized Sub-Criteria Breakdown */}
+                      {trajBreakdown?.sub_criteria && trajBreakdown.sub_criteria.length > 0 && (
+                        <div className="space-y-2 pt-1">
+                          <span className="font-semibold block text-white/90 text-[11px]">Sub-Criteria Breakdown & CV Evidence:</span>
+                          {trajBreakdown.sub_criteria.map((sub, idx) => {
+                            const badgeColor = sub.status === "full" ? t.numPos : sub.status === "partial" ? "#f59e0b" : t.txtMuted;
+                            return (
+                              <div key={idx} className="p-2.5 rounded-lg space-y-1" style={{ background: hexToRgba(badgeColor, 0.05), border: `1px solid ${hexToRgba(badgeColor, 0.15)}` }}>
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold text-white/90">{sub.criterion_name}</span>
+                                  <span className="font-mono font-bold" style={{ color: badgeColor }}>+{sub.points_earned} / {sub.max_points} pts</span>
+                                </div>
+                                <div className="text-[10px] font-mono text-white/60">
+                                  Rule: {sub.rubric_rule}
+                                </div>
+                                {sub.evidence && (
+                                  <div className="text-[10px] italic p-1.5 rounded bg-black/20 text-white/80">
+                                    "{sub.evidence}"
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Formula Summary Banner */}
+                      {trajBreakdown?.calculation_summary && (
+                        <div className="p-2 rounded bg-black/10 font-mono text-[10px] space-y-0.5" style={{ color: t.txtSecondary }}>
+                          <span className="font-semibold block text-white/80">Trajectory Formula:</span>
+                          <p>{trajBreakdown.calculation_summary}</p>
+                        </div>
+                      )}
+
+                      <div className="text-[10px] leading-relaxed pt-1" style={{ color: t.txtBody }}>
+                        <strong>Assessment Rationale:</strong>{" "}
                         {trajBreakdown?.assessment || "High growth signal evaluated from academic rigor, project complexity, and rapid technology adoption rate."}
-                      </p>
+                      </div>
                     </div>
                   )}
                 </div>

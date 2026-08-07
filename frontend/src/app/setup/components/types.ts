@@ -17,11 +17,12 @@ export interface HardFilter {
 }
 
 export function validateFile(file: File): { isError: boolean; reason?: string } {
-  if (file.size === 0) {
+  if (!file || file.size === 0) {
     return { isError: true, reason: "Empty file (0 B)" };
   }
   const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
-  const ext = "." + (file.name.split('.').pop() || "").toLowerCase();
+  const fileName = (file.name || "").trim();
+  const ext = "." + (fileName.split('.').pop() || "").toLowerCase();
   if (!allowedExtensions.includes(ext)) {
     return { isError: true, reason: `Unsupported file type (${ext || 'unknown'})` };
   }

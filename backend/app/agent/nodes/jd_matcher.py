@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import date
 from app.agent.config import get_model, MODELS
 from app.agent.schemas import (
     ScreeningResult,
@@ -15,6 +16,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import JD_MATCHER_PROMPTS, CANONICAL_JD_DISTILLER_PROMPT
 from app.core.logging import logger
 from app.agent.tools.scoring import TENURE_PATTERN, calculate_weighted_fit_score
+from app.agent.tools.timeline import calculate_experience_for_domain
 
 # In-memory cache for canonical JD specifications to freeze requirements per JD text
 _JD_SPEC_CACHE: dict[str, CanonicalJDSpec] = {}
@@ -25,6 +27,25 @@ _JD_SPEC_CACHE: dict[str, CanonicalJDSpec] = {}
 # MATCH_MULTIPLIERS in scoring.py (75% / 50% / 25% partial credit).
 # Guarantees structural L >= M >= S monotonicity with zero LLM re-invocation cost.
 _MATCH_ASSESSMENT_CACHE: dict[str, CompactScreeningOutput] = {}
+
+
+def _fuzzy_requirement_match(canonical_name: str, llm_name: str) -> bool:
+    """Domain-agnostic fuzzy match using normalized token overlap."""
+    if not canonical_name or not llm_name:
+        return False
+    c_lower = canonical_name.strip().lower()
+    m_lower = llm_name.strip().lower()
+    if c_lower == m_lower or c_lower in m_lower or m_lower in c_lower:
+        return True
+    c_tokens = set(re.findall(r'\w+', c_lower))
+    m_tokens = set(re.findall(r'\w+', m_lower))
+    stop = {'and', 'or', 'the', 'a', 'an', 'of', 'in', 'for', 'with', 'to', 'is', 'at', 'on'}
+    c_tokens -= stop
+    m_tokens -= stop
+    if not c_tokens or not m_tokens:
+        return False
+    overlap = len(c_tokens & m_tokens) / min(len(c_tokens), len(m_tokens))
+    return overlap >= 0.5
 
 
 def verify_and_clean_quote(quote: str, raw_jd: str) -> tuple[bool, str]:
@@ -200,8 +221,10 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         f"Nice-To-Have Skills ({len(canonical_spec.nice_to_have_skills)} items):\n" + "\n".join(nice_to_have_lines) + "\n\n"
     )
 
+    today_str = date.today().isoformat()
     eval_mode = state.get("jd_matcher_prompt_variant") or "default"
     base_prompt = JD_MATCHER_PROMPTS.get(eval_mode, JD_MATCHER_PROMPTS["default"])
+    base_prompt = base_prompt.replace("{current_date}", today_str)
     system_prompt = f"JOB DESCRIPTION:\n{jd}\n\n{canonical_context}" + base_prompt
 
     # Include profile dict with raw_cv_text capped at 2000 chars to save tokens
@@ -295,13 +318,27 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     else:
         # Always assess with the neutral DEFAULT prompt — partial credit is applied by
         # the deterministic scoring engine (scoring.py MATCH_MULTIPLIERS), not the LLM.
+        neutral_default_prompt = JD_MATCHER_PROMPTS["default"].replace("{current_date}", today_str)
         neutral_prompt = (
             f"JOB DESCRIPTION:\n{jd}\n\n{canonical_context}"
-            + JD_MATCHER_PROMPTS["default"]
+            + neutral_default_prompt
         )
         compact_output, cost, stage_tokens = await invoke_model(neutral_prompt, profile_dict)
         _MATCH_ASSESSMENT_CACHE[match_cache_key] = compact_output
         logger.info(f"[JD Matcher] Cached new match assessment for {profile.name} (mode={eval_mode})")
+
+    # Override relevant_experience_years with deterministic domain calculation
+    domain_keywords = [req.requirement_name for req in canonical_spec.must_have_skills]
+    if canonical_spec.role_title:
+        domain_keywords.append(canonical_spec.role_title)
+    det_rel_years = calculate_experience_for_domain(profile.previous_roles, keywords=domain_keywords)
+    if det_rel_years > 0:
+        compact_output.relevant_experience_years = det_rel_years
+    elif compact_output.relevant_experience_years is not None:
+        compact_output.relevant_experience_years = min(
+            compact_output.relevant_experience_years,
+            profile.total_experience_years
+        )
 
     # 3. Align compact_output matches against canonical_spec requirements
     aligned_must_have: list[RequirementMatch] = []
@@ -309,9 +346,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         c_name = canonical_req.requirement_name
         found = None
         for m in compact_output.must_have:
-            m_req = m.requirement.strip().lower()
-            c_req = c_name.strip().lower()
-            if m_req == c_req or c_req in m_req or m_req in c_req:
+            if _fuzzy_requirement_match(c_name, m.requirement):
                 found = m
                 break
         if found:
@@ -324,9 +359,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         c_name = canonical_req.requirement_name
         found = None
         for m in compact_output.nice_to_have:
-            m_req = m.requirement.strip().lower()
-            c_req = c_name.strip().lower()
-            if m_req == c_req or c_req in m_req or m_req in c_req:
+            if _fuzzy_requirement_match(c_name, m.requirement):
                 found = m
                 break
         if found:

@@ -11,6 +11,7 @@ from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import CV_PARSER_SYSTEM
 from app.agent.utils import clean_surrogates, extract_json, extract_cost_and_tokens
+from datetime import date
 import asyncio
 from app.database import prisma
 from app.core.logging import logger
@@ -98,7 +99,7 @@ def parse_file_by_format(local_path: str) -> str:
         logger.warning(f"[CV Parser] Text reading failed: {e}")
         return ""
 
-async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
+async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float, Dict]:
     temp_path = None
     if filepath.startswith("http://") or filepath.startswith("https://"):
         parsed = urlparse(filepath)
@@ -134,14 +135,22 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float]:
         text = await asyncio.to_thread(parse_file_by_format, local_path)
         text = clean_surrogates(text)
         
-        # Trigger OCR fallback if standard text extraction returned too little text
-        if len(text.strip()) < 50:
-            logger.info("[CV Parser] Standard text extraction failed or returned too little text. Falling back to OCR.")
-            profile_data, cost = await ocr_pdf_fallback(local_path)
+        # Check header to see if it's actually a PDF before running OCR fallback
+        is_pdf = False
+        try:
+            with open(local_path, "rb") as f:
+                is_pdf = f.read(4).startswith(b"%PDF")
+        except Exception:
+            pass
+
+        # Trigger OCR fallback if standard text extraction returned too little text and file is a PDF
+        if len(text.strip()) < 50 and is_pdf:
+            logger.info("[CV Parser] Standard text extraction failed or returned too little text on PDF. Falling back to OCR.")
+            profile_data, cost, tokens = await ocr_pdf_fallback(local_path)
             raw_text = clean_surrogates(json.dumps(profile_data, sort_keys=True)) if profile_data else text
-            return raw_text, profile_data, cost
+            return raw_text, profile_data, cost, tokens or {}
             
-        return text, None, 0.0
+        return text, None, 0.0, {}
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
@@ -210,7 +219,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             "log": ["CV parsed from cache"]
         }
 
-    raw_text, pre_parsed_profile, total_cost = await extract_pdf_text(state["cv_filepath"])
+    raw_text, pre_parsed_profile, total_cost, ocr_tokens = await extract_pdf_text(state["cv_filepath"])
     raw_text = clean_surrogates(raw_text)
     file_hash = hashlib.sha256(raw_text.encode('utf-8', errors='replace')).hexdigest()
     
@@ -225,6 +234,17 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     if resume and resume.structuredProfile:
         logger.info("[CV Parser] Found global resume cache via hash.")
         profile_data = json.loads(resume.structuredProfile) if isinstance(resume.structuredProfile, str) else resume.structuredProfile
+        
+        # Dynamically recalculate tenure & calculation summary against live current date
+        from app.agent.tools.timeline import calculate_total_experience_years, generate_experience_calculation_summary
+        llm_exp = profile_data.get("total_experience_years", 0.0)
+        profile_data["total_experience_years"] = calculate_total_experience_years(
+            profile_data.get("previous_roles", []),
+            fallback_years=float(llm_exp) if llm_exp else 0.0
+        )
+        profile_data["experience_calculation"] = generate_experience_calculation_summary(
+            profile_data.get("previous_roles", [])
+        )
         candidate_profile = CandidateProfile(**profile_data)
         
         # Link candidate to existing resume & update extracted name
@@ -248,6 +268,9 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         }
 
     stage_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    today_str = date.today().isoformat()
+    cv_parser_prompt = CV_PARSER_SYSTEM.format(current_date=today_str)
+
     if pre_parsed_profile:
         logger.info("[CV Parser] Using directly parsed profile from Vision OCR.")
         profile_data = pre_parsed_profile
@@ -269,7 +292,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             try:
                 try:
                     result = await structured_model.ainvoke([
-                        SystemMessage(content=CV_PARSER_SYSTEM),
+                        SystemMessage(content=cv_parser_prompt),
                         HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
                     ])
                     parsed_res = result.get("parsed") if isinstance(result, dict) else None
@@ -291,7 +314,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                 except Exception as inner_e:
                     logger.warning(f"[CV Parser] Structured output attempt {attempt+1} ({tier}) failed ({inner_e}). Trying fallback raw JSON parsing...")
                     raw_resp = await model.ainvoke([
-                        SystemMessage(content=CV_PARSER_SYSTEM + "\nOutput a single valid JSON object matching the CandidateProfileOutput schema."),
+                        SystemMessage(content=cv_parser_prompt + "\nOutput a single valid JSON object matching the CandidateProfileOutput schema."),
                         HumanMessage(content=f"Parse this CV:\n\n{raw_text}")
                     ])
                     extracted = extract_json(raw_resp.content)

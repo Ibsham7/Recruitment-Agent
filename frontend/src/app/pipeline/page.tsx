@@ -5,7 +5,7 @@ import { getGlass } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/api";
 import { ALL_STAGES } from "./constants";
-import { PipelineHeader, PipelineStageTabs, CandidateGrid, CostAnalysisModal } from "./components";
+import { PipelineHeader, PipelineStageTabs, CandidateGrid, CostAnalysisModal, ExportCampaignModal } from "./components";
 
 import { queryClient } from "../queryClient";
 import { usePipeline, getPipelineQueryKey } from "../../lib/hooks/usePipeline";
@@ -19,6 +19,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
   const [retrying, setRetrying] = useState(false);
   const [activeStage, setActiveStage] = useState<CandidateStage>("screening");
   const [isCostModalOpen, setIsCostModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const handleRetryFailed = async () => {
     if (!id) return;
@@ -88,6 +89,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
         retrying={retrying} 
         onRetryFailed={handleRetryFailed} 
         onOpenCostAnalysis={() => setIsCostModalOpen(true)}
+        onOpenExport={() => setIsExportModalOpen(true)}
       />
       
       <div className="flex-1 flex flex-col overflow-hidden bg-transparent">
@@ -110,6 +112,14 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
       <CostAnalysisModal
         isOpen={isCostModalOpen}
         onClose={() => setIsCostModalOpen(false)}
+        campaign={campaign}
+        candidates={candidates}
+        theme={t}
+      />
+
+      <ExportCampaignModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
         campaign={campaign}
         candidates={candidates}
         theme={t}

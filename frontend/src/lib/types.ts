@@ -42,10 +42,21 @@ export interface ExperienceBreakdown {
   assessment?: string;
 }
 
+export interface TrajectorySubCriterion {
+  criterion_name: string;
+  points_earned: number;
+  max_points: number;
+  rubric_rule: string;
+  evidence: string;
+  status: "full" | "partial" | "none";
+}
+
 export interface TrajectoryBreakdown {
   score: number;
   points_earned: number;
   max_points: number;
+  sub_criteria?: TrajectorySubCriterion[];
+  calculation_summary?: string;
   assessment?: string;
 }
 
