@@ -17,7 +17,7 @@ from app.agent.prompts import JD_MATCHER_PROMPTS, CANONICAL_JD_DISTILLER_PROMPT
 from app.core.logging import logger
 from app.agent.tools.scoring import TENURE_PATTERN, calculate_weighted_fit_score
 from app.agent.tools.timeline import calculate_experience_for_domain
-from app.agent.tools.verification import extract_dynamic_requirement_tokens, check_dynamic_token_presence
+from app.agent.tools.verification import extract_dynamic_requirement_tokens, check_dynamic_token_presence, classify_evidence_source
 
 # In-memory cache for canonical JD specifications to freeze requirements per JD text
 _JD_SPEC_CACHE: dict[str, CanonicalJDSpec] = {}
@@ -388,12 +388,14 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
             if is_valid_ev:
                 final_match = found.match
                 final_ev = clean_ev
-                ev_type = getattr(found, "evidence_type", None) or "employment"
+                struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=clean_ev or ev_text)
+                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else (getattr(found, "evidence_type", None) or "employment")
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             elif has_presence:
                 final_match = "partial" if found.match == "full" else found.match
                 final_ev = clean_ev if clean_ev else ev_text
-                ev_type = "inferred"
+                struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=ev_text)
+                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else "inferred"
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             else:
                 final_match = "none"
@@ -434,12 +436,14 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
             if is_valid_ev:
                 final_match = found.match
                 final_ev = clean_ev
-                ev_type = getattr(found, "evidence_type", None) or "employment"
+                struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=clean_ev or ev_text)
+                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else (getattr(found, "evidence_type", None) or "employment")
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             elif has_presence:
                 final_match = "partial" if found.match == "full" else found.match
                 final_ev = clean_ev if clean_ev else ev_text
-                ev_type = "inferred"
+                struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=ev_text)
+                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else "inferred"
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             else:
                 final_match = "none"

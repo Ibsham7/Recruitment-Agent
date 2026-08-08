@@ -128,14 +128,14 @@ class RequirementMatch(BaseModel):
     def convert_evidence_type(cls, v):
         valid = {"employment", "project", "education", "skills_list_only", "inferred", "absent"}
         if v is None:
-            return "employment"
+            return "inferred"
         if isinstance(v, str):
             v_lower = v.lower().strip()
             if v_lower in valid:
                 return v_lower
-            if "skill" in v_lower or "list" in v_lower:
+            if "skill" in v_lower or "list" in v_lower or "section" in v_lower:
                 return "skills_list_only"
-            if "project" in v_lower or "portfolio" in v_lower:
+            if "project" in v_lower or "portfolio" in v_lower or "achievement" in v_lower:
                 return "project"
             if "edu" in v_lower or "academic" in v_lower or "degree" in v_lower or "school" in v_lower:
                 return "education"
@@ -145,7 +145,7 @@ class RequirementMatch(BaseModel):
                 return "inferred"
             if "work" in v_lower or "job" in v_lower or "employ" in v_lower or "career" in v_lower or "history" in v_lower or "role" in v_lower:
                 return "employment"
-        return "employment"
+        return "inferred"
 
     @field_validator("proficiency_signal", mode="before")
     @classmethod

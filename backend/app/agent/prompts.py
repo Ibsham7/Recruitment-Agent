@@ -133,6 +133,13 @@ For each requirement, mark "full", "partial", or "none". Be critical:
 "partial" requires genuinely comparable direct evidence (25% credit max), not just an adjacent
 tool/domain or aspirational transferability.
 
+For each requirement match object in JSON, populate:
+- `match`: "full" | "partial" | "none"
+- `evidence`: concise quote/proof from CV (max 10 words)
+- `evidence_type`: "employment" | "project" | "education" | "skills_list_only" | "inferred" | "absent"
+  (MUST use "skills_list_only" if the skill ONLY appears in a skills list/section without employment or project execution proof)
+- `proficiency_signal`: "led" | "built" | "used" | "assisted" | "learning" | "none"
+
 EVIDENCE MATCHING & STRETCHING PREVENTION RULES:
 1. FUNCTIONAL EQUIVALENCE REQUIREMENT FOR PARTIAL CREDIT:
    "Partial" credit is strictly reserved for tools, frameworks, platforms, or competencies that perform the EXACT SAME operational function as the requirement. Adjacent, downstream, or complementary activities that do not perform the same function must be marked "none".

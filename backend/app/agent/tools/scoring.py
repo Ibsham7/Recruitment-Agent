@@ -8,7 +8,12 @@ from app.agent.schemas import (
 )
 
 from app.agent.tools.timeline import generate_experience_calculation_summary
-from app.agent.tools.verification import extract_dynamic_requirement_tokens, check_dynamic_token_presence
+from app.agent.tools.verification import (
+    extract_dynamic_requirement_tokens,
+    check_dynamic_token_presence,
+    classify_evidence_source,
+    SKILLS_LIST_PROSE_PATTERNS
+)
 
 TENURE_PATTERN = re.compile(
     r"(\b\d+\+?\s*(years?|yrs?|yr)\b|\byears?\s+of\s+(professional\s+)?(software\s+engineering\s+|development\s+)?experience\b|\bminimum\s+\d+\s+years?\b|\b\d+\+\s*years?\b)",
@@ -84,6 +89,13 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
     if prof_signal is None and isinstance(item, dict):
         prof_signal = item.get("proficiency_signal")
 
+    # Deterministically classify evidence source using structural candidate profile sections
+    raw_cv_text = str(getattr(candidate_profile, "raw_cv_text", "") or "").strip() if candidate_profile else ""
+    if candidate_profile and raw_cv_text and evidence_val:
+        struct_source = classify_evidence_source(req_name, candidate_profile=candidate_profile, evidence_quote=evidence_val)
+        if struct_source in ("skills_list_only", "absent") or ev_type in (None, "inferred"):
+            ev_type = struct_source
+
     # Rule 0: Zero Proficiency Signal Guardrail
     if match_val != "none" and prof_signal == "none":
         match_val = "none"
@@ -105,10 +117,10 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
     )
     if not has_hedge and candidate_profile and match_val == "full":
         cand_skills = getattr(candidate_profile, "skills", []) or []
-        tech_words = [w.lower() for w in re.findall(r'\b[a-zA-Z0-9+#/\-]{3,}\b', req_name) if w.lower() not in {"experience", "with", "and", "or", "services", "core", "preferred", "requirement"}]
+        req_tokens_rule1 = extract_dynamic_requirement_tokens(req_name)
         for s in cand_skills:
             s_lower = str(s).lower()
-            if any(tw in s_lower for tw in tech_words) and any(k in s_lower for k in LOW_PROFICIENCY_KEYWORDS):
+            if any(tw in s_lower for tw in req_tokens_rule1) and any(k in s_lower for k in LOW_PROFICIENCY_KEYWORDS):
                 has_hedge = True
                 break
 
@@ -146,14 +158,21 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
 
     # Rule 4: Soft / Unevidenced Skill Listing Guardrail (Nice-to-have or soft competencies)
     if match_val != "none":
+        # 1. Deterministic structural classification if profile and text evidence available
+        if candidate_profile and raw_cv_text and evidence_val:
+            struct_source = classify_evidence_source(req_name, candidate_profile=candidate_profile, evidence_quote=evidence_val)
+            if struct_source in ("skills_list_only", "absent"):
+                ev_type = struct_source
+
+        # 2. Check prose pattern matching & evidence_type enum
         is_skills_only = (
-            ev_type in ("skills_list_only", "inferred") or
-            re.search(r"listed\s+.*in\s+skills", ev_lower) or
-            re.search(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", ev_lower) or
+            ev_type == "skills_list_only" or
+            any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or
             "listed as a skill" in ev_lower or
-            "listed in skills" in ev_lower
+            "listed in skills" in ev_lower or
+            "skills list" in ev_lower
         )
-        if is_skills_only:
+        if is_skills_only or ev_type == "inferred":
             if candidate_profile:
                 raw_cv = getattr(candidate_profile, "raw_cv_text", "") or ""
                 skills_txt = " ".join([str(s) for s in (getattr(candidate_profile, "skills", []) or [])])
@@ -164,10 +183,11 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                     match_val = "none"
                     override_note = " [Overridden to none: fabricated evidence without requirement tokens on CV]"
 
-            if match_val != "none":
-                substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower)
-                substantive = re.sub(r"listed\s+in\s+skills\s*(section)?", "", substantive)
-                substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive).strip(" ;,.-")
+            if match_val != "none" and is_skills_only:
+                substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower, flags=re.IGNORECASE)
+                substantive = re.sub(r"listed\s+in\s+skills\s*(section)?", "", substantive, flags=re.IGNORECASE)
+                substantive = re.sub(r"skills?\s+list\s*(includes?)?", "", substantive, flags=re.IGNORECASE)
+                substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive, flags=re.IGNORECASE).strip(" ;,.-")
                 if not substantive or len(substantive) < 5 or ev_type == "skills_list_only":
                     match_val = "none"
                     override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
