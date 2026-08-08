@@ -41,6 +41,14 @@ evidence in the candidate profile. "Partial" covers adjacent/transferable
 evidence — a related tool, methodology, campaign, shorter duration than required, or comparable
 experience (counted at 50% credit).
 
+For each requirement match object in JSON, populate:
+- `match`: "full" | "partial" | "none"
+- `evidence`: concise quote/proof from CV (max 10 words)
+- `evidence_type`: "employment" | "project" | "education" | "skills_list_only" | "inferred" | "absent"
+  (MUST use "skills_list_only" if the skill ONLY appears in a skills list/section without employment or project execution proof)
+- `proficiency_signal`: "led" | "built" | "used" | "assisted" | "learning" | "none"
+  (MUST use "assisted" or "learning" if experience is hedged e.g., "assisted DevOps", "basic knowledge")
+
 EVIDENCE MATCHING & STRETCHING PREVENTION RULES:
 1. FUNCTIONAL EQUIVALENCE REQUIREMENT FOR PARTIAL CREDIT:
    "Partial" credit is strictly reserved for tools, frameworks, platforms, or competencies that perform the EXACT SAME operational function as the requirement. Adjacent, downstream, or complementary activities that do not perform the same function must be marked "none".

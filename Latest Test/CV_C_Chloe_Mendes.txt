@@ -1,0 +1,38 @@
+CHLOE MENDES
+Backend Engineer
+Lisbon, Portugal | chloe.mendes@example.com
+
+PROFESSIONAL EXPERIENCE
+
+Backend Engineer (Python) - FinStack Iberia
+March 2024 - Present | Lisbon, Portugal
+- Develop FastAPI services for a payments reconciliation product processing
+  1.2M transactions per month.
+- Write PostgreSQL queries and stored procedures for the reconciliation ledger.
+- Package services with Docker and deploy to Azure App Service.
+- Maintain Azure DevOps release pipelines for three microservices.
+
+QA Automation Engineer - FinStack Iberia
+January 2022 - February 2024 | Lisbon, Portugal
+- Built pytest and Selenium regression suites covering 1,400 test cases.
+- Automated nightly test runs and published HTML coverage reports.
+
+Mechanical Design Engineer - AutoTech Iberica
+2014 - 2019 | Porto, Portugal
+- Designed automotive HVAC assemblies in SolidWorks and ran CFD simulations.
+- Led a 6-person design team on a 4M EUR OEM contract.
+
+CAREER BREAK
+2019 - 2021 - Full-time care responsibilities. Completed CS50x and the
+Le Wagon Python bootcamp during this period.
+
+EDUCATION
+BEng Mechanical Engineering - Universidade do Porto, 2013
+
+SKILLS
+Python, FastAPI, pytest, Selenium, PostgreSQL, SQL, Docker, Azure,
+Azure DevOps, Git, SolidWorks, MATLAB, CFD
+
+PROJECTS
+- Ledger Reconciler - internal FastAPI reconciliation service (FinStack)
+- Regression Harness - pytest and Selenium framework (FinStack)

@@ -14,20 +14,44 @@ TENURE_PATTERN = re.compile(
     re.IGNORECASE
 )
 
+GENERIC_TENURE_WORDS = {
+    "software", "engineering", "experience", "professional", "development",
+    "minimum", "years", "yrs", "year", "yr", "work", "industry", "field",
+    "hands-on", "strong", "proven", "track", "record", "background", "overall",
+    "total", "relevant", "domain", "in", "of", "with", "and", "for", "a", "an"
+}
+
 def _filter_tenure_requirements(items: list) -> list:
-    """Sanitize requirement lists to ensure years of experience are strictly owned by Experience Depth, avoiding double-scoring."""
+    """Sanitize requirement lists to ensure years of experience are strictly owned by Experience Depth, avoiding double-scoring.
+    If a requirement contains qualitative skills + a tenure phrase (e.g. 'Python and FastAPI (3+ years)'),
+    strip the tenure phrase rather than discarding the qualitative skill requirement.
+    Exclude only pure tenure requirements (e.g. '5+ years of experience').
+    """
     if not items:
         return []
     filtered = []
     for item in items:
         req_name = getattr(item, "requirement", item.get("requirement", "") if isinstance(item, dict) else str(item))
-        if not TENURE_PATTERN.search(req_name):
-            filtered.append(item)
+        if TENURE_PATTERN.search(req_name) or re.search(r"\b\d+\+?\s*(?:years?|yrs?|yr)\b", req_name, re.IGNORECASE):
+            cleaned = TENURE_PATTERN.sub("", req_name).strip(" ().-:," )
+            cleaned = re.sub(r"\(?\s*\d+\+?\s*(?:years?|yrs?|yr)\s*\)?", "", cleaned, flags=re.IGNORECASE).strip(" ().-:," )
+            cleaned = re.sub(r"^(?:experience\s+(?:in|with|of)?|of\s+experience\s+(?:in|with)?)\s*", "", cleaned, flags=re.IGNORECASE).strip(" ().-:," )
+            tokens = set(re.findall(r'\w+', cleaned.lower()))
+            if not cleaned or len(cleaned) < 3 or not (tokens - GENERIC_TENURE_WORDS):
+                continue
+            if hasattr(item, "requirement"):
+                try:
+                    item.requirement = cleaned
+                except AttributeError:
+                    pass
+            elif isinstance(item, dict):
+                item["requirement"] = cleaned
+        filtered.append(item)
     return filtered
 
 LOW_PROFICIENCY_KEYWORDS = (
     "some exposure", "limited exposure", "basic exposure", "basic knowledge",
-    "familiarity with", "assisted with", "supervised use", "introductory",
+    "familiarity with", "assisted with", "assisted", "supervised use", "introductory",
     "learning", "(learning)", "personal project", "personal projects",
     "beginner", "self-taught", "coursework", "academic use", "student"
 )
@@ -40,17 +64,44 @@ NEGATIVE_EVIDENCE_PHRASES = (
 def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: Any = None, eval_mode: str = "default", candidate_profile: Any = None) -> Tuple[str, str]:
     """
     Domain-agnostic evidence guardrail to prevent evidence inflation/stretching:
-    1. Proficiency Qualifier Cap: If evidence or profile raw skills contain 'some exposure', 'basic', 'assisted', 'learning', cap match_val at 'partial'.
-    2. Parenthetical Alternatives Upgrade: If requirement lists alternatives in parentheses (e.g. "CRM (Salesforce / HubSpot)", "CI/CD (Jenkins / GitHub Actions)", "Assessment (Kahoot / Forms)") and evidence names one explicitly, upgrade partial -> full.
-    3. Self-Contradiction Guardrail: If match is non-none, but evidence explicitly states absence of evidence ('no specific', 'no evidence', 'not mentioned'), force match_val to 'none'.
-    4. Soft / Unevidenced Skill Listing Guardrail: If evidence for nice-to-have or soft requirements merely states "listed '...' as a skill" or generic on-call participation without substantive evidence, force match_val to 'none'.
+    0. Zero Proficiency Signal Guardrail: If proficiency_signal is 'none', force match_val to 'none'.
+    1. Proficiency Qualifier Cap: If evidence, proficiency signal, or profile raw skills contain low-proficiency keywords ('assisted', 'learning', 'basic exposure'), cap match_val at 'partial'.
+    2. Parenthetical Alternatives Upgrade: If requirement lists alternatives in parentheses and evidence names one explicitly, upgrade partial -> full.
+    3. Self-Contradiction Guardrail: If match is non-none, but evidence explicitly states absence of evidence, force match_val to 'none'.
+    4. Soft / Unevidenced Skill Listing Guardrail: If evidence_type is 'skills_list_only', 'inferred', or 'absent', or text indicates merely listed in skills section, force match_val to 'none'.
     """
     req_lower = req_name.lower()
     ev_lower = evidence_val.lower()
     override_note = ""
 
+    # Extract structured enum attributes if available on item
+    ev_type = getattr(item, "evidence_type", None) if item else None
+    if ev_type is None and isinstance(item, dict):
+        ev_type = item.get("evidence_type")
+
+    prof_signal = getattr(item, "proficiency_signal", None) if item else None
+    if prof_signal is None and isinstance(item, dict):
+        prof_signal = item.get("proficiency_signal")
+
+    # Rule 0: Zero Proficiency Signal Guardrail
+    if match_val != "none" and prof_signal == "none":
+        match_val = "none"
+        override_note = " [Overridden to none: proficiency signal is none]"
+        if item is not None:
+            if hasattr(item, "match"):
+                try:
+                    item.match = match_val
+                except AttributeError:
+                    pass
+            elif isinstance(item, dict):
+                item["match"] = match_val
+        return match_val, override_note
+
     # Rule 1: Low-proficiency / hedging qualifier cap
-    has_hedge = any(k in ev_lower for k in LOW_PROFICIENCY_KEYWORDS)
+    has_hedge = (
+        prof_signal in ("assisted", "learning") or
+        any(k in ev_lower for k in LOW_PROFICIENCY_KEYWORDS)
+    )
     if not has_hedge and candidate_profile and match_val == "full":
         cand_skills = getattr(candidate_profile, "skills", []) or []
         tech_words = [w.lower() for w in re.findall(r'\b[a-zA-Z0-9+#/\-]{3,}\b', req_name) if w.lower() not in {"experience", "with", "and", "or", "services", "core", "preferred", "requirement"}]
@@ -59,6 +110,20 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             if any(tw in s_lower for tw in tech_words) and any(k in s_lower for k in LOW_PROFICIENCY_KEYWORDS):
                 has_hedge = True
                 break
+
+    if not has_hedge and candidate_profile and match_val == "full":
+        raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "").lower()
+        if raw_cv and ev_lower:
+            ev_words = [w for w in re.findall(r'\b[a-zA-Z0-9+#/\-]{4,}\b', ev_lower) if w not in {"with", "that", "this", "from", "using", "used", "role", "work", "after", "review"}]
+            for word in ev_words:
+                idx = raw_cv.find(word)
+                if idx != -1:
+                    w_start = max(0, idx - 200)
+                    w_end = min(len(raw_cv), idx + 200)
+                    cv_window = raw_cv[w_start:w_end]
+                    if any(k in cv_window for k in LOW_PROFICIENCY_KEYWORDS):
+                        has_hedge = True
+                        break
 
     if match_val == "full" and has_hedge:
         match_val = "partial"
@@ -74,18 +139,26 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                 override_note = " [Upgraded to full: evidence names an exact alternative from requirement's listed options]"
 
     # Rule 3: Self-Contradiction Guardrail (Evidence text explicitly states absence of requirement/evidence)
-    if match_val != "none" and any(p in ev_lower for p in NEGATIVE_EVIDENCE_PHRASES):
+    if match_val != "none" and (ev_type == "absent" or any(p in ev_lower for p in NEGATIVE_EVIDENCE_PHRASES)):
         match_val = "none"
         override_note = " [Overridden to none: evidence explicitly states absence of requirement or evidence]"
 
     # Rule 4: Soft / Unevidenced Skill Listing Guardrail (Nice-to-have or soft competencies)
     if match_val != "none":
-        if re.search(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", ev_lower) or "listed as a skill" in ev_lower:
+        is_skills_only = (
+            ev_type in ("skills_list_only", "inferred") or
+            re.search(r"listed\s+.*in\s+skills", ev_lower) or
+            re.search(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", ev_lower) or
+            "listed as a skill" in ev_lower or
+            "listed in skills" in ev_lower
+        )
+        if is_skills_only:
             substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower)
+            substantive = re.sub(r"listed\s+in\s+skills\s*(section)?", "", substantive)
             substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive).strip(" ;,.-")
-            if not substantive or len(substantive) < 5:
+            if not substantive or len(substantive) < 5 or ev_type == "skills_list_only":
                 match_val = "none"
-                override_note = " [Overridden to none: generic skill listing without substantive evidence of requirement execution]"
+                override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
 
     if item is not None and match_val != getattr(item, "match", None):
         if hasattr(item, "match"):
@@ -130,8 +203,19 @@ def classify_degree_relevance(education_list: list, jd_keywords: list = None) ->
     is_advanced = any(deg in all_edu_text for deg in ["master", "m.s.", "m.a.", "ph.d", "phd", "doctorate", "mba"])
 
     # High-relevance discipline pairs
-    tech_jd = any(k in jd_text for k in ["python", "java", "backend", "frontend", "software", "developer", "engineer", "data", "cloud", "api"])
-    tech_deg = any(k in all_edu_text for k in ["computer", "software", "information technology", "data science", "electrical"])
+    tech_jd = any(k in jd_text for k in ["python", "java", "backend", "frontend", "software", "developer", "engineer", "data", "cloud", "api", "ai", "artificial intelligence", "rag", "llm"])
+    tech_deg = any(k in all_edu_text for k in ["computer", "software", "information technology", "data science", "electrical", "artificial intelligence", "ai", "machine learning", "cybersecurity"])
+
+    direct_match_patterns = [
+        r"\bartificial\s+intelligence\b", r"\bbs\s+ai\b", r"\bb\.s\.\s+ai\b", r"\bbachelor\s+of\s+science\s+in\s+ai\b",
+        r"\bmachine\s+learning\b", r"\bbs\s+ml\b", r"\bb\.s\.\s+ml\b", r"\bdata\s+science\b", r"\bbs\s+ds\b", r"\bb\.s\.\s+ds\b",
+        r"\bcomputer\s+science\b", r"\bbs\s+cs\b", r"\bb\.s\.\s+cs\b", r"\bsoftware\s+engineering\b", r"\bbs\s+se\b", r"\bb\.s\.\s+se\b",
+        r"\bcomputer\s+engineering\b", r"\binformation\s+technology\b"
+    ]
+
+    if (tech_jd or not jd_keywords) and any(re.search(pat, all_edu_text, re.IGNORECASE) for pat in direct_match_patterns):
+        pts = 25.0 if (len(edu_strings) >= 2 or is_advanced) else 20.0
+        return pts, f"Domain-Relevant Degree ({'; '.join(edu_strings)}) matching target field.", "full"
 
     math_jd = any(k in jd_text for k in ["math", "mathematics", "physics", "teaching", "teacher", "curriculum", "education"])
     math_deg = any(k in all_edu_text for k in ["math", "mathematics", "education", "physics", "science"])
@@ -145,7 +229,7 @@ def classify_degree_relevance(education_list: list, jd_keywords: list = None) ->
         pts = 25.0 if (len(edu_strings) >= 2 or is_advanced) else 20.0
         return pts, f"Domain-Relevant Degree ({'; '.join(edu_strings)}) matching target field.", "full"
 
-    broad_disciplines = {"science", "engineering", "technology", "mathematics", "computer", "business", "finance", "economics", "education", "management", "law", "medicine", "nursing"}
+    broad_disciplines = {"science", "engineering", "technology", "mathematics", "computer", "business", "finance", "economics", "education", "management", "law", "medicine", "nursing", "artificial", "intelligence", "ai", "data"}
     if broad_disciplines & edu_tokens:
         pts = 18.0 if (len(edu_strings) >= 2 or is_advanced) else 14.0
         return pts, f"Foundational Degree ({'; '.join(edu_strings)}) providing general core discipline background.", "partial"
@@ -451,11 +535,27 @@ def calculate_weighted_fit_score(
     # Experience Score (Floor Removal: Ratio Y_relevant / Y_req with relevance proportion discount)
     cand_years = float(getattr(candidate_profile, "total_experience_years", 0.0) if candidate_profile else 0.0)
 
-    # Determine relevant years (from score_breakdown, candidate_profile, or experience_assessment)
+    # Determine relevant years (prioritize deterministic code calculation from work experience roles)
     rel_years = None
-    if hasattr(score_breakdown, "relevant_experience_years") and score_breakdown.relevant_experience_years is not None:
+    if candidate_profile and hasattr(candidate_profile, "previous_roles") and candidate_profile.previous_roles:
+        from app.agent.tools.timeline import calculate_experience_for_domain
+        domain_kw = []
+        if canonical_jd_spec and hasattr(canonical_jd_spec, "must_have_skills"):
+            domain_kw.extend([r.requirement_name for r in canonical_jd_spec.must_have_skills if hasattr(r, "requirement_name")])
+        if canonical_jd_spec and hasattr(canonical_jd_spec, "role_title") and canonical_jd_spec.role_title:
+            domain_kw.append(canonical_jd_spec.role_title)
+        if not domain_kw and must_have:
+            for item in must_have:
+                req_name = item.get("requirement") if isinstance(item, dict) else getattr(item, "requirement", "")
+                if req_name:
+                    domain_kw.append(str(req_name))
+        det_years = calculate_experience_for_domain(candidate_profile.previous_roles, keywords=domain_kw)
+        if det_years > 0:
+            rel_years = det_years
+
+    if rel_years is None and hasattr(score_breakdown, "relevant_experience_years") and score_breakdown.relevant_experience_years is not None:
         rel_years = float(score_breakdown.relevant_experience_years)
-    elif candidate_profile and hasattr(candidate_profile, "relevant_experience_years") and candidate_profile.relevant_experience_years is not None:
+    elif rel_years is None and candidate_profile and hasattr(candidate_profile, "relevant_experience_years") and candidate_profile.relevant_experience_years is not None:
         rel_years = float(candidate_profile.relevant_experience_years)
 
     if rel_years is None and experience_assessment:
@@ -481,14 +581,6 @@ def calculate_weighted_fit_score(
         if c_years is not None:
             try:
                 req_years = float(c_years)
-            except (ValueError, TypeError):
-                req_years = None
-
-    if req_years is None and experience_assessment:
-        match = re.search(r"(\d+(?:\.\d+)?)\s*(?:years?|yrs?)", experience_assessment, re.IGNORECASE)
-        if match:
-            try:
-                req_years = float(match.group(1))
             except (ValueError, TypeError):
                 req_years = None
 
@@ -573,18 +665,22 @@ def calculate_weighted_fit_score(
     penalties_breakdown_items = []
     if penalties:
         for p in penalties:
-            sev = p.get("severity") if isinstance(p, dict) else getattr(p, "severity", "")
-            reason = p.get("reason") if isinstance(p, dict) else getattr(p, "reason", "")
-            pts = 5.0 if sev == "slight_penalize" else 10.0 if sev == "intermediate_penalize" else 20.0 if sev == "hard_penalize" else 0.0
-            if pts > 0:
-                deduction += pts
-                if reason:
-                    penalty_reasons.append(reason)
-                    penalties_breakdown_items.append(PenaltyBreakdownItem(
-                        reason=reason,
-                        severity=sev,
-                        points_deducted=pts
-                    ))
+            sev = str(p.get("severity", "")) if isinstance(p, dict) else str(getattr(p, "severity", ""))
+            reason = str(p.get("reason", "")) if isinstance(p, dict) else str(getattr(p, "reason", ""))
+            raw_pts = p.get("points_deducted") if isinstance(p, dict) else getattr(p, "points_deducted", None)
+            if raw_pts is not None:
+                pts = float(raw_pts)
+            else:
+                pts = 5.0 if sev == "slight_penalize" else 10.0 if sev == "intermediate_penalize" else 20.0 if sev == "hard_penalize" else 50.0 if sev in ("reject", "completely_reject") else 10.0 if sev else 0.0
+            
+            deduction += pts
+            if reason:
+                penalty_reasons.append(reason)
+                penalties_breakdown_items.append(PenaltyBreakdownItem(
+                    reason=reason,
+                    severity=sev or "penalty",
+                    points_deducted=pts
+                ))
 
     penalty_scale = 0.5 if eval_mode_key == "lenient" else 1.5 if eval_mode_key == "strict" else 1.0
     scaled_deduction = round(deduction * penalty_scale)
@@ -647,6 +743,7 @@ def calculate_weighted_fit_score(
             score_breakdown.trajectory_score = int(round(traj_score))
             score_breakdown.weights = weights
             score_breakdown.eval_mode = eval_mode_key
+            score_breakdown.relevant_experience_years = effective_exp_years
             score_breakdown.formula_summary = formula_str
             score_breakdown.must_have_breakdown = must_have_breakdown_items
             score_breakdown.nice_to_have_breakdown = nice_have_breakdown_items

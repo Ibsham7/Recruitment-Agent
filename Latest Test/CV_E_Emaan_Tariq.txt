@@ -1,0 +1,32 @@
+EMAAN TARIQ
+Junior Python Developer
+Rawalpindi, Pakistan | emaan.tariq@example.com
+
+EXPERIENCE
+
+Junior Python Developer - Softcircle Technologies
+February 2025 - Present | Rawalpindi, Pakistan
+- Build FastAPI CRUD services for an internal inventory system.
+- Write PostgreSQL schemas and Alembic migrations, including composite
+  indexes tuned against EXPLAIN output.
+- Containerise services with Docker and deploy to AWS EC2.
+- Built a RAG assistant over company SOPs using LangChain and Chroma, now
+  used daily by the operations team.
+- Maintain GitHub Actions pipelines for automated testing.
+
+Software Engineering Intern - Softcircle Technologies
+June 2024 - August 2024 | Rawalpindi, Pakistan
+- Wrote Python data-cleaning scripts for the inventory migration.
+
+EDUCATION
+BS Software Engineering - COMSATS Islamabad, 2021 - 2024
+Meta Backend Developer Professional Certificate, 2024
+
+SKILLS
+Python, FastAPI, PostgreSQL, SQLAlchemy, Alembic, Docker, AWS, LangChain,
+Chroma, GitHub Actions, pytest, Git
+
+PROJECTS
+- Inventory API - FastAPI and PostgreSQL service (Softcircle)
+- SOP Assistant - LangChain RAG prototype (Softcircle)
+- Campus Ride - final year project, Django ride-sharing platform

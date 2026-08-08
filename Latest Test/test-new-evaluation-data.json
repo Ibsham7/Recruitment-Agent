@@ -1,0 +1,1470 @@
+{
+  "campaign": {
+    "id": "07911302-8055-4a0a-9cd1-6591e947034a",
+    "title": "TEST new",
+    "department": "General",
+    "location": "Remote",
+    "status": "active",
+    "jobDescription": "Senior Backend Engineer - AI Platform\nNorthlane Technologies\nIslamabad, Pakistan (Hybrid) | Full-time\n\nABOUT THE ROLE\nNorthlane is building an AI-native document intelligence platform used by\ninsurance and legal teams across EMEA. You will own the backend services that\nsit between our ingestion pipeline and our retrieval layer, and you will be\naccountable for the latency, correctness and cost of everything behind the API\nboundary.\n\nREQUIREMENTS\n- 5+ years of professional software engineering experience building and\n  operating production backend systems.\n- Strong hands-on expertise with Python and FastAPI (3+ years) for building\n  high-throughput REST APIs.\n- Deep PostgreSQL experience including query optimization, indexing strategy\n  and execution plan analysis.\n- Production deployment experience on a major cloud platform (AWS / GCP / Azure).\n- Containerization and orchestration with Docker and Kubernetes.\n- Experience integrating LLM and RAG pipelines into production applications.\n\nNICE TO HAVE\n- CI/CD automation experience (GitHub Actions / Jenkins).\n- Experience with distributed task queues or message brokers\n  (Kafka / RabbitMQ / Celery).\n- Observability tooling experience (Prometheus / Grafana / Datadog).\n\nWHAT WE OFFER\nCompetitive salary, hybrid working, annual learning budget, and equity for\nsenior hires.\n",
+    "totalCandidates": 6,
+    "processedCandidates": 6,
+    "shortlistedCandidates": 3,
+    "totalCost": 0.0035670000000000003,
+    "createdAt": "2026-08-07T22:33:11.358000+00:00",
+    "updatedAt": "2026-08-07T22:33:11.358000+00:00"
+  },
+  "exportedAt": "2026-08-07T22:35:39.112Z",
+  "candidatesCount": 6,
+  "candidates": [
+    {
+      "id": "f127e1ad-9b7b-42a7-8b2c-35dcb9d7863e",
+      "name": "FARAH SIDDIQUI",
+      "email": "farah.siddiqui@example.com",
+      "phone": null,
+      "stage": "rejected",
+      "decision": "reject",
+      "score": 0,
+      "scores": {
+        "technical": 0,
+        "communication": 0,
+        "culturalFit": 0,
+        "overall": 0.27
+      },
+      "currentRole": "Candidate",
+      "experience": null,
+      "structuredProfile": {
+        "name": "FARAH SIDDIQUI",
+        "email": "farah.siddiqui@example.com",
+        "phone": null,
+        "skills": [
+          "Patient assessment",
+          "IV therapy",
+          "ACLS",
+          "BLS",
+          "Wound care",
+          "EMR (Meditech)",
+          "Triage",
+          "Medication administration",
+          "Patient education",
+          "Team leadership"
+        ],
+        "projects": [],
+        "education": [
+          "BSc Nursing - Rawalpindi Medical University, 2017"
+        ],
+        "other_info": "Registered Nurse (BSN, RN)",
+        "raw_cv_text": "FARAH SIDDIQUI\nRegistered Nurse (BSN, RN)\nRawalpindi, Pakistan | farah.siddiqui@example.com\n\nEXPERIENCE\n\nCharge Nurse - Shifa International Hospital\nJanuary 2021 - Present | Islamabad, Pakistan\n- Lead a 14-bed cardiac step-down unit across rotating shifts.\n- Supervise a team of 9 staff nurses and manage acuity-based assignments.\n- Administer IV medications, titrate vasoactive drips and manage post-operative\n  recovery protocols.\n\nStaff Nurse - Holy Family Hospital\nMarch 2018 - December 2020 | Rawalpindi, Pakistan\n- Provided direct patient care in the medical-surgical ward.\n- Maintained electronic medical records and discharge documentation.\n\nEDUCATION\nBSc Nursing - Rawalpindi Medical University, 2017\n\nSKILLS\nPatient assessment, IV therapy, ACLS, BLS, wound care, EMR (Meditech), triage,\nmedication administration, patient education, team leadership\n",
+        "previous_roles": [
+          {
+            "title": "Charge Nurse",
+            "company": "Shifa International Hospital",
+            "end_date": "Present",
+            "is_current": true,
+            "start_date": "01/2021",
+            "description": "Lead a 14-bed cardiac step-down unit across rotating shifts. Supervise a team of 9 staff nurses and manage acuity-based assignments. Administer IV medications, titrate vasoactive drips and manage post-operative recovery protocols.",
+            "skills_used": [
+              "Cardiac step-down unit management",
+              "Staff supervision",
+              "Acuity-based assignments",
+              "IV medications",
+              "Vasoactive drips",
+              "Post-operative recovery protocols"
+            ]
+          },
+          {
+            "title": "Staff Nurse",
+            "company": "Holy Family Hospital",
+            "end_date": "12/2020",
+            "is_current": false,
+            "start_date": "03/2018",
+            "description": "Provided direct patient care in the medical-surgical ward. Maintained electronic medical records and discharge documentation.",
+            "skills_used": [
+              "Direct patient care",
+              "Medical-surgical ward",
+              "Electronic medical records",
+              "Discharge documentation"
+            ]
+          }
+        ],
+        "key_achievements": [],
+        "experience_calculation": "Charge Nurse at Shifa International Hospital (2021/01 - Present): 5.7 yrs; Staff Nurse at Holy Family Hospital (2018/03 - 2020/12): 2.8 yrs. Total non-overlapping experience: 8.5 yrs.",
+        "total_experience_years": 8.5
+      },
+      "strengths": [],
+      "concerns": [
+        "Candidate was rejected prior to interview."
+      ],
+      "summary": "Rejection Reason: Candidate semantic similarity (0.27) is below threshold (0.4).\n\nCandidate semantic similarity (0.27) is below threshold (0.4).",
+      "chainOfThought": "No reasoning provided.",
+      "scoreBreakdown": null,
+      "aiGeneratedLikelihoodScore": 0,
+      "antiCheatFlags": [],
+      "antiCheatMetadata": {},
+      "apiCost": 0.000225,
+      "costBreakdown": {
+        "cv_parser": {
+          "cost": 0.000223,
+          "tokens": {
+            "input_tokens": 664,
+            "total_tokens": 1243,
+            "output_tokens": 579
+          }
+        },
+        "embedding_matcher": {
+          "cost": 0.000002,
+          "tokens": {
+            "cost": 0.000002,
+            "input_tokens": 93,
+            "total_tokens": 93,
+            "output_tokens": 0
+          }
+        }
+      },
+      "transcript": [],
+      "cvUrl": "https://res.cloudinary.com/db3i07nwj/raw/upload/v1786141991/zoqhjbkbikovtpyor8bi.txt",
+      "createdAt": "2026-08-07T22:33:20.339000+00:00",
+      "updatedAt": "2026-08-07T22:34:30.356000+00:00"
+    },
+    {
+      "id": "88793403-82ac-40be-9734-bbb03dc3ca7c",
+      "name": "EMAAN TARIQ",
+      "email": "emaan.tariq@example.com",
+      "phone": null,
+      "stage": "rejected",
+      "decision": "reject",
+      "score": 0,
+      "scores": {
+        "technical": 0,
+        "communication": 0,
+        "culturalFit": 0,
+        "overall": 0.39
+      },
+      "currentRole": "Candidate",
+      "experience": null,
+      "structuredProfile": {
+        "name": "EMAAN TARIQ",
+        "email": "emaan.tariq@example.com",
+        "phone": null,
+        "skills": [
+          "Python",
+          "FastAPI",
+          "PostgreSQL",
+          "SQLAlchemy",
+          "Alembic",
+          "Docker",
+          "AWS",
+          "LangChain",
+          "Chroma",
+          "GitHub Actions",
+          "pytest",
+          "Git",
+          "Backend Development",
+          "RAG",
+          "Data Cleaning",
+          "Database Design",
+          "Containerization",
+          "CI/CD"
+        ],
+        "projects": [
+          "Inventory API - FastAPI and PostgreSQL service (Softcircle)",
+          "SOP Assistant - LangChain RAG prototype (Softcircle)",
+          "Campus Ride - final year project, Django ride-sharing platform"
+        ],
+        "education": [
+          "BS Software Engineering - COMSATS Islamabad, 2021 - 2024",
+          "Meta Backend Developer Professional Certificate, 2024"
+        ],
+        "other_info": "Rawalpindi, Pakistan",
+        "raw_cv_text": "EMAAN TARIQ\nJunior Python Developer\nRawalpindi, Pakistan | emaan.tariq@example.com\n\nEXPERIENCE\n\nJunior Python Developer - Softcircle Technologies\nFebruary 2025 - Present | Rawalpindi, Pakistan\n- Build FastAPI CRUD services for an internal inventory system.\n- Write PostgreSQL schemas and Alembic migrations, including composite\n  indexes tuned against EXPLAIN output.\n- Containerise services with Docker and deploy to AWS EC2.\n- Built a RAG assistant over company SOPs using LangChain and Chroma, now\n  used daily by the operations team.\n- Maintain GitHub Actions pipelines for automated testing.\n\nSoftware Engineering Intern - Softcircle Technologies\nJune 2024 - August 2024 | Rawalpindi, Pakistan\n- Wrote Python data-cleaning scripts for the inventory migration.\n\nEDUCATION\nBS Software Engineering - COMSATS Islamabad, 2021 - 2024\nMeta Backend Developer Professional Certificate, 2024\n\nSKILLS\nPython, FastAPI, PostgreSQL, SQLAlchemy, Alembic, Docker, AWS, LangChain,\nChroma, GitHub Actions, pytest, Git\n\nPROJECTS\n- Inventory API - FastAPI and PostgreSQL service (Softcircle)\n- SOP Assistant - LangChain RAG prototype (Softcircle)\n- Campus Ride - final year project, Django ride-sharing platform\n",
+        "previous_roles": [
+          {
+            "title": "Junior Python Developer",
+            "company": "Softcircle Technologies",
+            "end_date": "Present",
+            "is_current": true,
+            "start_date": "02/2025",
+            "description": "Build FastAPI CRUD services for an internal inventory system. Write PostgreSQL schemas and Alembic migrations, including composite indexes tuned against EXPLAIN output. Containerise services with Docker and deploy to AWS EC2. Built a RAG assistant over company SOPs using LangChain and Chroma, now used daily by the operations team. Maintain GitHub Actions pipelines for automated testing.",
+            "skills_used": [
+              "FastAPI",
+              "CRUD",
+              "PostgreSQL",
+              "Alembic",
+              "Docker",
+              "AWS EC2",
+              "RAG",
+              "LangChain",
+              "Chroma",
+              "GitHub Actions",
+              "Automated Testing"
+            ]
+          },
+          {
+            "title": "Software Engineering Intern",
+            "company": "Softcircle Technologies",
+            "end_date": "08/2024",
+            "is_current": false,
+            "start_date": "06/2024",
+            "description": "Wrote Python data-cleaning scripts for the inventory migration.",
+            "skills_used": [
+              "Python",
+              "Data Cleaning",
+              "Inventory Migration"
+            ]
+          }
+        ],
+        "key_achievements": [
+          "Built a RAG assistant over company SOPs using LangChain and Chroma, now used daily by the operations team."
+        ],
+        "experience_calculation": "Junior Python Developer at Softcircle Technologies (2025/02 - Present): 1.6 yrs; Software Engineering Intern at Softcircle Technologies (2024/06 - 2024/08): 0.2 yrs. Total non-overlapping experience: 1.8 yrs.",
+        "total_experience_years": 1.8
+      },
+      "strengths": [],
+      "concerns": [
+        "Candidate was rejected prior to interview."
+      ],
+      "summary": "Rejection Reason: Candidate semantic similarity (0.39) is below threshold (0.4).\n\nCandidate semantic similarity (0.39) is below threshold (0.4).",
+      "chainOfThought": "No reasoning provided.",
+      "scoreBreakdown": null,
+      "aiGeneratedLikelihoodScore": 0,
+      "antiCheatFlags": [],
+      "antiCheatMetadata": {},
+      "apiCost": 0.000275,
+      "costBreakdown": {
+        "cv_parser": {
+          "cost": 0.000272,
+          "tokens": {
+            "input_tokens": 734,
+            "total_tokens": 1458,
+            "output_tokens": 724
+          }
+        },
+        "embedding_matcher": {
+          "cost": 0.000003,
+          "tokens": {
+            "cost": 0.000003,
+            "input_tokens": 154,
+            "total_tokens": 154,
+            "output_tokens": 0
+          }
+        }
+      },
+      "transcript": [],
+      "cvUrl": "https://res.cloudinary.com/db3i07nwj/raw/upload/v1786141991/iawafdevm3vgqyb2ojaj.txt",
+      "createdAt": "2026-08-07T22:33:20.339000+00:00",
+      "updatedAt": "2026-08-07T22:34:27.642000+00:00"
+    },
+    {
+      "id": "f1cc2b96-a261-4278-b504-ea184242d583",
+      "name": "CHLOE MENDES",
+      "email": "chloe.mendes@example.com",
+      "phone": null,
+      "stage": "screening",
+      "decision": "hold",
+      "score": 54,
+      "scores": {
+        "technical": 0,
+        "communication": 0,
+        "culturalFit": 0,
+        "overall": 54
+      },
+      "currentRole": "Candidate",
+      "experience": null,
+      "structuredProfile": {
+        "name": "CHLOE MENDES",
+        "email": "chloe.mendes@example.com",
+        "phone": null,
+        "skills": [
+          "Python",
+          "FastAPI",
+          "pytest",
+          "Selenium",
+          "PostgreSQL",
+          "SQL",
+          "Docker",
+          "Azure",
+          "Azure DevOps",
+          "Git",
+          "SolidWorks",
+          "MATLAB",
+          "CFD",
+          "leadership",
+          "communication"
+        ],
+        "projects": [
+          "Ledger Reconciler - internal FastAPI reconciliation service (FinStack)",
+          "Regression Harness - pytest and Selenium framework (FinStack)",
+          "CS50x",
+          "Le Wagon Python bootcamp"
+        ],
+        "education": [
+          "BEng Mechanical Engineering - Universidade do Porto, 2013"
+        ],
+        "other_info": "Career Break: 2019 - 2021 - Full-time care responsibilities. Completed CS50x and the Le Wagon Python bootcamp during this period.",
+        "raw_cv_text": "CHLOE MENDES\nBackend Engineer\nLisbon, Portugal | chloe.mendes@example.com\n\nPROFESSIONAL EXPERIENCE\n\nBackend Engineer (Python) - FinStack Iberia\nMarch 2024 - Present | Lisbon, Portugal\n- Develop FastAPI services for a payments reconciliation product processing\n  1.2M transactions per month.\n- Write PostgreSQL queries and stored procedures for the reconciliation ledger.\n- Package services with Docker and deploy to Azure App Service.\n- Maintain Azure DevOps release pipelines for three microservices.\n\nQA Automation Engineer - FinStack Iberia\nJanuary 2022 - February 2024 | Lisbon, Portugal\n- Built pytest and Selenium regression suites covering 1,400 test cases.\n- Automated nightly test runs and published HTML coverage reports.\n\nMechanical Design Engineer - AutoTech Iberica\n2014 - 2019 | Porto, Portugal\n- Designed automotive HVAC assemblies in SolidWorks and ran CFD simulations.\n- Led a 6-person design team on a 4M EUR OEM contract.\n\nCAREER BREAK\n2019 - 2021 - Full-time care responsibilities. Completed CS50x and the\nLe Wagon Python bootcamp during this period.\n\nEDUCATION\nBEng Mechanical Engineering - Universidade do Porto, 2013\n\nSKILLS\nPython, FastAPI, pytest, Selenium, PostgreSQL, SQL, Docker, Azure,\nAzure DevOps, Git, SolidWorks, MATLAB, CFD\n\nPROJECTS\n- Ledger Reconciler - internal FastAPI reconciliation service (FinStack)\n- Regression Harness - pytest and Selenium framework (FinStack)\n",
+        "previous_roles": [
+          {
+            "title": "Backend Engineer",
+            "company": "FinStack Iberia",
+            "end_date": "Present",
+            "is_current": true,
+            "start_date": "March 2024",
+            "description": "Develop FastAPI services for a payments reconciliation product processing 1.2M transactions per month. Write PostgreSQL queries and stored procedures for the reconciliation ledger. Package services with Docker and deploy to Azure App Service. Maintain Azure DevOps release pipelines for three microservices.",
+            "skills_used": [
+              "Python",
+              "FastAPI",
+              "PostgreSQL",
+              "Docker",
+              "Azure App Service",
+              "Azure DevOps"
+            ]
+          },
+          {
+            "title": "QA Automation Engineer",
+            "company": "FinStack Iberia",
+            "end_date": "February 2024",
+            "is_current": false,
+            "start_date": "January 2022",
+            "description": "Built pytest and Selenium regression suites covering 1,400 test cases. Automated nightly test runs and published HTML coverage reports.",
+            "skills_used": [
+              "pytest",
+              "Selenium",
+              "automation",
+              "reporting"
+            ]
+          },
+          {
+            "title": "Mechanical Design Engineer",
+            "company": "AutoTech Iberica",
+            "end_date": "2019",
+            "is_current": false,
+            "start_date": "2014",
+            "description": "Designed automotive HVAC assemblies in SolidWorks and ran CFD simulations. Led a 6-person design team on a 4M EUR OEM contract.",
+            "skills_used": [
+              "SolidWorks",
+              "CFD",
+              "design",
+              "leadership"
+            ]
+          }
+        ],
+        "key_achievements": [
+          "Led a 6-person design team on a 4M EUR OEM contract."
+        ],
+        "experience_calculation": "Backend Engineer at FinStack Iberia (2024/03 - Present): 2.5 yrs; QA Automation Engineer at FinStack Iberia (2022/01 - 2024/02): 2.2 yrs; Mechanical Design Engineer at AutoTech Iberica (2014/01 - 2019/01): 5.0 yrs. Total non-overlapping experience: 9.8 yrs.",
+        "total_experience_years": 9.8
+      },
+      "strengths": [
+        "Production deployment experience on a major cloud platform (AWS / GCP / Azure) (Deploys services to Azure App Service.)",
+        "CI/CD automation experience (GitHub Actions / Jenkins) (Maintains Azure DevOps release pipelines for three microservices.)"
+      ],
+      "concerns": [
+        "[CRITICAL GAP] Missing Must-Have: Integrating LLM and RAG pipelines into production applications (No evidence of LLM or RAG pipeline integration.)",
+        "[MODERATE GAP] Partial Skill Match: PostgreSQL including query optimization, indexing strategy and execution plan analysis - Writes PostgreSQL queries and stored procedures for reconciliation ledger.",
+        "[MODERATE GAP] Partial Skill Match: Containerization and orchestration with Docker and Kubernetes - Packages services with Docker.",
+        "[TENURE GAP] Experience Note: The candidate has 2.5 years of direct backend engineering experience, which is less than the 5+ years required. However, they have experience with related technologies like Python, FastAPI, and PostgreSQL.",
+        "[MINOR GAP] Preferred Requirement Missing: Distributed task queues or message brokers (Kafka / RabbitMQ / Celery)",
+        "[MINOR GAP] Preferred Requirement Missing: Observability tooling experience (Prometheus / Grafana / Datadog)"
+      ],
+      "summary": "The candidate has relevant experience in backend development with Python and FastAPI, and some experience with PostgreSQL and Docker. However, they lack direct experience with Kubernetes and integrating LLM/RAG pipelines, which are key requirements. The experience depth is also below the requested threshold.",
+      "chainOfThought": "Experience Assessment: The candidate has 2.5 years of direct backend engineering experience, which is less than the 5+ years required. However, they have experience with related technologies like Python, FastAPI, and PostgreSQL.\n\nScore Attribution:\n• Required Skills (50%): 50/100\n• Experience Depth (25%): 78/100\n• Nice-to-Have Skills (15%): 17/100\n• Trajectory & Growth (10%): 70/100\nOverall Fit Score: 54/100\n\nDecision Summary: The candidate has relevant experience in backend development with Python and FastAPI, and some experience with PostgreSQL and Docker. However, they lack direct experience with Kubernetes and integrating LLM/RAG pipelines, which are key requirements. The experience depth is also below the requested threshold.",
+      "scoreBreakdown": {
+        "weights": {
+          "exp": 0.25,
+          "nice": 0.15,
+          "traj": 0.1,
+          "skills": 0.5
+        },
+        "eval_mode": "moderate",
+        "formula_summary": "Fit Score (54/100) = 25.0 (Required Skills 50%) + 19.4 (Experience 25%) + 2.5 (Nice-To-Have 15%) + 7.0 (Growth Trajectory 10%)",
+        "experience_score": 78,
+        "trajectory_score": 70,
+        "nice_to_have_score": 17,
+        "must_have_breakdown": [
+          {
+            "match": "partial",
+            "evidence": "Writes PostgreSQL queries and stored procedures for reconciliation ledger.",
+            "max_points": 12.5,
+            "percentage": 50,
+            "requirement": "PostgreSQL including query optimization, indexing strategy and execution plan analysis",
+            "points_earned": 6.2,
+            "deduction_reason": "Partial match (50% credit). Deduction: -6.2 pts"
+          },
+          {
+            "match": "full",
+            "evidence": "Deploys services to Azure App Service.",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "Production deployment experience on a major cloud platform (AWS / GCP / Azure)",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts) [Upgraded to full: evidence names an exact alternative from requirement's listed options]"
+          },
+          {
+            "match": "partial",
+            "evidence": "Packages services with Docker.",
+            "max_points": 12.5,
+            "percentage": 50,
+            "requirement": "Containerization and orchestration with Docker and Kubernetes",
+            "points_earned": 6.2,
+            "deduction_reason": "Partial match (50% credit). Deduction: -6.2 pts"
+          },
+          {
+            "match": "none",
+            "evidence": "No evidence of LLM or RAG pipeline integration.",
+            "max_points": 12.5,
+            "percentage": 0,
+            "requirement": "Integrating LLM and RAG pipelines into production applications",
+            "points_earned": 0,
+            "deduction_reason": "Requirement missing (0% credit). Deduction: -12.5 pts"
+          }
+        ],
+        "penalties_breakdown": [],
+        "experience_breakdown": {
+          "score": 78,
+          "assessment": "The candidate has 2.5 years of direct backend engineering experience, which is less than the 5+ years required. However, they have experience with related technologies like Python, FastAPI, and PostgreSQL.",
+          "max_points": 25,
+          "calculation": "Backend Engineer at FinStack Iberia (2024/03 - Present): 2.5 yrs; QA Automation Engineer at FinStack Iberia (2022/01 - 2024/02): 2.2 yrs; Mechanical Design Engineer at AutoTech Iberica (2014/01 - 2019/01): 5.0 yrs. Total non-overlapping experience: 9.8 yrs.",
+          "points_earned": 19.4,
+          "relevant_years": 2.5,
+          "required_years": 2.5,
+          "candidate_years": 9.8
+        },
+        "trajectory_breakdown": {
+          "score": 70,
+          "assessment": "Growth capacity evaluated from career progression, skill acquisition breadth, project evidence, and degree domain relevance. [Capped from 89 to 70 due to domain skills baseline (50%)]",
+          "max_points": 10,
+          "sub_criteria": [
+            {
+              "status": "full",
+              "evidence": "3 distinct roles showing career growth: Backend Engineer, QA Automation Engineer, Mechanical Design Engineer",
+              "max_points": 25,
+              "rubric_rule": "≥3 distinct roles = 25 pts | 2 roles = 15 pts | 1 role = 7 pts",
+              "points_earned": 25,
+              "criterion_name": "Career Title Progression"
+            },
+            {
+              "status": "full",
+              "evidence": "15 competencies listed on CV: Python, FastAPI, pytest, Selenium, PostgreSQL, SQL, Docker, Azure, Azure DevOps, Git, SolidWorks, MATLAB...",
+              "max_points": 25,
+              "rubric_rule": "≥8 skills = 25 pts | 4-7 skills = 15 pts | 1-3 skills = 7 pts",
+              "points_earned": 25,
+              "criterion_name": "Skill Portfolio Breadth"
+            },
+            {
+              "status": "full",
+              "evidence": "5 projects/achievements documented: Ledger Reconciler - internal FastAPI reconciliation service (FinStack); Regression Harness - pytest and Selenium framework (FinStack); CS50x",
+              "max_points": 25,
+              "rubric_rule": "≥3 projects/achievements = 25 pts | 1-2 projects = 12 pts",
+              "points_earned": 25,
+              "criterion_name": "Proven Deliverables & Projects"
+            },
+            {
+              "status": "partial",
+              "evidence": "Foundational Degree (BEng Mechanical Engineering - Universidade do Porto, 2013) providing general core discipline background.",
+              "max_points": 25,
+              "rubric_rule": "Relevant Degree = 18-25 pts | Adjacent = 10-14 pts | Unrelated = 5 pts",
+              "points_earned": 14,
+              "criterion_name": "Educational Relevance & Credentials"
+            }
+          ],
+          "points_earned": 7,
+          "calculation_summary": "Career Progression (25/25) + Skill Breadth (25/25) + Deliverables (25/25) + Education (14/25) = 89/100 pts (Capped to 70 pts due to domain skill baseline of 50%)"
+        },
+        "required_skills_score": 50,
+        "nice_to_have_breakdown": [
+          {
+            "match": "partial",
+            "evidence": "Maintains Azure DevOps release pipelines for three microservices.",
+            "max_points": 5,
+            "percentage": 50,
+            "requirement": "CI/CD automation experience (GitHub Actions / Jenkins)",
+            "points_earned": 2.5,
+            "deduction_reason": "Partial match (50% credit) (+2.5 pts)"
+          },
+          {
+            "match": "none",
+            "evidence": "No mention of task queues or message brokers.",
+            "max_points": 5,
+            "percentage": 0,
+            "requirement": "Distributed task queues or message brokers (Kafka / RabbitMQ / Celery)",
+            "points_earned": 0,
+            "deduction_reason": "Preferred skill missing (0 pts)"
+          },
+          {
+            "match": "none",
+            "evidence": "No mention of observability tools.",
+            "max_points": 5,
+            "percentage": 0,
+            "requirement": "Observability tooling experience (Prometheus / Grafana / Datadog)",
+            "points_earned": 0,
+            "deduction_reason": "Preferred skill missing (0 pts)"
+          }
+        ],
+        "relevant_experience_years": 2.5
+      },
+      "aiGeneratedLikelihoodScore": 0,
+      "antiCheatFlags": [],
+      "antiCheatMetadata": {},
+      "apiCost": 0.0007,
+      "costBreakdown": {
+        "cv_parser": {
+          "cost": 0.000328,
+          "tokens": {
+            "input_tokens": 790,
+            "total_tokens": 1686,
+            "output_tokens": 896
+          }
+        },
+        "jd_matcher": {
+          "cost": 0.000369,
+          "tokens": {
+            "input_tokens": 2987,
+            "total_tokens": 3471,
+            "output_tokens": 484
+          }
+        },
+        "embedding_matcher": {
+          "cost": 0.000003,
+          "tokens": {
+            "cost": 0.000003,
+            "input_tokens": 165,
+            "total_tokens": 165,
+            "output_tokens": 0
+          }
+        }
+      },
+      "transcript": [],
+      "cvUrl": "https://res.cloudinary.com/db3i07nwj/raw/upload/v1786141991/egrjkypqafp8sooc6e8p.txt",
+      "createdAt": "2026-08-07T22:33:20.339000+00:00",
+      "updatedAt": "2026-08-07T22:33:53.787000+00:00"
+    },
+    {
+      "id": "3d13372f-60d0-4ebe-a507-398c7de946f8",
+      "name": "BILAL NAWAZ",
+      "email": "bilal.nawaz@example.com",
+      "phone": null,
+      "stage": "shortlisted",
+      "decision": "shortlist",
+      "score": 83,
+      "scores": {
+        "technical": 0,
+        "communication": 0,
+        "culturalFit": 0,
+        "overall": 83
+      },
+      "currentRole": "Candidate",
+      "experience": null,
+      "structuredProfile": {
+        "name": "BILAL NAWAZ",
+        "email": "bilal.nawaz@example.com",
+        "phone": null,
+        "skills": [
+          "Python",
+          "FastAPI",
+          "Django",
+          "Flask",
+          "Node.js",
+          "Express",
+          "React",
+          "Next.js",
+          "Vue",
+          "PHP",
+          "Laravel",
+          "WordPress",
+          "MySQL",
+          "PostgreSQL",
+          "MongoDB",
+          "Redis",
+          "Docker",
+          "Kubernetes",
+          "AWS",
+          "Azure",
+          "GCP",
+          "Terraform",
+          "Jenkins",
+          "Kafka",
+          "RabbitMQ",
+          "Celery",
+          "LangChain",
+          "OpenAI",
+          "TensorFlow",
+          "PyTorch",
+          "Machine Learning",
+          "Deep Learning",
+          "Microservices",
+          "REST APIs",
+          "GraphQL",
+          "Agile",
+          "Scrum",
+          "Web Development",
+          "Full Stack Development",
+          "Responsive Design",
+          "HTML",
+          "CSS",
+          "Bootstrap",
+          "jQuery",
+          "WooCommerce",
+          "API Integration",
+          "Database Management",
+          "DNS Management",
+          "DevOps"
+        ],
+        "projects": [
+          "Al-Karam Textiles - corporate WordPress site",
+          "Bites and Beans Cafe - WooCommerce storefront",
+          "Horizon Realty - property listing website",
+          "Nova Fitness - booking website",
+          "Karachi Eats - restaurant directory",
+          "Zeeshan Motors - dealership website"
+        ],
+        "education": [
+          "BSc Information Technology - University of Karachi, 2019"
+        ],
+        "other_info": null,
+        "raw_cv_text": "\nBILAL NAWAZ\nFull Stack Developer\nKarachi, Pakistan | bilal.nawaz@example.com\n\nPROFILE\nResults-driven full stack developer passionate about building scalable\nenterprise-grade solutions with cutting-edge technologies.\n\nTECHNICAL SKILLS\nPython, FastAPI, Django, Flask, Node.js, Express, React, Next.js, Vue, PHP,\nLaravel, WordPress, MySQL, PostgreSQL, MongoDB, Redis, Docker, Kubernetes,\nAWS, Azure, GCP, Terraform, Jenkins, Kafka, RabbitMQ, Celery, LangChain,\nOpenAI, TensorFlow, PyTorch, Machine Learning, Deep Learning, Microservices,\nREST APIs, GraphQL, Agile, Scrum\n\nEXPERIENCE\n\nWeb Developer - PixelForge Digital\n03/2021 - Present | Karachi, Pakistan\n- Built and maintained 40+ WordPress websites for SMB clients across retail,\n  hospitality and real estate verticals.\n- Customised WooCommerce themes and PHP plugins to client specifications.\n- Managed MySQL databases for client websites and performed routine backups.\n- Deployed client sites to shared cPanel hosting and managed DNS records.\n- Integrated a ChatGPT API chatbot widget into two client marketing sites.\n\nJunior Web Developer - WebNest Solutions\n01/2020 - 02/2021 | Karachi, Pakistan\n- Converted PSD designs to responsive HTML/CSS/Bootstrap templates.\n- Fixed jQuery bugs and updated WordPress plugin versions.\n\nEDUCATION\nBSc Information Technology - University of Karachi, 2019\n\nPROJECTS\n- Al-Karam Textiles - corporate WordPress site\n- Bites and Beans Cafe - WooCommerce storefront\n- Horizon Realty - property listing website\n- Nova Fitness - booking website\n- Karachi Eats - restaurant directory\n- Zeeshan Motors - dealership website\n",
+        "previous_roles": [
+          {
+            "title": "Web Developer",
+            "company": "PixelForge Digital",
+            "end_date": "Present",
+            "is_current": true,
+            "start_date": "03/2021",
+            "description": "Built and maintained 40+ WordPress websites for SMB clients. Customized WooCommerce themes and PHP plugins. Managed MySQL databases and performed backups. Deployed client sites and managed DNS records. Integrated a ChatGPT API chatbot widget into marketing sites.",
+            "skills_used": [
+              "WordPress",
+              "WooCommerce",
+              "PHP",
+              "MySQL",
+              "cPanel",
+              "DNS",
+              "ChatGPT API",
+              "REST APIs"
+            ]
+          },
+          {
+            "title": "Junior Web Developer",
+            "company": "WebNest Solutions",
+            "end_date": "02/2021",
+            "is_current": false,
+            "start_date": "01/2020",
+            "description": "Converted PSD designs to responsive HTML/CSS/Bootstrap templates. Fixed jQuery bugs and updated WordPress plugin versions.",
+            "skills_used": [
+              "HTML",
+              "CSS",
+              "Bootstrap",
+              "jQuery",
+              "WordPress"
+            ]
+          }
+        ],
+        "key_achievements": [
+          "Built and maintained 40+ WordPress websites for SMB clients.",
+          "Integrated a ChatGPT API chatbot widget into two client marketing sites."
+        ],
+        "experience_calculation": "Web Developer at PixelForge Digital (2021/03 - Present): 5.5 yrs; Junior Web Developer at WebNest Solutions (2020/01 - 2021/02): 1.2 yrs. Total non-overlapping experience: 6.7 yrs.",
+        "total_experience_years": 6.7
+      },
+      "strengths": [
+        "PostgreSQL including query optimization, indexing strategy and execution plan analysis (PostgreSQL listed in skills, used in previous role)",
+        "Production deployment experience on a major cloud platform (AWS / GCP / Azure) (AWS, Azure, GCP listed in skills; deployed client sites)",
+        "Containerization and orchestration with Docker and Kubernetes (Docker and Kubernetes listed in skills)",
+        "CI/CD automation experience (GitHub Actions / Jenkins) (Jenkins listed in skills)",
+        "Distributed task queues or message brokers (Kafka / RabbitMQ / Celery) (Kafka, RabbitMQ, Celery listed in skills)"
+      ],
+      "concerns": [
+        "[MODERATE GAP] Partial Skill Match: Integrating LLM and RAG pipelines into production applications - Integrated ChatGPT API chatbot widget; LangChain, OpenAI listed",
+        "[MINOR GAP] Preferred Requirement Missing: Observability tooling experience (Prometheus / Grafana / Datadog)"
+      ],
+      "summary": "The candidate possesses strong backend skills including PostgreSQL, cloud deployment, Docker/Kubernetes, and experience with LLM integrations, meeting most must-have requirements. While LLM/RAG integration is partial, the breadth of other backend technologies and listed CI/CD tools is impressive. The candidate is a good fit for the role.",
+      "chainOfThought": "Experience Assessment: Candidate has 6.7 years of total experience, with significant overlap in backend development skills. The experience appears relevant to the role's requirements.\n\nScore Attribution:\n• Required Skills (50%): 88/100\n• Experience Depth (25%): 82/100\n• Nice-to-Have Skills (15%): 67/100\n• Trajectory & Growth (10%): 85/100\nOverall Fit Score: 83/100\n\nDecision Summary: The candidate possesses strong backend skills including PostgreSQL, cloud deployment, Docker/Kubernetes, and experience with LLM integrations, meeting most must-have requirements. While LLM/RAG integration is partial, the breadth of other backend technologies and listed CI/CD tools is impressive. The candidate is a good fit for the role.",
+      "scoreBreakdown": {
+        "weights": {
+          "exp": 0.25,
+          "nice": 0.15,
+          "traj": 0.1,
+          "skills": 0.5
+        },
+        "eval_mode": "moderate",
+        "formula_summary": "Fit Score (83/100) = 43.8 (Required Skills 50%) + 20.5 (Experience 25%) + 10.0 (Nice-To-Have 15%) + 8.5 (Growth Trajectory 10%)",
+        "experience_score": 82,
+        "trajectory_score": 85,
+        "nice_to_have_score": 67,
+        "must_have_breakdown": [
+          {
+            "match": "full",
+            "evidence": "PostgreSQL listed in skills, used in previous role",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "PostgreSQL including query optimization, indexing strategy and execution plan analysis",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts)"
+          },
+          {
+            "match": "full",
+            "evidence": "AWS, Azure, GCP listed in skills; deployed client sites",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "Production deployment experience on a major cloud platform (AWS / GCP / Azure)",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts)"
+          },
+          {
+            "match": "full",
+            "evidence": "Docker and Kubernetes listed in skills",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "Containerization and orchestration with Docker and Kubernetes",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts)"
+          },
+          {
+            "match": "partial",
+            "evidence": "Integrated ChatGPT API chatbot widget; LangChain, OpenAI listed",
+            "max_points": 12.5,
+            "percentage": 50,
+            "requirement": "Integrating LLM and RAG pipelines into production applications",
+            "points_earned": 6.2,
+            "deduction_reason": "Partial match (50% credit). Deduction: -6.2 pts"
+          }
+        ],
+        "penalties_breakdown": [],
+        "experience_breakdown": {
+          "score": 82,
+          "assessment": "Candidate has 6.7 years of total experience, with significant overlap in backend development skills. The experience appears relevant to the role's requirements.",
+          "max_points": 25,
+          "calculation": "Web Developer at PixelForge Digital (2021/03 - Present): 5.5 yrs; Junior Web Developer at WebNest Solutions (2020/01 - 2021/02): 1.2 yrs. Total non-overlapping experience: 6.7 yrs.",
+          "points_earned": 20.5,
+          "relevant_years": 5.5,
+          "required_years": 6.7,
+          "candidate_years": 6.7
+        },
+        "trajectory_breakdown": {
+          "score": 85,
+          "assessment": "Growth capacity evaluated from career progression, skill acquisition breadth, project evidence, and degree domain relevance.",
+          "max_points": 10,
+          "sub_criteria": [
+            {
+              "status": "partial",
+              "evidence": "2 distinct roles listed: Web Developer, Junior Web Developer",
+              "max_points": 25,
+              "rubric_rule": "≥3 distinct roles = 25 pts | 2 roles = 15 pts | 1 role = 7 pts",
+              "points_earned": 15,
+              "criterion_name": "Career Title Progression"
+            },
+            {
+              "status": "full",
+              "evidence": "49 competencies listed on CV: Python, FastAPI, Django, Flask, Node.js, Express, React, Next.js, Vue, PHP, Laravel, WordPress...",
+              "max_points": 25,
+              "rubric_rule": "≥8 skills = 25 pts | 4-7 skills = 15 pts | 1-3 skills = 7 pts",
+              "points_earned": 25,
+              "criterion_name": "Skill Portfolio Breadth"
+            },
+            {
+              "status": "full",
+              "evidence": "8 projects/achievements documented: Al-Karam Textiles - corporate WordPress site; Bites and Beans Cafe - WooCommerce storefront; Horizon Realty - property listing website",
+              "max_points": 25,
+              "rubric_rule": "≥3 projects/achievements = 25 pts | 1-2 projects = 12 pts",
+              "points_earned": 25,
+              "criterion_name": "Proven Deliverables & Projects"
+            },
+            {
+              "status": "full",
+              "evidence": "Domain-Relevant Degree (BSc Information Technology - University of Karachi, 2019) matching target field.",
+              "max_points": 25,
+              "rubric_rule": "Relevant Degree = 18-25 pts | Adjacent = 10-14 pts | Unrelated = 5 pts",
+              "points_earned": 20,
+              "criterion_name": "Educational Relevance & Credentials"
+            }
+          ],
+          "points_earned": 8.5,
+          "calculation_summary": "Career Progression (15/25) + Skill Breadth (25/25) + Deliverables (25/25) + Education (20/25) = 85/100 pts"
+        },
+        "required_skills_score": 88,
+        "nice_to_have_breakdown": [
+          {
+            "match": "full",
+            "evidence": "Jenkins listed in skills",
+            "max_points": 5,
+            "percentage": 100,
+            "requirement": "CI/CD automation experience (GitHub Actions / Jenkins)",
+            "points_earned": 5,
+            "deduction_reason": "Preferred skill satisfied (+5.0 pts)"
+          },
+          {
+            "match": "full",
+            "evidence": "Kafka, RabbitMQ, Celery listed in skills",
+            "max_points": 5,
+            "percentage": 100,
+            "requirement": "Distributed task queues or message brokers (Kafka / RabbitMQ / Celery)",
+            "points_earned": 5,
+            "deduction_reason": "Preferred skill satisfied (+5.0 pts)"
+          },
+          {
+            "match": "none",
+            "evidence": "No mention of Prometheus, Grafana, or Datadog",
+            "max_points": 5,
+            "percentage": 0,
+            "requirement": "Observability tooling experience (Prometheus / Grafana / Datadog)",
+            "points_earned": 0,
+            "deduction_reason": "Preferred skill missing (0 pts)"
+          }
+        ],
+        "relevant_experience_years": 5.5
+      },
+      "aiGeneratedLikelihoodScore": 0,
+      "antiCheatFlags": [],
+      "antiCheatMetadata": {},
+      "apiCost": 0.000701,
+      "costBreakdown": {
+        "cv_parser": {
+          "cost": 0.000327,
+          "tokens": {
+            "input_tokens": 821,
+            "total_tokens": 1705,
+            "output_tokens": 884
+          }
+        },
+        "jd_matcher": {
+          "cost": 0.00037,
+          "tokens": {
+            "input_tokens": 2942,
+            "total_tokens": 3439,
+            "output_tokens": 497
+          }
+        },
+        "embedding_matcher": {
+          "cost": 0.000004,
+          "tokens": {
+            "cost": 0.000004,
+            "input_tokens": 219,
+            "total_tokens": 219,
+            "output_tokens": 0
+          }
+        }
+      },
+      "transcript": [],
+      "cvUrl": "https://res.cloudinary.com/db3i07nwj/raw/upload/v1786141990/byixlxucjrbrlo5ci8ew.docx",
+      "createdAt": "2026-08-07T22:33:20.339000+00:00",
+      "updatedAt": "2026-08-07T22:33:55.466000+00:00"
+    },
+    {
+      "id": "2ec23951-5155-471e-a0f8-fb433cee48d5",
+      "name": "AYESHA RAHMAN",
+      "email": "ayesha.rahman@example.com",
+      "phone": "+92 300 1234567",
+      "stage": "shortlisted",
+      "decision": "shortlist",
+      "score": 88,
+      "scores": {
+        "technical": 0,
+        "communication": 0,
+        "culturalFit": 0,
+        "overall": 88
+      },
+      "currentRole": "Candidate",
+      "experience": null,
+      "structuredProfile": {
+        "name": "AYESHA RAHMAN",
+        "email": "ayesha.rahman@example.com",
+        "phone": "+92 300 1234567",
+        "skills": [
+          "Python",
+          "FastAPI",
+          "Django",
+          "Flask",
+          "PostgreSQL",
+          "pgvector",
+          "Redis",
+          "Celery",
+          "Docker",
+          "Kubernetes",
+          "AWS (ECS, Lambda, S3, RDS)",
+          "Terraform",
+          "LangChain",
+          "OpenAI API",
+          "GitHub Actions",
+          "pytest",
+          "SQLAlchemy",
+          "Alembic",
+          "high-throughput services",
+          "LLM-powered data pipelines",
+          "fintech",
+          "SaaS",
+          "microservices",
+          "latency optimization",
+          "indexing",
+          "query optimization",
+          "RAG pipeline",
+          "embeddings",
+          "customer support",
+          "deployment",
+          "CI/CD",
+          "blue-green deploy",
+          "REST services",
+          "B2B analytics",
+          "ETL jobs",
+          "containerization",
+          "automation",
+          "API development",
+          "internal tools",
+          "migration scripts"
+        ],
+        "projects": [
+          "pgvector-rag-toolkit - open-source RAG retrieval library, 800+ GitHub stars.",
+          "fastapi-ratelimit - Redis-backed rate limiter, 12k monthly downloads.",
+          "Datawing ETL Framework - internal Celery orchestration framework."
+        ],
+        "education": [
+          "BS Computer Science - FAST NUCES, 2017"
+        ],
+        "other_info": null,
+        "raw_cv_text": "AYESHA RAHMAN\nSenior Backend Engineer\nLahore, Pakistan | ayesha.rahman@example.com | +92 300 1234567\ngithub.com/ayesharahman | linkedin.com/in/ayesharahman\nSUMMARY\nBackend engineer with 10+ years building high-throughput Python services and\nLLM-powered data pipelines for fintech and SaaS products.\nEXPERIENCE\nSenior Backend Engineer - Nexora Systems\nMarch 2022 - Present | Lahore, Pakistan\n- Designed and shipped 40+ FastAPI microservices handling 12M requests/day,\n  reducing p99 latency from 840ms to 190ms.\n- Rebuilt the PostgreSQL access layer: authored partial and composite indexes,\n  analysed EXPLAIN ANALYZE execution plans and rewrote 30 hot queries, cutting\n  average query time by 71%.\n- Built a production RAG pipeline over 2.4M internal documents using pgvector,\n  LangChain and OpenAI embeddings, now serving the customer support product.\n- Deployed all services to AWS using ECS Fargate, Lambda and API Gateway, and\n  authored the Terraform modules for the entire staging environment.\n- Assisted with the migration of three legacy services to a Kubernetes cluster\n  managed by the platform team.\n- Owned GitHub Actions CI/CD pipelines covering build, test and blue-green deploy.\nBackend Engineer - Datawing Analytics\nJune 2019 - February 2022 | Lahore, Pakistan\n- Built Django and FastAPI REST services for a B2B analytics product used by\n  400 enterprise clients.\n- Implemented Celery and Redis task queues for nightly ETL jobs processing\n  90GB per night.\n- Containerised the full stack with Docker and docker-compose.\nFreelance Python Developer - Self-employed (Upwork)\nJanuary 2020 - December 2021 | Remote\n- Delivered 14 Python automation and API projects for US and UK clients\n  alongside full-time employment at Datawing Analytics.\nJunior Developer - CodeHive\nJanuary 2018 - May 2019 | Islamabad, Pakistan\n- Maintained Flask internal tools and wrote PostgreSQL migration scripts.\nEDUCATION\nBS Computer Science - FAST NUCES, 2017\nSKILLS\nPython, FastAPI, Django, Flask, PostgreSQL, pgvector, Redis, Celery, Docker,\nKubernetes, AWS (ECS, Lambda, S3, RDS), Terraform, LangChain, OpenAI API,\nGitHub Actions, pytest, SQLAlchemy, Alembic\nPROJECTS\n- pgvector-rag-toolkit - open-source RAG retrieval library, 800+ GitHub stars.\n- fastapi-ratelimit - Redis-backed rate limiter, 12k monthly downloads.\n- Datawing ETL Framework - internal Celery orchestration framework.\n\n",
+        "previous_roles": [
+          {
+            "title": "Senior Backend Engineer",
+            "company": "Nexora Systems",
+            "end_date": "Present",
+            "is_current": true,
+            "start_date": "March 2022",
+            "description": "Designed and shipped 40+ FastAPI microservices handling 12M requests/day, reducing p99 latency. Rebuilt PostgreSQL access layer, optimizing queries and indexes. Built a RAG pipeline over 2.4M internal documents. Deployed services to AWS using ECS Fargate, Lambda, and API Gateway, authoring Terraform modules. Assisted with migration to Kubernetes. Owned GitHub Actions CI/CD pipelines.",
+            "skills_used": [
+              "FastAPI",
+              "microservices",
+              "PostgreSQL",
+              "pgvector",
+              "LangChain",
+              "OpenAI embeddings",
+              "AWS (ECS Fargate, Lambda, API Gateway)",
+              "Terraform",
+              "Kubernetes",
+              "GitHub Actions",
+              "CI/CD",
+              "blue-green deploy"
+            ]
+          },
+          {
+            "title": "Backend Engineer",
+            "company": "Datawing Analytics",
+            "end_date": "February 2022",
+            "is_current": false,
+            "start_date": "June 2019",
+            "description": "Built Django and FastAPI REST services for a B2B analytics product. Implemented Celery and Redis for nightly ETL jobs. Containerised the full stack with Docker and docker-compose.",
+            "skills_used": [
+              "Django",
+              "FastAPI",
+              "REST services",
+              "Celery",
+              "Redis",
+              "ETL jobs",
+              "Docker",
+              "docker-compose"
+            ]
+          },
+          {
+            "title": "Freelance Python Developer",
+            "company": "Self-employed (Upwork)",
+            "end_date": "December 2021",
+            "is_current": false,
+            "start_date": "January 2020",
+            "description": "Delivered 14 Python automation and API projects for US and UK clients alongside full-time employment.",
+            "skills_used": [
+              "Python",
+              "automation",
+              "API development"
+            ]
+          },
+          {
+            "title": "Junior Developer",
+            "company": "CodeHive",
+            "end_date": "May 2019",
+            "is_current": false,
+            "start_date": "January 2018",
+            "description": "Maintained Flask internal tools and wrote PostgreSQL migration scripts.",
+            "skills_used": [
+              "Flask",
+              "PostgreSQL",
+              "migration scripts"
+            ]
+          }
+        ],
+        "key_achievements": [
+          "Reduced p99 latency from 840ms to 190ms by designing and shipping 40+ FastAPI microservices handling 12M requests/day.",
+          "Cut average PostgreSQL query time by 71% by rebuilding the access layer, authoring partial and composite indexes, and rewriting 30 hot queries.",
+          "Built a production RAG pipeline over 2.4M internal documents using pgvector, LangChain and OpenAI embeddings, now serving the customer support product.",
+          "Authored Terraform modules for the entire staging environment on AWS.",
+          "Processed 90GB per night using Celery and Redis for ETL jobs.",
+          "Delivered 14 Python automation and API projects for US and UK clients as a freelance developer."
+        ],
+        "experience_calculation": "Senior Backend Engineer at Nexora Systems (2022/03 - Present): 4.5 yrs; Backend Engineer at Datawing Analytics (2019/06 - 2022/02): 2.8 yrs; Freelance Python Developer at Self-employed (Upwork) (2020/01 - 2021/12): 2.0 yrs; Junior Developer at CodeHive (2018/01 - 2019/05): 1.4 yrs. Total non-overlapping experience: 8.7 yrs.",
+        "total_experience_years": 8.7
+      },
+      "strengths": [
+        "PostgreSQL including query optimization, indexing strategy and execution plan analysis (Rebuilt PostgreSQL access layer, optimizing queries and indexes. Cut average query time by 71%.)",
+        "Production deployment experience on a major cloud platform (AWS / GCP / Azure) (Deployed services to AWS using ECS Fargate, Lambda, API Gateway. Authored Terraform modules.)",
+        "Integrating LLM and RAG pipelines into production applications (Built a production RAG pipeline over 2.4M documents using LangChain and OpenAI embeddings.)",
+        "CI/CD automation experience (GitHub Actions / Jenkins) (Owned GitHub Actions CI/CD pipelines. Experience with CI/CD.)",
+        "Distributed task queues or message brokers (Kafka / RabbitMQ / Celery) (Implemented Celery and Redis for nightly ETL jobs. Processed 90GB per night using Celery.)"
+      ],
+      "concerns": [
+        "[MODERATE GAP] Partial Skill Match: Containerization and orchestration with Docker and Kubernetes - Containerised full stack with Docker. Assisted with migration to Kubernetes.",
+        "[MINOR GAP] Preferred Requirement Missing: Observability tooling experience (Prometheus / Grafana / Datadog)"
+      ],
+      "summary": "Ayesha is a strong match for this role, demonstrating extensive experience in all must-have requirements, including deep PostgreSQL optimization, cloud deployment, containerization, and LLM/RAG pipeline integration. She also meets several nice-to-have skills, particularly in CI/CD and distributed task queues, indicating a solid technical background and relevant experience depth.",
+      "chainOfThought": "Experience Assessment: The candidate has 8.7 years of total experience, with over 5 years directly relevant to backend engineering, including significant experience with Python, FastAPI, PostgreSQL, cloud deployment, and containerization, meeting the 5+ year requirement.\n\nScore Attribution:\n• Required Skills (50%): 88/100\n• Experience Depth (25%): 100/100\n• Nice-to-Have Skills (15%): 67/100\n• Trajectory & Growth (10%): 95/100\nOverall Fit Score: 88/100\n\nDecision Summary: Ayesha is a strong match for this role, demonstrating extensive experience in all must-have requirements, including deep PostgreSQL optimization, cloud deployment, containerization, and LLM/RAG pipeline integration. She also meets several nice-to-have skills, particularly in CI/CD and distributed task queues, indicating a solid technical background and relevant experience depth.",
+      "scoreBreakdown": {
+        "weights": {
+          "exp": 0.25,
+          "nice": 0.15,
+          "traj": 0.1,
+          "skills": 0.5
+        },
+        "eval_mode": "moderate",
+        "formula_summary": "Fit Score (88/100) = 43.8 (Required Skills 50%) + 25.0 (Experience 25%) + 10.0 (Nice-To-Have 15%) + 9.5 (Growth Trajectory 10%)",
+        "experience_score": 100,
+        "trajectory_score": 95,
+        "nice_to_have_score": 67,
+        "must_have_breakdown": [
+          {
+            "match": "full",
+            "evidence": "Rebuilt PostgreSQL access layer, optimizing queries and indexes. Cut average query time by 71%.",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "PostgreSQL including query optimization, indexing strategy and execution plan analysis",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts)"
+          },
+          {
+            "match": "full",
+            "evidence": "Deployed services to AWS using ECS Fargate, Lambda, API Gateway. Authored Terraform modules.",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "Production deployment experience on a major cloud platform (AWS / GCP / Azure)",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts)"
+          },
+          {
+            "match": "partial",
+            "evidence": "Containerised full stack with Docker. Assisted with migration to Kubernetes.",
+            "max_points": 12.5,
+            "percentage": 50,
+            "requirement": "Containerization and orchestration with Docker and Kubernetes",
+            "points_earned": 6.2,
+            "deduction_reason": "Partial match (50% credit). Deduction: -6.2 pts [Capped to partial due to low-proficiency / hedging qualifier in evidence or profile]"
+          },
+          {
+            "match": "full",
+            "evidence": "Built a production RAG pipeline over 2.4M documents using LangChain and OpenAI embeddings.",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "Integrating LLM and RAG pipelines into production applications",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts)"
+          }
+        ],
+        "penalties_breakdown": [],
+        "experience_breakdown": {
+          "score": 100,
+          "assessment": "The candidate has 8.7 years of total experience, with over 5 years directly relevant to backend engineering, including significant experience with Python, FastAPI, PostgreSQL, cloud deployment, and containerization, meeting the 5+ year requirement.",
+          "max_points": 25,
+          "calculation": "Senior Backend Engineer at Nexora Systems (2022/03 - Present): 4.5 yrs; Backend Engineer at Datawing Analytics (2019/06 - 2022/02): 2.8 yrs; Freelance Python Developer at Self-employed (Upwork) (2020/01 - 2021/12): 2.0 yrs; Junior Developer at CodeHive (2018/01 - 2019/05): 1.4 yrs. Total non-overlapping experience: 8.7 yrs.",
+          "points_earned": 25,
+          "relevant_years": 8.7,
+          "required_years": 8.7,
+          "candidate_years": 8.7
+        },
+        "trajectory_breakdown": {
+          "score": 95,
+          "assessment": "Growth capacity evaluated from career progression, skill acquisition breadth, project evidence, and degree domain relevance.",
+          "max_points": 10,
+          "sub_criteria": [
+            {
+              "status": "full",
+              "evidence": "4 distinct roles showing career growth: Senior Backend Engineer, Backend Engineer, Freelance Python Developer",
+              "max_points": 25,
+              "rubric_rule": "≥3 distinct roles = 25 pts | 2 roles = 15 pts | 1 role = 7 pts",
+              "points_earned": 25,
+              "criterion_name": "Career Title Progression"
+            },
+            {
+              "status": "full",
+              "evidence": "40 competencies listed on CV: Python, FastAPI, Django, Flask, PostgreSQL, pgvector, Redis, Celery, Docker, Kubernetes, AWS (ECS, Lambda, S3, RDS), Terraform...",
+              "max_points": 25,
+              "rubric_rule": "≥8 skills = 25 pts | 4-7 skills = 15 pts | 1-3 skills = 7 pts",
+              "points_earned": 25,
+              "criterion_name": "Skill Portfolio Breadth"
+            },
+            {
+              "status": "full",
+              "evidence": "9 projects/achievements documented: pgvector-rag-toolkit - open-source RAG retrieval library, 800+ GitHub stars.; fastapi-ratelimit - Redis-backed rate limiter, 12k monthly downloads.; Datawing ETL Framework - internal Celery orchestration framework.",
+              "max_points": 25,
+              "rubric_rule": "≥3 projects/achievements = 25 pts | 1-2 projects = 12 pts",
+              "points_earned": 25,
+              "criterion_name": "Proven Deliverables & Projects"
+            },
+            {
+              "status": "full",
+              "evidence": "Domain-Relevant Degree (BS Computer Science - FAST NUCES, 2017) matching target field.",
+              "max_points": 25,
+              "rubric_rule": "Relevant Degree = 18-25 pts | Adjacent = 10-14 pts | Unrelated = 5 pts",
+              "points_earned": 20,
+              "criterion_name": "Educational Relevance & Credentials"
+            }
+          ],
+          "points_earned": 9.5,
+          "calculation_summary": "Career Progression (25/25) + Skill Breadth (25/25) + Deliverables (25/25) + Education (20/25) = 95/100 pts"
+        },
+        "required_skills_score": 88,
+        "nice_to_have_breakdown": [
+          {
+            "match": "full",
+            "evidence": "Owned GitHub Actions CI/CD pipelines. Experience with CI/CD.",
+            "max_points": 5,
+            "percentage": 100,
+            "requirement": "CI/CD automation experience (GitHub Actions / Jenkins)",
+            "points_earned": 5,
+            "deduction_reason": "Preferred skill satisfied (+5.0 pts)"
+          },
+          {
+            "match": "full",
+            "evidence": "Implemented Celery and Redis for nightly ETL jobs. Processed 90GB per night using Celery.",
+            "max_points": 5,
+            "percentage": 100,
+            "requirement": "Distributed task queues or message brokers (Kafka / RabbitMQ / Celery)",
+            "points_earned": 5,
+            "deduction_reason": "Preferred skill satisfied (+5.0 pts)"
+          },
+          {
+            "match": "none",
+            "evidence": "No mention of observability tooling in the candidate profile.",
+            "max_points": 5,
+            "percentage": 0,
+            "requirement": "Observability tooling experience (Prometheus / Grafana / Datadog)",
+            "points_earned": 0,
+            "deduction_reason": "Preferred skill missing (0 pts)"
+          }
+        ],
+        "relevant_experience_years": 8.7
+      },
+      "aiGeneratedLikelihoodScore": 0,
+      "antiCheatFlags": [],
+      "antiCheatMetadata": {},
+      "apiCost": 0.000931,
+      "costBreakdown": {
+        "cv_parser": {
+          "cost": 0.000501,
+          "tokens": {
+            "input_tokens": 1074,
+            "total_tokens": 2477,
+            "output_tokens": 1403
+          }
+        },
+        "jd_matcher": {
+          "cost": 0.000425,
+          "tokens": {
+            "input_tokens": 3400,
+            "total_tokens": 3967,
+            "output_tokens": 567
+          }
+        },
+        "embedding_matcher": {
+          "cost": 0.000005,
+          "tokens": {
+            "cost": 0.000005,
+            "input_tokens": 248,
+            "total_tokens": 248,
+            "output_tokens": 0
+          }
+        }
+      },
+      "transcript": [],
+      "cvUrl": "https://res.cloudinary.com/db3i07nwj/image/upload/v1786141990/xxvgynbtp6ol7gtxofqj.pdf",
+      "createdAt": "2026-08-07T22:33:20.339000+00:00",
+      "updatedAt": "2026-08-07T22:33:56.005000+00:00"
+    },
+    {
+      "id": "c15518b0-cf0b-4789-a848-f430ed199d2a",
+      "name": "DANIYAL SHEIKH",
+      "email": "daniyal.sheikh@example.com",
+      "phone": null,
+      "stage": "shortlisted",
+      "decision": "shortlist",
+      "score": 86,
+      "scores": {
+        "technical": 0,
+        "communication": 0,
+        "culturalFit": 0,
+        "overall": 86
+      },
+      "currentRole": "Candidate",
+      "experience": null,
+      "structuredProfile": {
+        "name": "DANIYAL SHEIKH",
+        "email": "daniyal.sheikh@example.com",
+        "phone": null,
+        "skills": [
+          "Python",
+          "FastAPI",
+          "Django",
+          "LangGraph",
+          "LangChain",
+          "Gemini API",
+          "OpenAI API",
+          "pgvector",
+          "PostgreSQL",
+          "Docker",
+          "Kubernetes",
+          "Celery",
+          "Redis",
+          "GitHub Actions",
+          "pytest",
+          "Pydantic",
+          "React",
+          "Next.js",
+          "AI",
+          "Backend Engineering",
+          "RAG",
+          "DevOps",
+          "SQL"
+        ],
+        "projects": [
+          "SmartPulse - multi-tenant AI SaaS, FastAPI and Kubernetes backend.",
+          "ReviewRoute - fine-tuned XLM-RoBERTa sentiment classifier, 60k reviews.",
+          "CIRO - LangGraph crisis-response orchestrator (hackathon, 2025)."
+        ],
+        "education": [
+          "BS Artificial Intelligence - NUST Islamabad, 2024 - 2028 (in progress)"
+        ],
+        "other_info": null,
+        "raw_cv_text": "\nDANIYAL SHEIKH\nAI / Backend Engineer\nIslamabad, Pakistan | daniyal.sheikh@example.com\n\nEXPERIENCE\n\nAI Engineer - Tekrowe Digital\n05/2024 - Present | Islamabad, Pakistan (Hybrid)\n- Built a production content generation engine on LangGraph orchestrating\n  Gemini and OpenAI agents, serving 6,000 generations per week.\n- Shipped 20+ FastAPI endpoints backing the engine, with streaming responses\n  and Pydantic contract validation.\n- Implemented a RAG retrieval layer over client knowledge bases using pgvector\n  and hybrid BM25 plus dense reranking.\n- Dockerised all services. Run Kubernetes locally in personal projects to\n  learn cluster orchestration.\n- Some familiarity with AWS deployment - assisted the DevOps lead in setting\n  up two ECS task definitions.\n- Basic knowledge of PostgreSQL query indexing. Added three indexes after a\n  slow-query review.\n- Configured GitHub Actions workflows for lint, test and image build.\n- Ran Celery workers for long-running generation jobs.\n\nJunior Backend Developer - Ovid Labs\n06/2023 - 04/2024 | Remote\n- Built Django REST endpoints for an internal HR portal.\n- Wrote pytest suites reaching 78% coverage.\n\nEDUCATION\nBS Artificial Intelligence - NUST Islamabad, 2024 - 2028 (in progress)\n\nSKILLS\nPython, FastAPI, Django, LangGraph, LangChain, Gemini API, OpenAI API,\npgvector, PostgreSQL, Docker, Kubernetes, Celery, Redis, GitHub Actions,\npytest, Pydantic, React, Next.js\n\nPROJECTS\n- SmartPulse - multi-tenant AI SaaS, FastAPI and Kubernetes backend.\n- ReviewRoute - fine-tuned XLM-RoBERTa sentiment classifier, 60k reviews.\n- CIRO - LangGraph crisis-response orchestrator (hackathon, 2025).\n",
+        "previous_roles": [
+          {
+            "title": "AI Engineer",
+            "company": "Tekrowe Digital",
+            "end_date": "Present",
+            "is_current": true,
+            "start_date": "05/2024",
+            "description": "Built a production content generation engine on LangGraph orchestrating Gemini and OpenAI agents, serving 6,000 generations per week. Shipped 20+ FastAPI endpoints backing the engine, with streaming responses and Pydantic contract validation. Implemented a RAG retrieval layer over client knowledge bases using pgvector and hybrid BM25 plus dense reranking. Dockerised all services. Ran Kubernetes locally in personal projects. Assisted DevOps lead in setting up ECS task definitions. Added three indexes after a slow-query review. Configured GitHub Actions workflows. Ran Celery workers for long-running generation jobs.",
+            "skills_used": [
+              "LangGraph",
+              "Gemini API",
+              "OpenAI API",
+              "FastAPI",
+              "Pydantic",
+              "RAG",
+              "pgvector",
+              "PostgreSQL",
+              "Docker",
+              "Kubernetes",
+              "AWS",
+              "ECS",
+              "GitHub Actions",
+              "Celery"
+            ]
+          },
+          {
+            "title": "Junior Backend Developer",
+            "company": "Ovid Labs",
+            "end_date": "04/2024",
+            "is_current": false,
+            "start_date": "06/2023",
+            "description": "Built Django REST endpoints for an internal HR portal. Wrote pytest suites reaching 78% coverage.",
+            "skills_used": [
+              "Django",
+              "REST",
+              "pytest"
+            ]
+          }
+        ],
+        "key_achievements": [
+          "Built a production content generation engine serving 6,000 generations per week.",
+          "Shipped 20+ FastAPI endpoints with streaming responses and Pydantic validation.",
+          "Implemented a RAG retrieval layer using pgvector and hybrid BM25 plus dense reranking.",
+          "Achieved 78% test coverage with pytest suites."
+        ],
+        "experience_calculation": "AI Engineer at Tekrowe Digital (2024/05 - Present): 2.3 yrs; Junior Backend Developer at Ovid Labs (2023/06 - 2024/04): 0.9 yrs. Total non-overlapping experience: 3.2 yrs.",
+        "total_experience_years": 3.2
+      },
+      "strengths": [
+        "PostgreSQL including query optimization, indexing strategy and execution plan analysis (Added three indexes after a slow-query review; pgvector, PostgreSQL)",
+        "Production deployment experience on a major cloud platform (AWS / GCP / Azure) (Assisted DevOps lead in setting up ECS task definitions (AWS))",
+        "Integrating LLM and RAG pipelines into production applications (Built a production content generation engine on LangGraph orchestrating Gemini and OpenAI agents; Implemented a RAG retrieval layer)",
+        "CI/CD automation experience (GitHub Actions / Jenkins) (Configured GitHub Actions workflows)",
+        "Distributed task queues or message brokers (Kafka / RabbitMQ / Celery) (Ran Celery workers for long-running generation jobs)"
+      ],
+      "concerns": [
+        "[MODERATE GAP] Partial Skill Match: Containerization and orchestration with Docker and Kubernetes - Dockerised all services. Ran Kubernetes locally in personal projects.",
+        "[MINOR GAP] Preferred Requirement Missing: Observability tooling experience (Prometheus / Grafana / Datadog)"
+      ],
+      "summary": "The candidate demonstrates strong technical alignment with most must-have skills, particularly in FastAPI, PostgreSQL, Docker/Kubernetes, and LLM/RAG integration. While their cloud deployment experience is partial, their hands-on work with production AI systems is highly relevant. The primary gap is in overall experience years, but their recent role shows significant impact and skill application.",
+      "chainOfThought": "Experience Assessment: The candidate has 2.3 years of directly relevant AI/backend engineering experience, falling short of the 5+ years required.\n\nScore Attribution:\n• Required Skills (50%): 88/100\n• Experience Depth (25%): 100/100\n• Nice-to-Have Skills (15%): 67/100\n• Trajectory & Growth (10%): 70/100\nOverall Fit Score: 86/100\n\nDecision Summary: The candidate demonstrates strong technical alignment with most must-have skills, particularly in FastAPI, PostgreSQL, Docker/Kubernetes, and LLM/RAG integration. While their cloud deployment experience is partial, their hands-on work with production AI systems is highly relevant. The primary gap is in overall experience years, but their recent role shows significant impact and skill application.",
+      "scoreBreakdown": {
+        "weights": {
+          "exp": 0.25,
+          "nice": 0.15,
+          "traj": 0.1,
+          "skills": 0.5
+        },
+        "eval_mode": "moderate",
+        "formula_summary": "Fit Score (86/100) = 43.8 (Required Skills 50%) + 25.0 (Experience 25%) + 10.0 (Nice-To-Have 15%) + 7.0 (Growth Trajectory 10%)",
+        "experience_score": 100,
+        "trajectory_score": 70,
+        "nice_to_have_score": 67,
+        "must_have_breakdown": [
+          {
+            "match": "full",
+            "evidence": "Added three indexes after a slow-query review; pgvector, PostgreSQL",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "PostgreSQL including query optimization, indexing strategy and execution plan analysis",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts)"
+          },
+          {
+            "match": "full",
+            "evidence": "Assisted DevOps lead in setting up ECS task definitions (AWS)",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "Production deployment experience on a major cloud platform (AWS / GCP / Azure)",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts) [Upgraded to full: evidence names an exact alternative from requirement's listed options]"
+          },
+          {
+            "match": "partial",
+            "evidence": "Dockerised all services. Ran Kubernetes locally in personal projects.",
+            "max_points": 12.5,
+            "percentage": 50,
+            "requirement": "Containerization and orchestration with Docker and Kubernetes",
+            "points_earned": 6.2,
+            "deduction_reason": "Partial match (50% credit). Deduction: -6.2 pts [Capped to partial due to low-proficiency / hedging qualifier in evidence or profile]"
+          },
+          {
+            "match": "full",
+            "evidence": "Built a production content generation engine on LangGraph orchestrating Gemini and OpenAI agents; Implemented a RAG retrieval layer",
+            "max_points": 12.5,
+            "percentage": 100,
+            "requirement": "Integrating LLM and RAG pipelines into production applications",
+            "points_earned": 12.5,
+            "deduction_reason": "Full requirement match (+12.5 pts)"
+          }
+        ],
+        "penalties_breakdown": [],
+        "experience_breakdown": {
+          "score": 100,
+          "assessment": "The candidate has 2.3 years of directly relevant AI/backend engineering experience, falling short of the 5+ years required.",
+          "max_points": 25,
+          "calculation": "AI Engineer at Tekrowe Digital (2024/05 - Present): 2.3 yrs; Junior Backend Developer at Ovid Labs (2023/06 - 2024/04): 0.9 yrs. Total non-overlapping experience: 3.2 yrs.",
+          "points_earned": 25,
+          "relevant_years": 3.2,
+          "required_years": 2.3,
+          "candidate_years": 3.2
+        },
+        "trajectory_breakdown": {
+          "score": 70,
+          "assessment": "Growth capacity evaluated from career progression, skill acquisition breadth, project evidence, and degree domain relevance.",
+          "max_points": 10,
+          "sub_criteria": [
+            {
+              "status": "partial",
+              "evidence": "2 distinct roles listed: AI Engineer, Junior Backend Developer",
+              "max_points": 25,
+              "rubric_rule": "≥3 distinct roles = 25 pts | 2 roles = 15 pts | 1 role = 7 pts",
+              "points_earned": 15,
+              "criterion_name": "Career Title Progression"
+            },
+            {
+              "status": "full",
+              "evidence": "23 competencies listed on CV: Python, FastAPI, Django, LangGraph, LangChain, Gemini API, OpenAI API, pgvector, PostgreSQL, Docker, Kubernetes, Celery...",
+              "max_points": 25,
+              "rubric_rule": "≥8 skills = 25 pts | 4-7 skills = 15 pts | 1-3 skills = 7 pts",
+              "points_earned": 25,
+              "criterion_name": "Skill Portfolio Breadth"
+            },
+            {
+              "status": "full",
+              "evidence": "7 projects/achievements documented: SmartPulse - multi-tenant AI SaaS, FastAPI and Kubernetes backend.; ReviewRoute - fine-tuned XLM-RoBERTa sentiment classifier, 60k reviews.; CIRO - LangGraph crisis-response orchestrator (hackathon, 2025).",
+              "max_points": 25,
+              "rubric_rule": "≥3 projects/achievements = 25 pts | 1-2 projects = 12 pts",
+              "points_earned": 25,
+              "criterion_name": "Proven Deliverables & Projects"
+            },
+            {
+              "status": "partial",
+              "evidence": "Unrelated Degree Completed (BS Artificial Intelligence - NUST Islamabad, 2024 - 2028 (in progress)). Low direct relevance to target role domain.",
+              "max_points": 25,
+              "rubric_rule": "Relevant Degree = 18-25 pts | Adjacent = 10-14 pts | Unrelated = 5 pts",
+              "points_earned": 5,
+              "criterion_name": "Educational Relevance & Credentials"
+            }
+          ],
+          "points_earned": 7,
+          "calculation_summary": "Career Progression (15/25) + Skill Breadth (25/25) + Deliverables (25/25) + Education (5/25) = 70/100 pts"
+        },
+        "required_skills_score": 88,
+        "nice_to_have_breakdown": [
+          {
+            "match": "full",
+            "evidence": "Configured GitHub Actions workflows",
+            "max_points": 5,
+            "percentage": 100,
+            "requirement": "CI/CD automation experience (GitHub Actions / Jenkins)",
+            "points_earned": 5,
+            "deduction_reason": "Preferred skill satisfied (+5.0 pts)"
+          },
+          {
+            "match": "full",
+            "evidence": "Ran Celery workers for long-running generation jobs",
+            "max_points": 5,
+            "percentage": 100,
+            "requirement": "Distributed task queues or message brokers (Kafka / RabbitMQ / Celery)",
+            "points_earned": 5,
+            "deduction_reason": "Preferred skill satisfied (+5.0 pts)"
+          },
+          {
+            "match": "none",
+            "evidence": "No evidence",
+            "max_points": 5,
+            "percentage": 0,
+            "requirement": "Observability tooling experience (Prometheus / Grafana / Datadog)",
+            "points_earned": 0,
+            "deduction_reason": "Preferred skill missing (0 pts)"
+          }
+        ],
+        "relevant_experience_years": 3.2
+      },
+      "aiGeneratedLikelihoodScore": 0,
+      "antiCheatFlags": [],
+      "antiCheatMetadata": {},
+      "apiCost": 0.000735,
+      "costBreakdown": {
+        "cv_parser": {
+          "cost": 0.000333,
+          "tokens": {
+            "input_tokens": 870,
+            "total_tokens": 1762,
+            "output_tokens": 892
+          }
+        },
+        "jd_matcher": {
+          "cost": 0.000399,
+          "tokens": {
+            "input_tokens": 3063,
+            "total_tokens": 3628,
+            "output_tokens": 565
+          }
+        },
+        "embedding_matcher": {
+          "cost": 0.000003,
+          "tokens": {
+            "cost": 0.000003,
+            "input_tokens": 171,
+            "total_tokens": 171,
+            "output_tokens": 0
+          }
+        }
+      },
+      "transcript": [],
+      "cvUrl": "https://res.cloudinary.com/db3i07nwj/raw/upload/v1786141991/csmtxynesi4wfz5lktsp.docx",
+      "createdAt": "2026-08-07T22:33:20.339000+00:00",
+      "updatedAt": "2026-08-07T22:34:31.146000+00:00"
+    }
+  ]
+}

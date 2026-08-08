@@ -98,7 +98,7 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
     logger.info("[JD Distiller] Extracting canonical JD requirements upfront")
 
     model_escalation = [
-        ("fast", 4096, True),
+        ("fast", 8192, True),
         ("smart", 8192, True),
         ("smart", 8192, False),
     ]
@@ -158,7 +158,16 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
                     if years_match:
                         extracted_yrs = float(years_match.group(1))
                         max_tenure_years = max(max_tenure_years, extracted_yrs)
-                    continue  # Exclude tenure requirements from qualitative skill lists!
+
+                    # Strip tenure phrases from requirement name instead of discarding qualitative requirement
+                    cleaned_name = TENURE_PATTERN.sub("", req.requirement_name).strip(" ().-:,")
+                    cleaned_name = re.sub(r"\(?\s*\d+\+?\s*(?:years?|yrs?|yr)\s*\)?", "", cleaned_name, flags=re.IGNORECASE).strip(" ().-:,")
+
+                    # If requirement is a pure tenure duration (e.g. "5+ years of software engineering experience"), exclude from qualitative list
+                    if not cleaned_name or len(cleaned_name) < 3 or cleaned_name.lower() in ("software engineering experience", "professional experience", "experience"):
+                        continue
+
+                    req.requirement_name = cleaned_name
 
                 # Substring verification of quote against raw JD text
                 is_valid_quote, cleaned_quote = verify_and_clean_quote(req.jd_quote, jd_clean)
@@ -176,6 +185,9 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
                     final_must_have.append(req)
                 else:
                     final_nice_to_have.append(req)
+
+            if not (4 <= len(final_must_have) <= 8):
+                logger.warning(f"[JD Distiller] must_have count ({len(final_must_have)}) outside standard range [4, 8].")
 
             spec = CanonicalJDSpec(
                 role_title=r.role_title or "Software Engineer",
@@ -341,6 +353,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         )
 
     # 3. Align compact_output matches against canonical_spec requirements
+    raw_cv_text = getattr(profile, "raw_cv_text", "") or ""
     aligned_must_have: list[RequirementMatch] = []
     for canonical_req in canonical_spec.must_have_skills:
         c_name = canonical_req.requirement_name
@@ -350,9 +363,27 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 found = m
                 break
         if found:
-            aligned_must_have.append(RequirementMatch(requirement=c_name, match=found.match, evidence=found.evidence))
+            ev_text = getattr(found, "evidence", "") or ""
+            is_valid_ev, clean_ev = verify_and_clean_quote(ev_text, raw_cv_text)
+            final_ev = clean_ev if is_valid_ev else ev_text
+            ev_type = getattr(found, "evidence_type", None) or "employment"
+            if not is_valid_ev and raw_cv_text and ev_text:
+                ev_type = "inferred"
+            aligned_must_have.append(RequirementMatch(
+                requirement=c_name,
+                match=found.match,
+                evidence=final_ev,
+                evidence_type=ev_type,
+                proficiency_signal=getattr(found, "proficiency_signal", None) or "used"
+            ))
         else:
-            aligned_must_have.append(RequirementMatch(requirement=c_name, match="none", evidence="No direct evidence found on CV"))
+            aligned_must_have.append(RequirementMatch(
+                requirement=c_name,
+                match="none",
+                evidence="No direct evidence found on CV",
+                evidence_type="absent",
+                proficiency_signal="none"
+            ))
 
     aligned_nice_to_have: list[RequirementMatch] = []
     for canonical_req in canonical_spec.nice_to_have_skills:
@@ -363,9 +394,27 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 found = m
                 break
         if found:
-            aligned_nice_to_have.append(RequirementMatch(requirement=c_name, match=found.match, evidence=found.evidence))
+            ev_text = getattr(found, "evidence", "") or ""
+            is_valid_ev, clean_ev = verify_and_clean_quote(ev_text, raw_cv_text)
+            final_ev = clean_ev if is_valid_ev else ev_text
+            ev_type = getattr(found, "evidence_type", None) or "employment"
+            if not is_valid_ev and raw_cv_text and ev_text:
+                ev_type = "inferred"
+            aligned_nice_to_have.append(RequirementMatch(
+                requirement=c_name,
+                match=found.match,
+                evidence=final_ev,
+                evidence_type=ev_type,
+                proficiency_signal=getattr(found, "proficiency_signal", None) or "used"
+            ))
         else:
-            aligned_nice_to_have.append(RequirementMatch(requirement=c_name, match="none", evidence="No direct evidence found on CV"))
+            aligned_nice_to_have.append(RequirementMatch(
+                requirement=c_name,
+                match="none",
+                evidence="No direct evidence found on CV",
+                evidence_type="absent",
+                proficiency_signal="none"
+            ))
 
     compact_output.must_have = aligned_must_have
     compact_output.nice_to_have = aligned_nice_to_have
@@ -390,7 +439,9 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         must_have=result.must_have,
         nice_to_have=result.nice_to_have,
         experience_assessment=result.experience_assessment,
-        candidate_profile=profile
+        candidate_profile=profile,
+        required_years=canonical_spec.required_years,
+        canonical_jd_spec=canonical_spec
     )
 
     result.fit_score = final_score

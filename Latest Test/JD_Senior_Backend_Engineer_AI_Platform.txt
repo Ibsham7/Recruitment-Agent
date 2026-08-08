@@ -1,0 +1,31 @@
+Senior Backend Engineer - AI Platform
+Northlane Technologies
+Islamabad, Pakistan (Hybrid) | Full-time
+
+ABOUT THE ROLE
+Northlane is building an AI-native document intelligence platform used by
+insurance and legal teams across EMEA. You will own the backend services that
+sit between our ingestion pipeline and our retrieval layer, and you will be
+accountable for the latency, correctness and cost of everything behind the API
+boundary.
+
+REQUIREMENTS
+- 5+ years of professional software engineering experience building and
+  operating production backend systems.
+- Strong hands-on expertise with Python and FastAPI (3+ years) for building
+  high-throughput REST APIs.
+- Deep PostgreSQL experience including query optimization, indexing strategy
+  and execution plan analysis.
+- Production deployment experience on a major cloud platform (AWS / GCP / Azure).
+- Containerization and orchestration with Docker and Kubernetes.
+- Experience integrating LLM and RAG pipelines into production applications.
+
+NICE TO HAVE
+- CI/CD automation experience (GitHub Actions / Jenkins).
+- Experience with distributed task queues or message brokers
+  (Kafka / RabbitMQ / Celery).
+- Observability tooling experience (Prometheus / Grafana / Datadog).
+
+WHAT WE OFFER
+Competitive salary, hybrid working, annual learning budget, and equity for
+senior hires.

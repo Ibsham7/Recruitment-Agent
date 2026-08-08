@@ -109,11 +109,67 @@ class RequirementMatch(BaseModel):
     )
     match: Literal["full", "partial", "none"]
     evidence: str = Field(default="", description="Detailed evidence from CV supporting this match rating")
+    evidence_type: Optional[Literal["employment", "project", "education", "skills_list_only", "inferred", "absent"]] = Field(
+        default="employment",
+        description="Source classification of evidence"
+    )
+    proficiency_signal: Optional[Literal["led", "built", "used", "assisted", "learning", "none"]] = Field(
+        default="used",
+        description="Proficiency level indicated in evidence"
+    )
 
     @field_validator("evidence", mode="before")
     @classmethod
     def convert_null_evidence(cls, v):
         return v if v is not None else ""
+
+    @field_validator("evidence_type", mode="before")
+    @classmethod
+    def convert_evidence_type(cls, v):
+        valid = {"employment", "project", "education", "skills_list_only", "inferred", "absent"}
+        if v is None:
+            return "employment"
+        if isinstance(v, str):
+            v_lower = v.lower().strip()
+            if v_lower in valid:
+                return v_lower
+            if "skill" in v_lower or "list" in v_lower:
+                return "skills_list_only"
+            if "project" in v_lower or "portfolio" in v_lower:
+                return "project"
+            if "edu" in v_lower or "academic" in v_lower or "degree" in v_lower or "school" in v_lower:
+                return "education"
+            if "absent" in v_lower or "no " in v_lower or "none" in v_lower or "missing" in v_lower or "not_found" in v_lower:
+                return "absent"
+            if "infer" in v_lower or "deriv" in v_lower or "implicit" in v_lower:
+                return "inferred"
+            if "work" in v_lower or "job" in v_lower or "employ" in v_lower or "career" in v_lower or "history" in v_lower or "role" in v_lower:
+                return "employment"
+        return "employment"
+
+    @field_validator("proficiency_signal", mode="before")
+    @classmethod
+    def convert_proficiency_signal(cls, v):
+        valid = {"led", "built", "used", "assisted", "learning", "none"}
+        if v is None:
+            return "used"
+        if isinstance(v, str):
+            v_lower = v.lower().strip()
+            if v_lower in valid:
+                return v_lower
+            if "none" in v_lower or "absent" in v_lower or "no_signal" in v_lower:
+                return "none"
+            if "assist" in v_lower or "help" in v_lower or "support" in v_lower:
+                return "assisted"
+            if "learn" in v_lower or "exposure" in v_lower or "basic" in v_lower or "begin" in v_lower or "familiar" in v_lower:
+                return "learning"
+            if "lead" in v_lower or "head" in v_lower or "manag" in v_lower or "direct" in v_lower or "architect" in v_lower:
+                return "led"
+            if "build" in v_lower or "built" in v_lower or "creat" in v_lower or "develop" in v_lower or "engineer" in v_lower or "implement" in v_lower:
+                return "built"
+            if "use" in v_lower or "utiliz" in v_lower or "apply" in v_lower or "applied" in v_lower:
+                return "used"
+        return "used"
 
 class ExperienceBreakdown(BaseModel):
     score: int = 0

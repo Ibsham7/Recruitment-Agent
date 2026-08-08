@@ -43,18 +43,27 @@ async def hard_filters_node(state: RecruitmentState) -> dict:
                 if not all_passed:
                     failed = True
                     reason = f"Missing mandatory skill(s): {', '.join(missing)}"
+            elif rule_type == "location":
+                req_loc = str(value).strip().lower()
+                other_info = str(getattr(profile, "other_info", "") or "")
+                raw_cv = str(getattr(profile, "raw_cv_text", "") or "")
+                cand_loc = (str(getattr(profile, "location", "") or "") + " " + other_info + " " + raw_cv).lower()
+                if req_loc and req_loc not in cand_loc and "remote" not in cand_loc:
+                    failed = True
+                    reason = f"Location filter failed: candidate location does not match required location '{value}'."
             
             if failed:
+                penalties.append({"reason": reason, "severity": penalty})
                 if penalty == "reject" or penalty == "completely_reject":
                     logger.info(f"[Hard Filters] [FAIL] Rejected: {reason}")
                     return {
                         "pipeline_status": "rejected",
                         "rejection_reason": reason,
+                        "penalties": penalties,
                         "log": [f"Hard filter rejected: {reason}"]
                     }
                 else:
                     logger.info(f"[Hard Filters] [PENALTY] {penalty}: {reason}")
-                    penalties.append({"reason": reason, "severity": penalty})
                     log.append(f"Penalty applied ({penalty}): {reason}")
     else:
         # Fallback: Experience tenure and shortfalls are evaluated proportionally within 

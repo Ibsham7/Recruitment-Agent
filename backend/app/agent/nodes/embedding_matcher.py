@@ -1,12 +1,12 @@
 import os
 import json
 import asyncio
+import httpx
+import hashlib
 from app.database import prisma
 from app.agent.embeddings import get_embedding_async, get_embedding_with_cost_async, cosine_similarity, _distill_jd_async
 from app.agent.state import RecruitmentState
-
-import httpx
-import hashlib
+from app.core.logging import logger
 
 async def _ensure_resume_embedding_async(file_hash: str, text_to_embed: str) -> tuple[list[float] | None, float, dict]:
     """
@@ -46,8 +46,6 @@ async def _get_or_create_embedding_async(file_hash: str, text_to_embed: str) -> 
     if result and result[0].get('embedding'):
         return json.loads(result[0]['embedding'])
     return []
-
-from app.core.logging import logger
 
 async def embedding_matcher_node(state: RecruitmentState) -> dict:
     """
@@ -170,12 +168,25 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
         }
     
     if strategy == "threshold":
-        threshold = float(os.getenv("EMBEDDING_THRESHOLD", "0.4"))
+        threshold = float(os.getenv("EMBEDDING_THRESHOLD", "0.25"))
         if similarity < threshold:
             reason = f"Candidate semantic similarity ({similarity:.2f}) is below threshold ({threshold})."
             logger.info(f"[Embedding Matcher] [FAIL] Rejected: {reason}")
+
+            from app.agent.schemas import ScreeningResult, ScoreBreakdown
+            breakdown = ScoreBreakdown(
+                formula_summary=f"Filtered at Stage 3 (Embedding Similarity {similarity:.2f} < {threshold})"
+            )
+            screening = ScreeningResult(
+                fit_score=0,
+                decision="reject",
+                reasoning_summary=f"Candidate was filtered at Stage 3 due to low semantic similarity to job domain ({similarity:.2f}).",
+                score_breakdown=breakdown
+            )
+
             ret_dict["pipeline_status"] = "rejected"
             ret_dict["rejection_reason"] = reason
+            ret_dict["screening_result"] = screening
             ret_dict["log"] = [f"Semantic score: {similarity:.2f} (Rejected: below threshold {threshold})"]
             return ret_dict
         logger.info("[Embedding Matcher] [OK] Passed embedding threshold.")
