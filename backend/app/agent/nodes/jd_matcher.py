@@ -17,6 +17,7 @@ from app.agent.prompts import JD_MATCHER_PROMPTS, CANONICAL_JD_DISTILLER_PROMPT
 from app.core.logging import logger
 from app.agent.tools.scoring import TENURE_PATTERN, calculate_weighted_fit_score
 from app.agent.tools.timeline import calculate_experience_for_domain
+from app.agent.tools.verification import extract_dynamic_requirement_tokens, check_dynamic_token_presence
 
 # In-memory cache for canonical JD specifications to freeze requirements per JD text
 _JD_SPEC_CACHE: dict[str, CanonicalJDSpec] = {}
@@ -354,6 +355,22 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
 
     # 3. Align compact_output matches against canonical_spec requirements
     raw_cv_text = getattr(profile, "raw_cv_text", "") or ""
+    profile_skills_text = " ".join([str(s) for s in (getattr(profile, "skills", []) or [])])
+    roles_text = ""
+    for r in (getattr(profile, "previous_roles", []) or []):
+        r_title = getattr(r, "title", r.get("title", "") if isinstance(r, dict) else "")
+        r_desc = getattr(r, "description", r.get("description", "") if isinstance(r, dict) else "")
+        r_skills = " ".join([str(s) for s in (getattr(r, "skills_used", r.get("skills_used", [])) if isinstance(r, dict) else (getattr(r, "skills_used", []) or []))])
+        roles_text += f" {r_title} {r_desc} {r_skills}"
+    projects_text = ""
+    for p in (getattr(profile, "projects", []) or []):
+        p_title = getattr(p, "title", p.get("title", "") if isinstance(p, dict) else "")
+        p_desc = getattr(p, "description", p.get("description", "") if isinstance(p, dict) else "")
+        projects_text += f" {p_title} {p_desc}"
+    education_text = " ".join([str(e) for e in (getattr(profile, "education", []) or [])])
+
+    cand_corpus = f"{raw_cv_text} {profile_skills_text} {roles_text} {projects_text} {education_text}".lower()
+
     aligned_must_have: list[RequirementMatch] = []
     for canonical_req in canonical_spec.must_have_skills:
         c_name = canonical_req.requirement_name
@@ -365,16 +382,31 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         if found:
             ev_text = getattr(found, "evidence", "") or ""
             is_valid_ev, clean_ev = verify_and_clean_quote(ev_text, raw_cv_text)
-            final_ev = clean_ev if is_valid_ev else ev_text
-            ev_type = getattr(found, "evidence_type", None) or "employment"
-            if not is_valid_ev and raw_cv_text and ev_text:
+            req_tokens = extract_dynamic_requirement_tokens(c_name, getattr(canonical_req, "jd_quote", ""))
+            has_presence = check_dynamic_token_presence(req_tokens, cand_corpus)
+
+            if is_valid_ev:
+                final_match = found.match
+                final_ev = clean_ev
+                ev_type = getattr(found, "evidence_type", None) or "employment"
+                prof_sig = getattr(found, "proficiency_signal", None) or "used"
+            elif has_presence:
+                final_match = "partial" if found.match == "full" else found.match
+                final_ev = clean_ev if clean_ev else ev_text
                 ev_type = "inferred"
+                prof_sig = getattr(found, "proficiency_signal", None) or "used"
+            else:
+                final_match = "none"
+                final_ev = "No direct evidence or matching requirement tokens found on CV"
+                ev_type = "absent"
+                prof_sig = "none"
+
             aligned_must_have.append(RequirementMatch(
                 requirement=c_name,
-                match=found.match,
+                match=final_match,
                 evidence=final_ev,
                 evidence_type=ev_type,
-                proficiency_signal=getattr(found, "proficiency_signal", None) or "used"
+                proficiency_signal=prof_sig
             ))
         else:
             aligned_must_have.append(RequirementMatch(
@@ -396,16 +428,31 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         if found:
             ev_text = getattr(found, "evidence", "") or ""
             is_valid_ev, clean_ev = verify_and_clean_quote(ev_text, raw_cv_text)
-            final_ev = clean_ev if is_valid_ev else ev_text
-            ev_type = getattr(found, "evidence_type", None) or "employment"
-            if not is_valid_ev and raw_cv_text and ev_text:
+            req_tokens = extract_dynamic_requirement_tokens(c_name, getattr(canonical_req, "jd_quote", ""))
+            has_presence = check_dynamic_token_presence(req_tokens, cand_corpus)
+
+            if is_valid_ev:
+                final_match = found.match
+                final_ev = clean_ev
+                ev_type = getattr(found, "evidence_type", None) or "employment"
+                prof_sig = getattr(found, "proficiency_signal", None) or "used"
+            elif has_presence:
+                final_match = "partial" if found.match == "full" else found.match
+                final_ev = clean_ev if clean_ev else ev_text
                 ev_type = "inferred"
+                prof_sig = getattr(found, "proficiency_signal", None) or "used"
+            else:
+                final_match = "none"
+                final_ev = "No direct evidence or matching requirement tokens found on CV"
+                ev_type = "absent"
+                prof_sig = "none"
+
             aligned_nice_to_have.append(RequirementMatch(
                 requirement=c_name,
-                match=found.match,
+                match=final_match,
                 evidence=final_ev,
                 evidence_type=ev_type,
-                proficiency_signal=getattr(found, "proficiency_signal", None) or "used"
+                proficiency_signal=prof_sig
             ))
         else:
             aligned_nice_to_have.append(RequirementMatch(

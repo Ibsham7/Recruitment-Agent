@@ -8,6 +8,7 @@ from app.agent.schemas import (
 )
 
 from app.agent.tools.timeline import generate_experience_calculation_summary
+from app.agent.tools.verification import extract_dynamic_requirement_tokens, check_dynamic_token_presence
 
 TENURE_PATTERN = re.compile(
     r"(\b\d+\+?\s*(years?|yrs?|yr)\b|\byears?\s+of\s+(professional\s+)?(software\s+engineering\s+|development\s+)?experience\b|\bminimum\s+\d+\s+years?\b|\b\d+\+\s*years?\b)",
@@ -153,12 +154,23 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             "listed in skills" in ev_lower
         )
         if is_skills_only:
-            substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower)
-            substantive = re.sub(r"listed\s+in\s+skills\s*(section)?", "", substantive)
-            substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive).strip(" ;,.-")
-            if not substantive or len(substantive) < 5 or ev_type == "skills_list_only":
-                match_val = "none"
-                override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
+            if candidate_profile:
+                raw_cv = getattr(candidate_profile, "raw_cv_text", "") or ""
+                skills_txt = " ".join([str(s) for s in (getattr(candidate_profile, "skills", []) or [])])
+                roles_txt = " ".join([str(getattr(r, "title", r.get("title", "") if isinstance(r, dict) else "")) for r in (getattr(candidate_profile, "previous_roles", []) or [])])
+                corpus = f"{raw_cv} {skills_txt} {roles_txt}".lower()
+                req_tokens = extract_dynamic_requirement_tokens(req_name)
+                if req_tokens and not check_dynamic_token_presence(req_tokens, corpus):
+                    match_val = "none"
+                    override_note = " [Overridden to none: fabricated evidence without requirement tokens on CV]"
+
+            if match_val != "none":
+                substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower)
+                substantive = re.sub(r"listed\s+in\s+skills\s*(section)?", "", substantive)
+                substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive).strip(" ;,.-")
+                if not substantive or len(substantive) < 5 or ev_type == "skills_list_only":
+                    match_val = "none"
+                    override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
 
     if item is not None and match_val != getattr(item, "match", None):
         if hasattr(item, "match"):
