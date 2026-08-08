@@ -19,6 +19,7 @@ model Campaign {
   jobDescription    String
   distilledJd       String?
   jdEmbedding       Unsupported("vector(1536)")?
+  canonicalJdSpec   Json?
   hardFiltersConfig Json?
   enableInterviews  Boolean     @default(true)
   interviewConfig   String?

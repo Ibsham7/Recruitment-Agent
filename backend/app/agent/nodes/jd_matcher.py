@@ -219,6 +219,8 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
 
     # 1. Obtain upfront canonical JD specification (distilled & frozen once per JD)
     canonical_spec = state.get("canonical_jd_spec")
+    if isinstance(canonical_spec, dict):
+        canonical_spec = CanonicalJDSpec.model_validate(canonical_spec)
     if not isinstance(canonical_spec, CanonicalJDSpec):
         canonical_spec = await distill_jd_requirements(jd)
 

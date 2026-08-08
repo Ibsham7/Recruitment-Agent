@@ -106,7 +106,20 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
         }
     )
     
-    # Synchronously generate distilled JD and embedding before queuing any candidates
+    # Synchronously generate canonical JD spec, distilled JD, and embedding before queuing any candidates
+    try:
+        from app.agent.nodes.jd_matcher import distill_jd_requirements
+        canonical_spec = await distill_jd_requirements(campaign.jobDescription)
+        spec_dict = canonical_spec.model_dump() if hasattr(canonical_spec, "model_dump") else canonical_spec.dict()
+        
+        await prisma.campaign.update(
+            where={"id": new_campaign.id},
+            data={"canonicalJdSpec": Json(spec_dict)}
+        )
+        logger.info(f"[CanonicalJDSpec] Distilled and stored canonical spec for Campaign '{new_campaign.title}' ({new_campaign.id})")
+    except Exception as e:
+        logger.warning(f"Failed to generate canonical JD spec during campaign creation: {e}")
+
     try:
         distilled_jd = await _distill_jd_async(campaign.jobDescription)
         jd_embedding = await get_embedding_async(distilled_jd)

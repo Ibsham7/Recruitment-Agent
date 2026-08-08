@@ -169,6 +169,35 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                 interview_config = candidate.campaign.interviewConfig
             if hasattr(candidate.campaign, "evaluationStrictness"):
                 evaluation_strictness = candidate.campaign.evaluationStrictness
+
+            # Load frozen canonicalJdSpec from PostgreSQL campaign model or self-heal
+            db_spec = getattr(candidate.campaign, "canonicalJdSpec", None)
+            if db_spec:
+                if isinstance(db_spec, str):
+                    import json
+                    db_spec = json.loads(db_spec)
+                if isinstance(db_spec, dict):
+                    from app.agent.schemas import CanonicalJDSpec
+                    try:
+                        canonical_jd_spec = CanonicalJDSpec.model_validate(db_spec)
+                    except Exception as e:
+                        from app.core.logging import logger
+                        logger.warning(f"[CanonicalJDSpec] Failed to validate spec from DB: {e}")
+
+            if not canonical_jd_spec and (candidate.campaign.jobDescription or jd_text):
+                from app.agent.nodes.jd_matcher import distill_jd_requirements
+                from app.core.logging import logger
+                try:
+                    raw_jd_to_distill = candidate.campaign.jobDescription or jd_text
+                    canonical_jd_spec = await distill_jd_requirements(raw_jd_to_distill)
+                    spec_dict = canonical_jd_spec.model_dump() if hasattr(canonical_jd_spec, "model_dump") else canonical_jd_spec.dict()
+                    await prisma.campaign.update(
+                        where={"id": candidate.campaign.id},
+                        data={"canonicalJdSpec": Json(spec_dict)}
+                    )
+                    logger.info(f"[CanonicalJDSpec] Self-healed & stored canonical spec for Campaign '{candidate.campaign.id}'")
+                except Exception as e:
+                    logger.warning(f"[CanonicalJDSpec] Self-healing distillation failed for Campaign '{candidate.campaign.id}': {e}")
             
     async with get_checkpointer(checkpointer) as active_checkpointer:
         graph = build_recruitment_graph(checkpointer=active_checkpointer)
@@ -179,6 +208,7 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             "job_description": jd_text,
             "candidate_id": candidate_id,
             "candidate_profile": candidate_profile,
+            "canonical_jd_spec": canonical_jd_spec,
             "hard_filters_config": hard_filters_config,
             "penalties": [],
             "enable_interviews": enable_interviews,
