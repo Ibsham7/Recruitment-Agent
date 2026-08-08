@@ -37,7 +37,7 @@ def extract_dynamic_requirement_tokens(requirement_name: str, jd_quote: str = ""
     # 1. Extract parenthetical and slashed alternatives (e.g. "(AWS / GCP)", "GAAP/IFRS", "(Pediatric/Trauma)")
     paren_matches = re.findall(r'\(([^)]+)\)', combined_text)
     for p_content in paren_matches:
-        alts = [t.strip() for t in re.split(r'[/,|]', p_content)]
+        alts = [t.strip() for t in re.split(r'[/,|]|\b(?:or|and/or|and|e\.g\.|i\.e\.)\b', p_content, flags=re.IGNORECASE)]
         for alt in alts:
             alt_words = re.findall(r'[a-zA-Z0-9+#/\-]+', alt)
             for w in alt_words:
@@ -51,6 +51,15 @@ def extract_dynamic_requirement_tokens(requirement_name: str, jd_quote: str = ""
         w_clean = word.strip(" -/,.")
         if w_clean and len(w_clean) >= 2 and w_clean not in GENERIC_BOILERPLATE_WORDS:
             clean_tokens.add(w_clean)
+
+    # Fallback for generic requirements (e.g. 'Professional software engineering experience'):
+    # If all tokens were filtered by boilerplate list, preserve substantive words (len >= 3)
+    if not clean_tokens:
+        stop_words = {"with", "and", "or", "the", "a", "an", "in", "for", "of", "to", "at", "on", "by", "from", "as", "is", "are", "be"}
+        for word in raw_words:
+            w_clean = word.strip(" -/,.")
+            if w_clean and len(w_clean) >= 3 and w_clean not in stop_words:
+                clean_tokens.add(w_clean)
 
     return clean_tokens
 
@@ -108,6 +117,13 @@ SKILLS_LIST_PROSE_PATTERNS = [
     re.compile(r"listed\s+.*in\s+skills", re.IGNORECASE),
     re.compile(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", re.IGNORECASE),
 ]
+
+SUBSTANTIVE_EXECUTION_VERBS = {
+    "built", "shipped", "designed", "developed", "managed", "deployed", "authored",
+    "led", "maintained", "implemented", "created", "rebuilt", "handled", "wrote",
+    "delivered", "engineered", "architected", "launched", "operated", "cut", "reduced",
+    "increased", "automated", "scaled", "owned", "pkg", "packaged"
+}
 
 def classify_evidence_source(
     req_name: str,
@@ -183,9 +199,16 @@ def classify_evidence_source(
 
     raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "").lower()
 
+    # Check if evidence quote itself contains substantive execution language or matches role/project text
+    has_substantive_verb = any(v in ev_lower for v in SUBSTANTIVE_EXECUTION_VERBS)
+    matches_role = bool(ev_lower and (ev_lower in roles_text or any(w in roles_text for w in re.findall(r'\b[a-z]{4,}\b', ev_lower) if w not in {"with", "that", "this", "from", "using", "used", "role"})))
+    matches_project = bool(ev_lower and (ev_lower in projects_text or any(w in projects_text for w in re.findall(r'\b[a-z]{4,}\b', ev_lower) if w not in {"with", "that", "this", "from", "using", "used", "role"})))
+
     if not req_tokens:
         if any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or "listed as a skill" in ev_lower or "skills list" in ev_lower:
             return "skills_list_only"
+        if has_substantive_verb or matches_role or roles_text:
+            return "employment"
         return "employment"
 
     # Score each section by counting matching tokens
@@ -206,9 +229,17 @@ def classify_evidence_source(
     if max_score == 0:
         if any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or "listed as a skill" in ev_lower or "skills list" in ev_lower:
             return "skills_list_only"
+        if has_substantive_verb and matches_role:
+            return "employment"
+        if has_substantive_verb and matches_project:
+            return "project"
+        if any(w in ev_lower for w in ["no evidence", "not mentioned", "absence of", "unmentioned"]):
+            return "absent"
+        if ev_lower and len(ev_lower) >= 10 and not any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS):
+            return "employment"
         return "absent"
 
-    # Select section with highest match count (using priority ordering for ties)
+    # Select section with highest match count
     if edu_score == max_score and edu_score > 0:
         return "education"
     if roles_score == max_score and roles_score > 0:
@@ -216,6 +247,11 @@ def classify_evidence_source(
     if projects_score == max_score and projects_score > 0:
         return "project"
     if skills_score == max_score and skills_score > 0:
+        # If tokens are also present in employment or projects, prioritize employment/project execution
+        if roles_score > 0:
+            return "employment"
+        if projects_score > 0:
+            return "project"
         return "skills_list_only"
     if raw_score == max_score and raw_score > 0:
         return "inferred"

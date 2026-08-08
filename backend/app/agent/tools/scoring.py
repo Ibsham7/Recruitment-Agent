@@ -124,19 +124,21 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                 has_hedge = True
                 break
 
-    if not has_hedge and candidate_profile and match_val == "full":
+    # Scope raw CV hedging check to the line containing the actual evidence quote
+    if not has_hedge and candidate_profile and match_val == "full" and ev_lower:
         raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "").lower()
-        if raw_cv and ev_lower:
-            ev_words = [w for w in re.findall(r'\b[a-zA-Z0-9+#/\-]{4,}\b', ev_lower) if w not in {"with", "that", "this", "from", "using", "used", "role", "work", "after", "review"}]
-            for word in ev_words:
-                idx = raw_cv.find(word)
-                if idx != -1:
-                    w_start = max(0, idx - 200)
-                    w_end = min(len(raw_cv), idx + 200)
-                    cv_window = raw_cv[w_start:w_end]
-                    if any(k in cv_window for k in LOW_PROFICIENCY_KEYWORDS):
-                        has_hedge = True
-                        break
+        if raw_cv:
+            # Find exact line or sentence containing the evidence quote snippet
+            ev_snippet = ev_lower[:40].strip()
+            if ev_snippet in raw_cv:
+                idx = raw_cv.find(ev_snippet)
+                line_start = raw_cv.rfind('\n', 0, idx)
+                line_end = raw_cv.find('\n', idx)
+                line_start = 0 if line_start == -1 else line_start
+                line_end = len(raw_cv) if line_end == -1 else line_end
+                cv_line = raw_cv[line_start:line_end]
+                if any(k in cv_line for k in LOW_PROFICIENCY_KEYWORDS):
+                    has_hedge = True
 
     if match_val == "full" and has_hedge:
         match_val = "partial"
@@ -146,17 +148,42 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
     if match_val == "partial" and not has_hedge:
         paren_match = re.search(r'\(([^)]+)\)', req_lower)
         if paren_match:
-            alternatives = [t.strip() for t in re.split(r'[/,|]', paren_match.group(1))]
-            if any(alt in ev_lower for alt in alternatives if len(alt) > 2):
-                match_val = "full"
-                override_note = " [Upgraded to full: evidence names an exact alternative from requirement's listed options]"
+            raw_options = re.split(r'[/,|]|\b(?:or|and/or|and|e\.g\.|i\.e\.|such as)\b', paren_match.group(1), flags=re.IGNORECASE)
+            alternatives = []
+            for opt in raw_options:
+                cleaned_opt = opt.strip(" ().-:,'\"`")
+                if cleaned_opt and len(cleaned_opt) >= 2 and cleaned_opt.lower() not in {"or", "and", "etc", "e.g", "i.e"}:
+                    alternatives.append(cleaned_opt.lower())
+
+            # Detect negative, migration, or deprecation qualifiers in evidence
+            migration_pattern = re.compile(
+                r"\b(?:migrat\w*|moving\s+away|moved|transition\w*|replac\w*|deprecat\w*|decommission\w*|phased?\s+out|no\s+experience|evaluated\s+but|instead\s+of)\b",
+                re.IGNORECASE
+            )
+            has_migration = migration_pattern.search(ev_lower) is not None
+
+            if not has_migration:
+                ignore_words = {"standards", "tools", "systems", "services", "solutions", "frameworks", "practices", "methods", "platform", "platforms"}
+                for alt in alternatives:
+                    # Match full option or core substantive words of option
+                    sub_words = [w for w in re.findall(r'\b[a-zA-Z0-9+#/\-]+\b', alt) if w not in ignore_words and len(w) >= 2]
+                    words_to_check = sub_words if sub_words else [alt]
+                    for target_word in words_to_check:
+                        pattern = rf"\b{re.escape(target_word)}\b" if not any(c in target_word for c in "+#/-.") else re.escape(target_word)
+                        if re.search(pattern, ev_lower):
+                            match_val = "full"
+                            override_note = " [Upgraded to full: evidence names an exact alternative from requirement's listed options]"
+                            break
+                    if match_val == "full":
+                        break
 
     # Rule 3: Self-Contradiction Guardrail (Evidence text explicitly states absence of requirement/evidence)
-    if match_val != "none" and (ev_type == "absent" or any(p in ev_lower for p in NEGATIVE_EVIDENCE_PHRASES)):
+    has_negative_phrase = any(p in ev_lower for p in NEGATIVE_EVIDENCE_PHRASES)
+    if match_val != "none" and (has_negative_phrase or (ev_type == "absent" and any(p in ev_lower for p in ("no direct evidence", "no evidence", "not mentioned", "absence of")))):
         match_val = "none"
         override_note = " [Overridden to none: evidence explicitly states absence of requirement or evidence]"
 
-    # Rule 4: Soft / Unevidenced Skill Listing Guardrail (Nice-to-have or soft competencies)
+    # Rule 4: Soft / Unevidenced Skill Listing & Anti-Fabrication Guardrail
     if match_val != "none":
         # 1. Deterministic structural classification if profile and text evidence available
         if candidate_profile and raw_cv_text and evidence_val:
@@ -164,31 +191,40 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             if struct_source in ("skills_list_only", "absent"):
                 ev_type = struct_source
 
-        # 2. Check prose pattern matching & evidence_type enum
-        is_skills_only = (
-            ev_type == "skills_list_only" or
-            any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or
-            "listed as a skill" in ev_lower or
-            "listed in skills" in ev_lower or
-            "skills list" in ev_lower
-        )
-        if is_skills_only or ev_type == "inferred":
-            if candidate_profile:
-                raw_cv = getattr(candidate_profile, "raw_cv_text", "") or ""
-                skills_txt = " ".join([str(s) for s in (getattr(candidate_profile, "skills", []) or [])])
-                roles_txt = " ".join([str(getattr(r, "title", r.get("title", "") if isinstance(r, dict) else "")) for r in (getattr(candidate_profile, "previous_roles", []) or [])])
-                corpus = f"{raw_cv} {skills_txt} {roles_txt}".lower()
-                req_tokens = extract_dynamic_requirement_tokens(req_name)
-                if req_tokens and not check_dynamic_token_presence(req_tokens, corpus):
-                    match_val = "none"
-                    override_note = " [Overridden to none: fabricated evidence without requirement tokens on CV]"
+        # 2. Unconditional Anti-Fabrication Check: If raw_cv_text is available but requirement tokens are absent from CV corpus, force match to none
+        if candidate_profile and raw_cv_text and len(raw_cv_text.strip()) >= 20:
+            skills_txt = " ".join([str(s) for s in (getattr(candidate_profile, "skills", []) or [])])
+            roles_txt = " ".join([str(getattr(r, "title", r.get("title", "") if isinstance(r, dict) else "")) for r in (getattr(candidate_profile, "previous_roles", []) or [])])
+            projects_txt = " ".join([str(p) for p in (getattr(candidate_profile, "projects", []) or [])])
+            corpus = f"{raw_cv_text} {skills_txt} {roles_txt} {projects_txt}".lower()
+            req_tokens = extract_dynamic_requirement_tokens(req_name)
+            if req_tokens and not check_dynamic_token_presence(req_tokens, corpus):
+                match_val = "none"
+                override_note = " [Overridden to none: fabricated evidence without requirement tokens on CV]"
 
-            if match_val != "none" and is_skills_only:
+        # 3. Check prose pattern matching & skills-list-only override (only if not substantive execution)
+        if match_val != "none":
+            is_skills_only = (
+                ev_type == "skills_list_only" or
+                any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or
+                "listed as a skill" in ev_lower or
+                "listed in skills" in ev_lower or
+                "skills list" in ev_lower
+            )
+
+            from app.agent.tools.verification import SUBSTANTIVE_EXECUTION_VERBS
+            has_substantive_execution = any(v in ev_lower for v in SUBSTANTIVE_EXECUTION_VERBS)
+
+            if is_skills_only and not has_substantive_execution:
                 substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower, flags=re.IGNORECASE)
                 substantive = re.sub(r"listed\s+in\s+skills\s*(section)?", "", substantive, flags=re.IGNORECASE)
                 substantive = re.sub(r"skills?\s+list\s*(includes?)?", "", substantive, flags=re.IGNORECASE)
+                substantive = re.sub(r"used\s+in\s+(previous\s+)?role", "", substantive, flags=re.IGNORECASE)
+                substantive = re.sub(r"listed\s+in\s+(summary|cv|profile)", "", substantive, flags=re.IGNORECASE)
                 substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive, flags=re.IGNORECASE).strip(" ;,.-")
-                if not substantive or len(substantive) < 5 or ev_type == "skills_list_only":
+                req_tokens_r4 = extract_dynamic_requirement_tokens(req_name)
+                sub_words = [w for w in re.findall(r'\b[a-zA-Z0-9+#/\-]+\b', substantive) if w not in req_tokens_r4 and w not in {"and", "or", "in", "with"}]
+                if not sub_words or len(substantive) < 5 or ev_type == "skills_list_only":
                     match_val = "none"
                     override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
 

@@ -392,7 +392,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else (getattr(found, "evidence_type", None) or "employment")
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             elif has_presence:
-                final_match = "partial" if found.match == "full" else found.match
+                final_match = found.match
                 final_ev = clean_ev if clean_ev else ev_text
                 struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=ev_text)
                 ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else "inferred"
@@ -440,7 +440,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else (getattr(found, "evidence_type", None) or "employment")
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             elif has_presence:
-                final_match = "partial" if found.match == "full" else found.match
+                final_match = found.match
                 final_ev = clean_ev if clean_ev else ev_text
                 struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=ev_text)
                 ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else "inferred"

@@ -71,6 +71,13 @@ EVIDENCE MATCHING & STRETCHING PREVENTION RULES:
    - Education: Requirement "Assessment Design (Formative / Summative)". Candidate CV: "Created formative assessments with rubrics to measure student growth". Match: "full". Reason: Formative assessment design is explicitly listed.
    - Business: Requirement "CRM Management (Salesforce / HubSpot)". Candidate CV: "Managed customer records in Excel". Match: "none". Reason: Excel is a spreadsheet tool, not CRM software.
    - Business: Requirement "CRM Management (Salesforce / HubSpot)". Candidate CV: "Managed leads and automated email workflows using HubSpot". Match: "full". Reason: HubSpot is explicitly listed.
+5. PARENTHETICAL LISTINGS & ALTERNATIVES EVALUATION (DOMAIN-AGNOSTIC):
+   - When a requirement specifies parenthetical options or alternatives (e.g. "CI/CD (Jenkins, CircleCI, GitHub Actions)", "Assessment Design (Formative / Summative)", "CRM (Salesforce / HubSpot)", "ICU Nursing (Pediatric / ER Trauma)"), matching ANY single listed option in active employment/project execution MUST be evaluated as a "full" match.
+   - English conjunctions within options (such as "or", "and/or", "such as", "e.g.") are syntactic separators and MUST NOT be treated as part of the tool/skill name.
+   - Core domain-equivalent services, frameworks, or standards (e.g., AWS ECS/Fargate for AWS infrastructure requirements, GKE for GCP, IFRS for GAAP accounting) count as valid domain alternatives for that requirement.
+6. NEGATIVE, MIGRATION, & DEPRECATION QUALIFIERS (DOMAIN-AGNOSTIC):
+   - Do NOT grant positive match credit ("full" or "partial") for a tool, methodology, or technology if the candidate's evidence is explicitly qualified as negative, deprecated, or legacy migration-away (e.g., "migrated away from Jenkins", "decommissioned Oracle", "phased out legacy SAP", "evaluated CircleCI but rejected it", "no direct experience with X").
+   - Distinguish active execution (using the target technology) from legacy transition (moving off of it).
 
 Multi-Role & Portfolio Evidence Rule (Domain-Agnostic):
 Demonstrated active usage or application of a skill/competency across multiple
