@@ -47,6 +47,13 @@ async def _get_or_create_embedding_async(file_hash: str, text_to_embed: str) -> 
         return json.loads(result[0]['embedding'])
     return []
 
+# Threshold configurations per evaluation strictness mode
+MODE_THRESHOLDS = {
+    "lenient":  {"reject": 0.30, "human": 0.30},
+    "moderate": {"reject": 0.37, "human": 0.37},
+    "strict":   {"reject": 0.44, "human": 0.44},
+}
+
 async def embedding_matcher_node(state: RecruitmentState) -> dict:
     """
     Filters candidates based on vector similarity between structured CV and JD.
@@ -168,29 +175,71 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
         }
     
     if strategy == "threshold":
-        threshold = float(os.getenv("EMBEDDING_THRESHOLD", "0.25"))
-        if similarity < threshold:
-            reason = f"Candidate semantic similarity ({similarity:.2f}) is below threshold ({threshold})."
+        # Extract strictness mode from state
+        eval_mode = (state.get("jd_matcher_prompt_variant") or "moderate").lower().strip()
+        defaults = MODE_THRESHOLDS.get(eval_mode, MODE_THRESHOLDS["moderate"])
+        
+        reject_threshold = float(os.getenv("EMBEDDING_REJECT_THRESHOLD", os.getenv("EMBEDDING_THRESHOLD", defaults["reject"])))
+        human_threshold = float(os.getenv("EMBEDDING_HUMAN_THRESHOLD", defaults["human"]))
+
+        from app.agent.schemas import ScreeningResult, ScoreBreakdown
+
+        if similarity < reject_threshold:
+            reason = f"Candidate CV is not relevant to job description domain (Semantic similarity {similarity:.2f} < {reject_threshold:.2f})."
             logger.info(f"[Embedding Matcher] [FAIL] Rejected: {reason}")
 
-            from app.agent.schemas import ScreeningResult, ScoreBreakdown
+            fit_val = round(similarity, 2)
             breakdown = ScoreBreakdown(
-                formula_summary=f"Filtered at Stage 3 (Embedding Similarity {similarity:.2f} < {threshold})"
+                required_skills_score=0,
+                experience_score=0,
+                nice_to_have_score=0,
+                trajectory_score=0,
+                weights={"skills": 0.50, "exp": 0.25, "nice": 0.15, "traj": 0.10},
+                eval_mode=eval_mode,
+                formula_summary=f"Filtered at Stage 3 (Embedding Similarity {similarity:.2f} < {reject_threshold:.2f} [{eval_mode} mode])"
             )
             screening = ScreeningResult(
-                fit_score=0,
+                fit_score=fit_val,
                 decision="reject",
-                reasoning_summary=f"Candidate was filtered at Stage 3 due to low semantic similarity to job domain ({similarity:.2f}).",
+                reasoning_summary=f"Candidate CV is not relevant to job description domain (Semantic similarity: {fit_val:.2f} < {reject_threshold:.2f}).",
                 score_breakdown=breakdown
             )
 
             ret_dict["pipeline_status"] = "rejected"
             ret_dict["rejection_reason"] = reason
             ret_dict["screening_result"] = screening
-            ret_dict["log"] = [f"Semantic score: {similarity:.2f} (Rejected: below threshold {threshold})"]
+            ret_dict["log"] = [f"Semantic score: {similarity:.2f} (Rejected: below {eval_mode} threshold {reject_threshold:.2f})"]
             return ret_dict
-        logger.info("[Embedding Matcher] [OK] Passed embedding threshold.")
-        ret_dict["log"] = [f"Semantic score: {similarity:.2f} (Passed threshold {threshold})"]
+
+        elif similarity < human_threshold:
+            reason = f"Candidate semantic similarity ({similarity:.2f}) fell into {eval_mode} review range [{reject_threshold:.2f}, {human_threshold:.2f}). Placed on hold for human review."
+            logger.info(f"[Embedding Matcher] [HOLD] Awaiting Human Review: {reason}")
+
+            fit_val = int(round(similarity * 100))
+            breakdown = ScoreBreakdown(
+                required_skills_score=fit_val,
+                experience_score=fit_val,
+                nice_to_have_score=fit_val,
+                trajectory_score=fit_val,
+                weights={"skills": 0.50, "exp": 0.25, "nice": 0.15, "traj": 0.10},
+                eval_mode=eval_mode,
+                formula_summary=f"Held for Human Review at Stage 3 (Embedding Similarity {similarity:.2f} in range [{reject_threshold:.2f}, {human_threshold:.2f}) [{eval_mode} mode])"
+            )
+            screening = ScreeningResult(
+                fit_score=fit_val,
+                decision="hold",
+                reasoning_summary=f"Candidate semantic similarity ({similarity:.2f}) requires human review under {eval_mode} mode threshold range [{reject_threshold:.2f}, {human_threshold:.2f}).",
+                score_breakdown=breakdown
+            )
+
+            ret_dict["pipeline_status"] = "awaiting_human"
+            ret_dict["rejection_reason"] = reason
+            ret_dict["screening_result"] = screening
+            ret_dict["log"] = [f"Semantic score: {similarity:.2f} (Awaiting human review: {eval_mode} range [{reject_threshold:.2f}, {human_threshold:.2f}))"]
+            return ret_dict
+
+        logger.info(f"[Embedding Matcher] [OK] Passed embedding threshold ({human_threshold:.2f}).")
+        ret_dict["log"] = [f"Semantic score: {similarity:.2f} (Passed {eval_mode} threshold {human_threshold:.2f})"]
         return ret_dict
     else:
         # Batch mode: we let everyone pass this node, but record their score.

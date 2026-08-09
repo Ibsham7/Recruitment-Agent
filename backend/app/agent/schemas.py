@@ -22,6 +22,7 @@ class CandidateProfileOutput(BaseModel):
     name: str = Field(validation_alias=AliasChoices("name", "candidate_name", "full_name"))
     email: Optional[str] = None
     phone: Optional[str] = None
+    current_role: Optional[str] = Field(default=None, validation_alias=AliasChoices("current_role", "currentRole"), description="Current or most recent professional job title")
     experience_calculation: str = Field(default="No calculation provided.", description="Step-by-step calculation of total non-overlapping work experience")
     total_experience_years: float = Field(default=0.0, ge=0, validation_alias=AliasChoices("total_experience_years", "years_experience", "experience_years", "years_of_experience"), description="Total years of professional experience calculated deterministically")
     education: list[str] = Field(default_factory=list, description="Degrees and institutions")
@@ -30,6 +31,17 @@ class CandidateProfileOutput(BaseModel):
     key_achievements: list[str] = Field(default_factory=list, description="Notable accomplishments")
     projects: list[str] = Field(default_factory=list, description="Notable projects")
     other_info: Optional[str] = Field(default="", description="Any other relevant info from the CV")
+
+    @property
+    def current_role_resolved(self) -> str:
+        if self.current_role:
+            return self.current_role
+        for r in self.previous_roles:
+            if getattr(r, "is_current", False) and getattr(r, "title", None):
+                return r.title
+        if self.previous_roles and getattr(self.previous_roles[0], "title", None):
+            return self.previous_roles[0].title
+        return "Candidate"
 
     @field_validator("education", mode="before")
     @classmethod
@@ -290,7 +302,7 @@ class ScreeningResult(BaseModel):
     relevant_experience_years: Optional[float] = Field(default=None, description="Estimated years of directly relevant domain experience")
     experience_assessment: str = Field(default="", description="1-2 sentences: required vs. directly relevant experience, and how any gap was weighted (not zeroed)")
     score_breakdown: ScoreBreakdown = Field(default_factory=ScoreBreakdown)
-    fit_score: int = Field(default=0, description="A score out of 100 representing how well the candidate matches the job description.")
+    fit_score: float = Field(default=0.0, description="A score or semantic similarity float (e.g. 0.27 or 85.0) representing candidate match.")
     decision: Literal["advance", "reject", "hold"] = Field(default="advance")
     reasoning_summary: str = Field(default="", description="2-3 sentence justification")
 
@@ -322,7 +334,7 @@ class ScreeningResult(BaseModel):
     @classmethod
     def convert_fit_score(cls, v):
         if isinstance(v, (float, int)):
-            return int(round(v))
+            return round(float(v), 2)
         return v
 
 class InterviewQuestion(BaseModel):
@@ -424,9 +436,9 @@ class EvaluationReport(BaseModel):
     """Output of the Evaluator node."""
     interview_score: float = Field(ge=0, le=100, default=0.0, description="Score based purely on interview Q&A performance")
     overall_score: float = Field(ge=0, le=100)
-    communication_score: float = Field(ge=0, le=100)
-    technical_score: float = Field(ge=0, le=100)
-    cultural_fit_score: float = Field(ge=0, le=100)
+    communication_score: Optional[float] = Field(default=None, ge=0, le=100)
+    technical_score: Optional[float] = Field(default=None, ge=0, le=100)
+    cultural_fit_score: Optional[float] = Field(default=None, ge=0, le=100)
     competency_scores: list[CompetencyScore] = Field(default_factory=list)
     strengths: list[str]
     concerns: list[str]

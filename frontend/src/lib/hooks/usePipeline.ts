@@ -52,13 +52,16 @@ export async function fetchPipelineData(id: string) {
       score: Math.min(100, Math.max(0, Number((evalData.overallScore ?? c.fitScore ?? 0).toFixed(2)))),
       recommendation: c.decision || evalData.recommendation || "pending",
       stage,
-      currentRole: c.structuredProfile?.currentRole || "Candidate",
-      experience: c.structuredProfile?.experience || "",
+      currentRole: c.currentRole || c.structuredProfile?.currentRole || c.structuredProfile?.current_role || "Candidate",
+      totalExperienceYears: c.totalExperienceYears ?? c.structuredProfile?.totalExperienceYears ?? c.structuredProfile?.total_experience_years ?? null,
+      experience: (c.totalExperienceYears ?? c.structuredProfile?.totalExperienceYears ?? c.structuredProfile?.total_experience_years) != null
+        ? `${c.totalExperienceYears ?? c.structuredProfile?.totalExperienceYears ?? c.structuredProfile?.total_experience_years} yrs`
+        : (c.structuredProfile?.experience || ""),
       scores: {
-        technical: Number((evalData.technicalScore || 0).toFixed(2)),
-        communication: Number((evalData.communicationScore || 0).toFixed(2)),
-        culturalFit: Number((evalData.culturalFitScore || 0).toFixed(2)),
-        overall: Math.min(100, Math.max(0, Number((evalData.overallScore || c.fitScore || 0).toFixed(2)))),
+        technical: evalData.technicalScore != null ? Number(evalData.technicalScore.toFixed(2)) : null,
+        communication: evalData.communicationScore != null ? Number(evalData.communicationScore.toFixed(2)) : null,
+        culturalFit: evalData.culturalFitScore != null ? Number(evalData.culturalFitScore.toFixed(2)) : null,
+        overall: Math.min(100, Math.max(0, Number((evalData.overallScore ?? c.fitScore ?? 0).toFixed(2)))),
       },
       summary: c.rejectionReason
         ? (evalData.summary ? `Rejection Reason: ${c.rejectionReason}\n\n${evalData.summary}` : c.rejectionReason)

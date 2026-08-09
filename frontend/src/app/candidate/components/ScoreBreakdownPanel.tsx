@@ -26,10 +26,20 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const reqSkillScore = breakdown?.required_skills_score ?? candidate.score ?? 50;
-  const expScore = breakdown?.experience_score ?? candidate.score ?? 50;
-  const niceScore = breakdown?.nice_to_have_score ?? candidate.score ?? 50;
-  const trajScore = breakdown?.trajectory_score ?? candidate.score ?? 50;
+  const isStage3Exit = Boolean(
+    breakdown?.formula_summary?.includes("Stage 3") ||
+    (candidate.fitScore !== null && candidate.fitScore !== undefined && candidate.fitScore < 1.0 && (breakdown?.must_have_breakdown || []).length === 0) ||
+    (candidate.score !== undefined && candidate.score < 1.0 && (breakdown?.must_have_breakdown || []).length === 0)
+  );
+
+  if (isStage3Exit) {
+    return null;
+  }
+
+  const reqSkillScore = breakdown?.required_skills_score ?? (candidate.score ?? 50);
+  const expScore = breakdown?.experience_score ?? (isStage3Exit ? 0 : (candidate.score ?? 50));
+  const niceScore = breakdown?.nice_to_have_score ?? (isStage3Exit ? 0 : (candidate.score ?? 50));
+  const trajScore = breakdown?.trajectory_score ?? (isStage3Exit ? 0 : (candidate.score ?? 50));
 
   const weights = breakdown?.weights || { skills: 0.50, exp: 0.25, nice: 0.15, traj: 0.10 };
   const reqContrib = Number((reqSkillScore * weights.skills).toFixed(1));
@@ -48,8 +58,8 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
   const trajBreakdown: TrajectoryBreakdown | undefined = breakdown?.trajectory_breakdown;
   const penalties: PenaltyBreakdownItem[] = breakdown?.penalties_breakdown || [];
 
-  if (mustHaveItems.length === 0 && candidate.strengths && candidate.concerns) {
-    const strengths = candidate.strengths;
+  if (!isStage3Exit && mustHaveItems.length === 0 && candidate.strengths && candidate.concerns) {
+    const strengths = candidate.strengths.filter((s) => s !== "Strong foundational qualifications" && !s.startsWith("No key"));
     const concerns = candidate.concerns;
     // Derive items from strengths and concerns for older candidate records
     const synthesizedMust: RequirementItemBreakdown[] = [];
@@ -153,13 +163,19 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
       >
         <div className="flex items-center gap-2 overflow-x-auto">
           <span className="font-semibold" style={{ color: t.txtPrimary }}>Equation:</span>
-          <span>
-            Fit Score ({totalScore}) = <span style={{ color: t.accentPrimary }}>{reqContrib}</span> (Skills) +{" "}
-            <span style={{ color: expScore < 60 ? "#f59e0b" : t.numPos }}>{expContrib}</span> (Exp) +{" "}
-            <span style={{ color: t.numMid }}>{niceContrib}</span> (Nice) +{" "}
-            <span style={{ color: t.accentBadge }}>{trajContrib}</span> (Traj)
-            {penalties.length > 0 && <span style={{ color: t.numNeg }}> - {penalties.reduce((sum, p) => sum + p.points_deducted, 0)} (Penalties)</span>}
-          </span>
+          {isStage3Exit ? (
+            <span>
+              Fit Score ({totalScore}) = <span style={{ color: t.numNeg }}>{totalScore}</span> (Semantic Similarity Vector Match) — Filtered at Stage 3 Early Exit
+            </span>
+          ) : (
+            <span>
+              Fit Score ({totalScore}) = <span style={{ color: t.accentPrimary }}>{reqContrib}</span> (Skills) +{" "}
+              <span style={{ color: expScore < 60 ? "#f59e0b" : t.numPos }}>{expContrib}</span> (Exp) +{" "}
+              <span style={{ color: t.numMid }}>{niceContrib}</span> (Nice) +{" "}
+              <span style={{ color: t.accentBadge }}>{trajContrib}</span> (Traj)
+              {penalties.length > 0 && <span style={{ color: t.numNeg }}> - {penalties.reduce((sum, p) => sum + p.points_deducted, 0)} (Penalties)</span>}
+            </span>
+          )}
         </div>
       </div>
 
@@ -227,7 +243,11 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
                   {item.id === "skills" && (
                     <div className="space-y-2">
                       {mustHaveItems.length === 0 ? (
-                        <p className="text-[11px] italic p-2" style={{ color: t.txtMuted }}>No specific must-have requirement breakdown stored.</p>
+                        <p className="text-[11px] italic p-2" style={{ color: t.txtMuted }}>
+                          {isStage3Exit
+                            ? "Qualitative LLM requirement breakdown was bypassed due to Stage 3 domain semantic similarity threshold filtering."
+                            : "No specific must-have requirement breakdown stored."}
+                        </p>
                       ) : (
                         mustHaveItems.map((req, idx) => {
                           const isFull = req.match === "full";

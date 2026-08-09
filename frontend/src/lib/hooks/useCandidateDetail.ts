@@ -28,13 +28,16 @@ export async function fetchCandidateDetail(id: string) {
     score: Math.min(100, Math.max(0, Number((evalData.overallScore ?? candidateData.fitScore ?? 0).toFixed(2)))),
     recommendation: evalData.recommendation || candidateData.decision || "pending",
     stage: candidateData.status,
-    currentRole: candidateData.structuredProfile?.currentRole || "Candidate",
-    experience: candidateData.structuredProfile?.experience || "",
+    currentRole: candidateData.currentRole || candidateData.structuredProfile?.currentRole || candidateData.structuredProfile?.current_role || "Candidate",
+    totalExperienceYears: candidateData.totalExperienceYears ?? candidateData.structuredProfile?.totalExperienceYears ?? candidateData.structuredProfile?.total_experience_years ?? null,
+    experience: (candidateData.totalExperienceYears ?? candidateData.structuredProfile?.totalExperienceYears ?? candidateData.structuredProfile?.total_experience_years) != null
+      ? `${candidateData.totalExperienceYears ?? candidateData.structuredProfile?.totalExperienceYears ?? candidateData.structuredProfile?.total_experience_years} yrs`
+      : (candidateData.structuredProfile?.experience || ""),
     scores: {
-      technical: Number((evalData.technicalScore || 0).toFixed(2)),
-      communication: Number((evalData.communicationScore || 0).toFixed(2)),
-      culturalFit: Number((evalData.culturalFitScore || 0).toFixed(2)),
-      overall: Math.min(100, Math.max(0, Number((evalData.overallScore || candidateData.fitScore || 0).toFixed(2)))),
+      technical: evalData.technicalScore != null ? Number(evalData.technicalScore.toFixed(2)) : null,
+      communication: evalData.communicationScore != null ? Number(evalData.communicationScore.toFixed(2)) : null,
+      culturalFit: evalData.culturalFitScore != null ? Number(evalData.culturalFitScore.toFixed(2)) : null,
+      overall: Math.min(100, Math.max(0, Number((evalData.overallScore ?? candidateData.fitScore ?? 0).toFixed(2)))),
     },
     summary: candidateData.rejectionReason
       ? (evalData.summary ? `Rejection Reason: ${candidateData.rejectionReason}\n\n${evalData.summary}` : candidateData.rejectionReason)

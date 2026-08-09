@@ -40,11 +40,11 @@ def _build_evaluation_from_screening(res, strictness: str = "moderate"):
     # 1. Matched strengths (filter out skills_list_only, inferred, absent)
     matched = []
     valid_strength_types = {"employment", "project", "education"}
-    for req in res.must_have:
+    for req in getattr(res, "must_have", []):
         ev_type = getattr(req, "evidence_type", "employment")
         if req.match == "full" and ev_type in valid_strength_types:
             matched.append(f"{req.requirement}" + (f" ({req.evidence})" if req.evidence else ""))
-    for req in res.nice_to_have:
+    for req in getattr(res, "nice_to_have", []):
         ev_type = getattr(req, "evidence_type", "employment")
         if req.match != "none" and ev_type in valid_strength_types:
             matched.append(f"{req.requirement}" + (f" ({req.evidence})" if req.evidence else ""))
@@ -52,88 +52,113 @@ def _build_evaluation_from_screening(res, strictness: str = "moderate"):
     # 2. Detailed Concerns with severity tags
     concerns = []
     # Must-have missing
-    for req in res.must_have:
+    for req in getattr(res, "must_have", []):
         if req.match == "none":
             concerns.append(f"[CRITICAL GAP] Missing Must-Have: {req.requirement}" + (f" ({req.evidence})" if req.evidence else ""))
             
     # Must-have partial
-    for req in res.must_have:
+    for req in getattr(res, "must_have", []):
         if req.match == "partial":
             concerns.append(f"[MODERATE GAP] Partial Skill Match: {req.requirement}" + (f" - {req.evidence}" if req.evidence else ""))
             
-    # Experience / Tenure shortfall
     sb = getattr(res, "score_breakdown", None)
-    exp_assess = getattr(res, "experience_assessment", "") or ""
-    if sb and getattr(sb, "experience_score", 100) < 70:
-        gap_msg = f"[TENURE GAP] Experience Shortfall (Score {sb.experience_score}/100)"
-        if exp_assess:
-            gap_msg += f": {exp_assess}"
-        concerns.append(gap_msg)
-    elif exp_assess and any(kw in exp_assess.lower() for kw in ["shortfall", "intern", "less than", "duration"]):
-        concerns.append(f"[TENURE GAP] Experience Note: {exp_assess}")
+    decision = getattr(res, "decision", None)
+    fit_score_val = getattr(res, "fit_score", None)
+    if fit_score_val is not None:
+        fit_score_val = round(float(fit_score_val), 2)
+    else:
+        fit_score_val = 0.0
+
+    formula_summary = getattr(sb, "formula_summary", "") or ""
+    # Stage 3 early exit strictly means filtering occurred at vector similarity gate before LLM matching
+    is_stage3_exit = "Stage 3" in formula_summary or (
+        not getattr(res, "must_have", []) and fit_score_val < 1.0 and decision == "reject"
+    )
+
+    # Experience / Tenure shortfall (only for qualitative evaluations, not Stage 3 early exits)
+    if not is_stage3_exit:
+        exp_assess = getattr(res, "experience_assessment", "") or ""
+        exp_score = getattr(sb, "experience_score", None) if sb else None
+        if exp_score is not None and exp_score < 70:
+            gap_msg = f"[TENURE GAP] Experience Shortfall (Score {exp_score}/100)"
+            if exp_assess:
+                gap_msg += f": {exp_assess}"
+            concerns.append(gap_msg)
+        elif exp_assess and any(kw in exp_assess.lower() for kw in ["shortfall", "intern", "less than", "duration"]):
+            concerns.append(f"[TENURE GAP] Experience Note: {exp_assess}")
         
-    # Nice-to-have missing
-    for req in res.nice_to_have:
+    for req in getattr(res, "nice_to_have", []):
         if req.match == "none":
             concerns.append(f"[MINOR GAP] Preferred Requirement Missing: {req.requirement}")
-            
-    if not concerns:
-        concerns = ["No major critical concerns flagged."]
-        
-    # 3. Recommendation Calibration aligning with Lenient/Moderate/Strict thresholds
-    decision = getattr(res, "decision", None)
-    fit_score = getattr(res, "fit_score", None)
-    if decision is None and fit_score is not None:
-        if fit_score >= 75:
-            decision = "advance"
-        elif fit_score >= 50:
-            decision = "hold"
-        else:
-            decision = "reject"
-    rec = decision or "hold"
-    if decision == "advance":
-        if fit_score is not None and fit_score >= 75:
-            rec = "shortlist"
-        else:
-            rec = "hold"
-    elif decision == "hold":
-        rec = "hold"
-    else:
-        rec = "reject"
-        
-    cot_parts = []
-    exp_assessment = getattr(res, "experience_assessment", "") or ""
-    score_breakdown = getattr(res, "score_breakdown", None)
-    reasoning_summary = getattr(res, "reasoning_summary", "") or ""
-    fit_score_val = getattr(res, "fit_score", None)
 
-    if exp_assessment:
-        cot_parts.append(f"Experience Assessment: {exp_assessment}")
-    if score_breakdown:
-        cot_parts.append(
-            f"Score Attribution:\n"
-            f"• Required Skills (50%): {getattr(score_breakdown, 'required_skills_score', 'N/A')}/100\n"
-            f"• Experience Depth (25%): {getattr(score_breakdown, 'experience_score', 'N/A')}/100\n"
-            f"• Nice-to-Have Skills (15%): {getattr(score_breakdown, 'nice_to_have_score', 'N/A')}/100\n"
-            f"• Trajectory & Growth (10%): {getattr(score_breakdown, 'trajectory_score', 'N/A')}/100\n"
-            f"Overall Fit Score: {fit_score_val}/100"
-        )
-    if reasoning_summary:
-        cot_parts.append(f"Decision Summary: {reasoning_summary}")
-        
-    summary_text = reasoning_summary.strip() if reasoning_summary.strip() else ""
-    if not summary_text:
-        matched_str = f"Satisfies key requirements: {', '.join([req.requirement for req in res.must_have if req.match == 'full'][:3])}." if matched else "Evaluated against job description requirements."
-        summary_text = f"Candidate evaluated with a Fit Score of {fit_score_val}/100 ({rec.title()}). {matched_str}"
+    reasoning_summary = getattr(res, "reasoning_summary", "") or ""
+
+    if is_stage3_exit:
+        reason_text = reasoning_summary or f"Candidate CV is not relevant to job description domain (Semantic similarity: {fit_score_val:.2f})."
+        concerns = [f"[CRITICAL GAP] {reason_text}"]
+        strengths = []
+        rec = "reject"
+        summary_text = "Candidate CV is not relevant to the job description domain."
+        cot_parts = [f"Candidate CV is not relevant to the job description domain (Semantic similarity score: {fit_score_val:.2f})."]
+    else:
+        if not concerns:
+            if decision == "reject":
+                concerns = ["[CRITICAL GAP] Candidate did not meet minimum job description requirements."]
+            else:
+                concerns = ["No major critical concerns flagged."]
+
+        if decision is None and fit_score_val is not None:
+            if fit_score_val >= 75:
+                decision = "advance"
+            elif fit_score_val >= 50:
+                decision = "hold"
+            else:
+                decision = "reject"
+        rec = decision or "hold"
+        if decision == "advance":
+            if fit_score_val is not None and fit_score_val >= 75:
+                rec = "shortlist"
+            else:
+                rec = "hold"
+        elif decision == "hold":
+            rec = "hold"
+        else:
+            rec = "reject"
+
+        summary_text = reasoning_summary.strip() if reasoning_summary.strip() else ""
+        if not summary_text:
+            matched_str = f"Satisfies key requirements: {', '.join([req.requirement for req in getattr(res, 'must_have', []) if req.match == 'full'][:3])}." if matched else "Evaluated against job description requirements."
+            summary_text = f"Candidate evaluated with a Fit Score of {fit_score_val}/100 ({rec.title()}). {matched_str}"
+
+        cot_parts = []
+        if sb:
+            req_s = getattr(sb, 'required_skills_score', 'N/A')
+            exp_s = getattr(sb, 'experience_score', 'N/A')
+            nice_s = getattr(sb, 'nice_to_have_score', 'N/A')
+            traj_s = getattr(sb, 'trajectory_score', 'N/A')
+            cot_parts.append(
+                f"Score Attribution:\n"
+                f"• Required Skills (50%): {req_s}/100\n"
+                f"• Experience Depth (25%): {exp_s}/100\n"
+                f"• Nice-to-Have Skills (15%): {nice_s}/100\n"
+                f"• Trajectory & Growth (10%): {traj_s}/100\n"
+                f"Overall Fit Score: {fit_score_val}/100"
+            )
+        exp_assessment = getattr(res, "experience_assessment", "") or ""
+        if exp_assessment:
+            cot_parts.append(f"Experience Assessment: {exp_assessment}")
+        if reasoning_summary:
+            cot_parts.append(f"Decision Summary: {reasoning_summary}")
+        strengths = matched
 
     return EvaluationReport(
         overall_score=float(fit_score_val or 0.0),
-        communication_score=0.0,
-        technical_score=0.0,
-        cultural_fit_score=0.0,
-        strengths=matched if matched else ["Strong foundational qualifications"],
+        communication_score=None,
+        technical_score=None,
+        cultural_fit_score=None,
+        strengths=matched,
         concerns=concerns,
-        score_breakdown=score_breakdown,
+        score_breakdown=sb,
         recommendation=rec,
         summary=summary_text,
         chain_of_thought="\n\n".join(cot_parts)
@@ -270,11 +295,10 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
         if final_state.get("rejection_reason"):
             update_data["rejectionReason"] = final_state["rejection_reason"]
             
-        if final_state.get("screening_result") and status != "rejected" and final_state.get("pipeline_status") != "rejected":
+        if final_state.get("screening_result"):
             base_score = final_state["screening_result"].fit_score
-            update_data["fitScore"] = min(100.0, max(0.0, float(base_score))) if base_score is not None else None
-        else:
-            update_data["fitScore"] = None
+            if base_score is not None:
+                update_data["fitScore"] = min(100.0, max(0.0, float(base_score)))
             
         if final_state.get("candidate_profile"):
             profile = final_state["candidate_profile"]
@@ -289,6 +313,8 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                 "phone": profile_dict.get("phone"),
                 "skills": profile_dict.get("skills", []),
                 "education": profile_dict.get("education", []),
+                "totalExperienceYears": profile_dict.get("total_experience_years"),
+                "currentRole": getattr(profile, "current_role_resolved", None) or profile_dict.get("current_role") or profile_dict.get("currentRole"),
             }
             update_data.update({k: v for k, v in profile_update.items() if v is not None})
             
@@ -311,9 +337,9 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             from app.agent.schemas import EvaluationReport
             evaluation_report = EvaluationReport(
                 overall_score=0.0,
-                communication_score=0.0,
-                technical_score=0.0,
-                cultural_fit_score=0.0,
+                communication_score=None,
+                technical_score=None,
+                cultural_fit_score=None,
                 strengths=[],
                 concerns=["Candidate was rejected prior to interview."],
                 recommendation="reject",
@@ -779,11 +805,10 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
         if final_state.get("rejection_reason"):
             update_data["rejectionReason"] = final_state["rejection_reason"]
             
-        if final_state.get("screening_result") and status != "rejected" and final_state.get("pipeline_status") != "rejected":
+        if final_state.get("screening_result"):
             base_score = final_state["screening_result"].fit_score
-            update_data["fitScore"] = min(100.0, max(0.0, float(base_score))) if base_score is not None else None
-        else:
-            update_data["fitScore"] = None
+            if base_score is not None:
+                update_data["fitScore"] = min(100.0, max(0.0, float(base_score)))
             
         if final_state.get("candidate_profile"):
             profile = final_state["candidate_profile"]
@@ -798,6 +823,8 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
                 "phone": profile_dict.get("phone"),
                 "skills": profile_dict.get("skills", []),
                 "education": profile_dict.get("education", []),
+                "totalExperienceYears": profile_dict.get("total_experience_years"),
+                "currentRole": getattr(profile, "current_role_resolved", None) or profile_dict.get("current_role") or profile_dict.get("currentRole"),
             }
             update_data.update({k: v for k, v in profile_update.items() if v is not None})
             
@@ -820,9 +847,9 @@ async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None
             from app.agent.schemas import EvaluationReport
             evaluation_report = EvaluationReport(
                 overall_score=0.0,
-                communication_score=0.0,
-                technical_score=0.0,
-                cultural_fit_score=0.0,
+                communication_score=None,
+                technical_score=None,
+                cultural_fit_score=None,
                 strengths=[],
                 concerns=["Candidate was rejected prior to interview."],
                 recommendation="reject",
@@ -962,9 +989,9 @@ async def generate_on_demand_questions(candidate_id: str):
             data={
                 "candidateId": candidate_id,
                 "overallScore": candidate.fitScore or 0.0,
-                "technicalScore": 0.0,
-                "communicationScore": 0.0,
-                "culturalFitScore": 0.0,
+                "technicalScore": None,
+                "communicationScore": None,
+                "culturalFitScore": None,
                 "recommendation": "shortlist",
                 "summary": "Assessment started",
                 "strengths": [],

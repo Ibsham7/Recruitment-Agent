@@ -78,7 +78,7 @@ export function CandidateHeader({ candidate, theme: t }: CandidateHeaderProps) {
             </span>
           </div>
           <div className="text-sm" style={{ color: t.txtSecondary }}>
-            {candidate.currentRole} · {candidate.experience}
+            {candidate.currentRole || "Candidate"}{candidate.experience ? ` · ${candidate.experience}` : ""}
           </div>
           <div className="text-[11px] mt-0.5 flex items-center gap-3 flex-wrap" style={{ fontFamily: "'DM Mono',monospace", color: t.txtGhost }}>
             <span>{candidate.email || "No email provided"}</span>

@@ -44,6 +44,8 @@ def route_after_hard_filters(state: RecruitmentState) -> str:
 def route_after_embedding_matcher(state: RecruitmentState) -> str:
     if state.get("pipeline_status") == "rejected":
         return "rejected"
+    if state.get("pipeline_status") == "awaiting_human":
+        return "human_override"
     return "jd_matcher"
 
 def route_after_screening(state: RecruitmentState) -> str:
@@ -110,7 +112,7 @@ def build_recruitment_graph(checkpointer=None):
     builder.add_conditional_edges(
         "embedding_matcher",
         route_after_embedding_matcher,
-        {"jd_matcher": "jd_matcher", "rejected": "rejected"}
+        {"jd_matcher": "jd_matcher", "rejected": "rejected", "human_override": "human_override"}
     )
 
     # Conditional: screening result decides whether to advance or reject

@@ -253,6 +253,28 @@ def _format_candidate_dict(cand_dict: dict) -> dict:
         cand_dict["structuredProfile"] = None
         cand_dict["rawCvText"] = None
 
+    if cand_dict.get("totalExperienceYears") is None and cand_dict.get("structuredProfile"):
+        sp = cand_dict["structuredProfile"]
+        if isinstance(sp, str):
+            try:
+                import json
+                sp = json.loads(sp)
+            except Exception:
+                sp = {}
+        if isinstance(sp, dict):
+            cand_dict["totalExperienceYears"] = sp.get("total_experience_years") or sp.get("totalExperienceYears")
+
+    if not cand_dict.get("currentRole") and cand_dict.get("structuredProfile"):
+        sp = cand_dict["structuredProfile"]
+        if isinstance(sp, str):
+            try:
+                import json
+                sp = json.loads(sp)
+            except Exception:
+                sp = {}
+        if isinstance(sp, dict):
+            cand_dict["currentRole"] = sp.get("current_role") or sp.get("currentRole") or "Candidate"
+
     if cand_dict.get("evaluation"):
         eval_obj = cand_dict["evaluation"]
         if isinstance(eval_obj, dict):

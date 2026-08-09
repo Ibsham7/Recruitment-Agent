@@ -41,6 +41,8 @@ model Candidate {
   fitScore        Float?
   decision        String?     // final decision by recruiter: approve, reject, hold
   rejectionReason String?
+  totalExperienceYears Float?
+  currentRole          String?
   skills          String[]
   education       String[]
   cvUrl           String?
@@ -89,9 +91,9 @@ model Evaluation {
   id                  String    @id @default(uuid())
   candidateId         String    @unique
   overallScore        Float
-  technicalScore      Float
-  communicationScore  Float
-  culturalFitScore    Float
+  technicalScore      Float?
+  communicationScore  Float?
+  culturalFitScore    Float?
   recommendation      String
   summary             String
   strengths           String[]

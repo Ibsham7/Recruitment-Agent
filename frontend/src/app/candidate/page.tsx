@@ -47,6 +47,12 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
     Boolean(candidate.evaluation?.antiCheatMetadata && Object.keys(candidate.evaluation.antiCheatMetadata).length > 0)
   );
 
+  const isStage3Exit = Boolean(
+    candidate.scoreBreakdown?.formula_summary?.includes("Stage 3") ||
+    (candidate.fitScore !== null && candidate.fitScore !== undefined && candidate.fitScore < 1.0 && (candidate.scoreBreakdown?.must_have_breakdown || []).length === 0) ||
+    (candidate.score !== undefined && candidate.score < 1.0 && (candidate.scoreBreakdown?.must_have_breakdown || []).length === 0)
+  );
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <CandidateHeader candidate={candidate} theme={t} />
@@ -61,9 +67,9 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           <CostBreakdownCard candidate={candidate} theme={t} />
           <ResumeCard cvUrl={candidate.cvUrl} theme={t} />
           <AISummaryCard summary={candidate.summary || "No summary available."} theme={t} />
-          <ChainOfThoughtCard chainOfThought={candidate.chainOfThought || "No reasoning provided."} theme={t} />
-          <ScoreBreakdownPanel candidate={candidate} theme={t} />
-          <StrengthsConcernsPanel strengths={candidate.strengths || []} concerns={candidate.concerns || []} theme={t} />
+          {!isStage3Exit && <ChainOfThoughtCard chainOfThought={candidate.chainOfThought || "No reasoning provided."} theme={t} />}
+          {!isStage3Exit && <ScoreBreakdownPanel candidate={candidate} theme={t} />}
+          {!isStage3Exit && <StrengthsConcernsPanel strengths={candidate.strengths || []} concerns={candidate.concerns || []} theme={t} />}
         </div>
 
 

@@ -18,9 +18,9 @@ export function ScorePanel({ candidate, theme: t }: ScorePanelProps) {
   ];
 
   const scoreMetrics = [
-    { label: "Technical Score",    value: candidate.scores?.technical ?? 0 },
-    { label: "Communication Score",value: candidate.scores?.communication ?? 0 },
-    { label: "Cultural Fit Score", value: candidate.scores?.culturalFit ?? 0 },
+    { label: "Technical Score",    value: candidate.scores?.technical ?? null },
+    { label: "Communication Score",value: candidate.scores?.communication ?? null },
+    { label: "Cultural Fit Score", value: candidate.scores?.culturalFit ?? null },
     { label: "Overall Match Score",value: candidate.scores?.overall ?? 0 },
   ];
 
@@ -30,26 +30,30 @@ export function ScorePanel({ candidate, theme: t }: ScorePanelProps) {
         Score Breakdown
       </div>
       <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6">
-        {scoreMetrics.map((item) => (
-          <div key={item.label}>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px]" style={{ color: t.txtMuted }}>{item.label}</span>
-              <span className="text-[11px] font-semibold" style={{ fontFamily: "'DM Mono',monospace", color: scoreColor(item.value, t) }}>
-                {item.value}
-              </span>
+        {scoreMetrics.map((item) => {
+          const hasVal = item.value !== null && item.value !== undefined;
+          const numVal = hasVal ? (item.value as number) : 0;
+          return (
+            <div key={item.label}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px]" style={{ color: t.txtMuted }}>{item.label}</span>
+                <span className="text-[11px] font-semibold" style={{ fontFamily: "'DM Mono',monospace", color: hasVal ? scoreColor(numVal, t) : t.txtMuted }}>
+                  {hasVal ? item.value : "N/A"}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.25) }}>
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${hasVal ? numVal : 0}%`,
+                    backgroundColor: hasVal ? scoreColor(numVal, t) : t.txtMuted,
+                    boxShadow: hasVal ? `0 0 6px ${hexToRgba(scoreColor(numVal, t), 0.5)}` : "none"
+                  }}
+                />
+              </div>
             </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.25) }}>
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${item.value}%`,
-                  backgroundColor: scoreColor(item.value, t),
-                  boxShadow: `0 0 6px ${hexToRgba(scoreColor(item.value, t), 0.5)}`
-                }}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div style={{ height: "180px" }}>
         <ResponsiveContainer width="100%" height="100%">

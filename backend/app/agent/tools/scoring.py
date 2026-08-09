@@ -229,10 +229,15 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
 
     return match_val, override_note
 
-def classify_degree_relevance(education_list: list, jd_keywords: list = None) -> Tuple[float, str, str]:
+def classify_degree_relevance(education_list: list, jd_keywords: list = None, canonical_jd_spec: Any = None) -> Tuple[float, str, str]:
     """
-    Evaluates education records against JD domain keywords.
+    Evaluates education records dynamically against the Target Role Domain extracted from JD keywords/spec.
     Returns (points_earned, evidence_summary, relevance_status).
+
+    Tiers across ALL domains (Tech, Healthcare, Finance, Mechanical/Civil Eng, Legal, Education, Quant):
+    - Tier 1 Direct Domain Match: 20.0 - 25.0 pts ('full')
+    - Tier 2 Adjacent STEM / Foundational Discipline: 10.0 - 14.0 pts ('partial')
+    - Tier 3 Unrelated Degree: 5.0 pts ('partial' low)
     """
     if not education_list:
         return 0.0, "No formal degree or educational records found on CV.", "none"
@@ -252,52 +257,173 @@ def classify_degree_relevance(education_list: list, jd_keywords: list = None) ->
         return 0.0, "No formal degree or educational records found on CV.", "none"
 
     all_edu_text = " ".join(edu_strings).lower()
-    jd_text = " ".join([str(k) for k in (jd_keywords or [])]).lower()
-    
-    # Extract domain tokens from JD
+
+    # Gather JD text indicators from role title, must-have skills, and keywords
+    jd_parts = []
+    if jd_keywords:
+        jd_parts.extend([str(k) for k in jd_keywords])
+    if canonical_jd_spec:
+        if hasattr(canonical_jd_spec, "role_title") and canonical_jd_spec.role_title:
+            jd_parts.append(str(canonical_jd_spec.role_title))
+        if hasattr(canonical_jd_spec, "must_have_skills") and canonical_jd_spec.must_have_skills:
+            jd_parts.extend([r.requirement_name for r in canonical_jd_spec.must_have_skills if hasattr(r, "requirement_name")])
+
+    jd_text = " ".join(jd_parts).lower()
+    is_advanced = any(deg in all_edu_text for deg in ["master", "m.s.", "m.a.", "ph.d", "phd", "doctorate", "mba", "md", "jd", "msn", "dnp"])
+
+    # Extract domain tokens
     from app.agent.tools.timeline import extract_domain_tokens
-    domain_tokens = extract_domain_tokens(jd_keywords) if jd_keywords else set()
-
+    domain_tokens = extract_domain_tokens(jd_parts) if jd_parts else set()
     edu_tokens = set(re.findall(r'[a-zA-Z0-9+#/\-]+', all_edu_text))
-    
-    direct_match = domain_tokens & edu_tokens
-    is_advanced = any(deg in all_edu_text for deg in ["master", "m.s.", "m.a.", "ph.d", "phd", "doctorate", "mba"])
 
-    # High-relevance discipline pairs
-    tech_jd = any(k in jd_text for k in ["python", "java", "backend", "frontend", "software", "developer", "engineer", "data", "cloud", "api", "ai", "artificial intelligence", "rag", "llm"])
-    tech_deg = any(k in all_edu_text for k in ["computer", "software", "information technology", "data science", "electrical", "artificial intelligence", "ai", "machine learning", "cybersecurity"])
-
-    direct_match_patterns = [
-        r"\bartificial\s+intelligence\b", r"\bbs\s+ai\b", r"\bb\.s\.\s+ai\b", r"\bbachelor\s+of\s+science\s+in\s+ai\b",
-        r"\bmachine\s+learning\b", r"\bbs\s+ml\b", r"\bb\.s\.\s+ml\b", r"\bdata\s+science\b", r"\bbs\s+ds\b", r"\bb\.s\.\s+ds\b",
-        r"\bcomputer\s+science\b", r"\bbs\s+cs\b", r"\bb\.s\.\s+cs\b", r"\bsoftware\s+engineering\b", r"\bbs\s+se\b", r"\bb\.s\.\s+se\b",
-        r"\bcomputer\s+engineering\b", r"\binformation\s+technology\b"
+    # --- 1. Tech / Computer Science & IT Domain ---
+    tech_jd_patterns = [
+        r"\bsoftware\b", r"\bdeveloper\b", r"\bprogrammer\b", r"\bcode\b", r"\bcoding\b",
+        r"\bbackend\b", r"\bfrontend\b", r"\bfullstack\b", r"\bfull-stack\b", r"\bdevops\b",
+        r"\bcloud\b", r"\baws\b", r"\bazure\b", r"\bgcp\b", r"\bpython\b", r"\bjava\b",
+        r"\bjavascript\b", r"\btypescript\b", r"\breact\b", r"\bnode\b", r"\bapi\b",
+        r"\bartificial\s+intelligence\b", r"\bmachine\s+learning\b", r"\bdata\s+science\b",
+        r"\bdata\s+engineer\b", r"\bcybersecurity\b", r"\bsystem\s+architect\b", r"\bweb\b"
     ]
+    is_tech_jd = any(re.search(pat, jd_text) for pat in tech_jd_patterns)
 
-    if (tech_jd or not jd_keywords) and any(re.search(pat, all_edu_text, re.IGNORECASE) for pat in direct_match_patterns):
+    tech_tier1_patterns = [
+        r"\bcomputer\s+science\b", r"\bbs\s+cs\b", r"\bb\.s\.\s+cs\b", r"\bsoftware\s+engineering\b", r"\bbs\s+se\b", r"\bb\.s\.\s+se\b",
+        r"\binformation\s+technology\b", r"\bbs\s+it\b", r"\bb\.s\.\s+it\b", r"\bartificial\s+intelligence\b", r"\bbs\s+ai\b", r"\bb\.s\.\s+ai\b",
+        r"\bmachine\s+learning\b", r"\bdata\s+science\b", r"\bbs\s+ds\b", r"\bb\.s\.\s+ds\b", r"\bcomputer\s+engineering\b", r"\bcybersecurity\b"
+    ]
+    is_tech_tier1_deg = any(re.search(pat, all_edu_text) for pat in tech_tier1_patterns)
+
+    # --- 2. Healthcare & Clinical Sciences Domain ---
+    health_jd_patterns = [
+        r"\bnurse\b", r"\bnursing\b", r"\bpatient\b", r"\bclinical\b", r"\bhospital\b", r"\btriage\b",
+        r"\bicu\b", r"\bpediatric\b", r"\bphysician\b", r"\bdoctor\b", r"\bmedical\b", r"\bpharma\b",
+        r"\bpharmacy\b", r"\bhealthcare\b", r"\bhealth\b", r"\banatomy\b"
+    ]
+    is_health_jd = any(re.search(pat, jd_text) for pat in health_jd_patterns)
+
+    health_tier1_patterns = [
+        r"\bnursing\b", r"\bbsn\b", r"\bmsn\b", r"\bdnp\b", r"\bmedicine\b", r"\bm\.d\.\b", r"\bmd\b",
+        r"\bpharmacy\b", r"\bpharmd\b", r"\bmedical\b", r"\bclinical\b", r"\bphysical\s+therapy\b"
+    ]
+    is_health_tier1_deg = any(re.search(pat, all_edu_text) for pat in health_tier1_patterns)
+
+    # --- 3. Business, Finance & Accounting Domain ---
+    biz_jd_patterns = [
+        r"\bfinance\b", r"\bfinancial\b", r"\baccounting\b", r"\baccountant\b", r"\bcpa\b", r"\bgaap\b",
+        r"\bifrs\b", r"\baudit\b", r"\btax\b", r"\bbanking\b", r"\binvestment\b", r"\bvaluation\b",
+        r"\btreasury\b", r"\bbookkeeping\b", r"\bcontroller\b"
+    ]
+    is_biz_jd = any(re.search(pat, jd_text) for pat in biz_jd_patterns)
+
+    biz_tier1_patterns = [
+        r"\bfinance\b", r"\baccounting\b", r"\bcpa\b", r"\bchartered\s+accountant\b", r"\bcommerce\b",
+        r"\bfinancial\s+engineering\b", r"\bfinancial\s+risk\b"
+    ]
+    is_biz_tier1_deg = any(re.search(pat, all_edu_text) for pat in biz_tier1_patterns)
+
+    # --- 4. Non-CS Engineering & Physical Sciences Domain ---
+    mech_jd_patterns = [r"\bmechanical\b", r"\bcad\b", r"\bsolidworks\b", r"\bthermodynamics\b", r"\bhvac\b", r"\brobotics\b", r"\bfluid\b"]
+    civ_jd_patterns = [r"\bcivil\b", r"\bstructural\b", r"\bautocad\b", r"\bstaad\b", r"\brevit\b", r"\bgeotechnical\b", r"\bconcrete\b", r"\bbridge\b", r"\bconstruction\b"]
+    chem_jd_patterns = [r"\bchemical\b", r"\bprocess\s+engineer\b", r"\bpolymer\b", r"\bpetroleum\b", r"\brefinery\b", r"\bmaterials\b"]
+    aero_jd_patterns = [r"\baerospace\b", r"\bavionics\b", r"\baeronautic\b"]
+    elec_jd_patterns = [r"\belectrical\b", r"\bcircuit\b", r"\bsemiconductor\b", r"\bpower\s+grid\b"]
+
+    is_mech_jd = any(re.search(pat, jd_text) for pat in mech_jd_patterns)
+    is_civ_jd = any(re.search(pat, jd_text) for pat in civ_jd_patterns)
+    is_chem_jd = any(re.search(pat, jd_text) for pat in chem_jd_patterns)
+    is_aero_jd = any(re.search(pat, jd_text) for pat in aero_jd_patterns)
+    is_elec_jd = any(re.search(pat, jd_text) for pat in elec_jd_patterns)
+
+    is_non_cs_eng_jd = (is_mech_jd or is_civ_jd or is_chem_jd or is_aero_jd or is_elec_jd)
+
+    is_mech_deg = any(re.search(r"\bmechanical\b", all_edu_text) for _ in [1])
+    is_civ_deg = any(re.search(r"\bcivil\b|\bstructural\b", all_edu_text) for _ in [1])
+    is_chem_deg = any(re.search(r"\bchemical\b|\bpetroleum\b", all_edu_text) for _ in [1])
+    is_aero_deg = any(re.search(r"\baerospace\b|\baeronautic\b", all_edu_text) for _ in [1])
+    is_elec_deg = any(re.search(r"\belectrical\b", all_edu_text) for _ in [1])
+
+    is_non_cs_eng_tier1_deg = (
+        (is_mech_jd and is_mech_deg) or
+        (is_civ_jd and is_civ_deg) or
+        (is_chem_jd and is_chem_deg) or
+        (is_aero_jd and is_aero_deg) or
+        (is_elec_jd and is_elec_deg)
+    )
+
+    # --- 5. Law & Legal Domain ---
+    law_jd_patterns = [r"\blegal\b", r"\battorney\b", r"\bcounsel\b", r"\blawyer\b", r"\blitigation\b", r"\bparalegal\b", r"\bjuris\b"]
+    is_law_jd = any(re.search(pat, jd_text) for pat in law_jd_patterns)
+    is_law_tier1_deg = any(re.search(r"\blaw\b|\bll\.?b\b|\bj\.?d\b|\bjuris\b|\bparalegal\b", all_edu_text) for _ in [1])
+
+    # --- EVALUATE TIER CLASSIFICATION ---
+    is_tier1 = False
+    if is_tech_jd and is_tech_tier1_deg:
+        is_tier1 = True
+    elif is_health_jd and is_health_tier1_deg:
+        is_tier1 = True
+    elif is_biz_jd and is_biz_tier1_deg:
+        is_tier1 = True
+    elif is_non_cs_eng_jd and is_non_cs_eng_tier1_deg:
+        is_tier1 = True
+    elif is_law_jd and is_law_tier1_deg:
+        is_tier1 = True
+    elif domain_tokens & edu_tokens:
+        is_tier1 = True
+
+    if is_tier1:
         pts = 25.0 if (len(edu_strings) >= 2 or is_advanced) else 20.0
         return pts, f"Domain-Relevant Degree ({'; '.join(edu_strings)}) matching target field.", "full"
 
-    math_jd = any(k in jd_text for k in ["math", "mathematics", "physics", "teaching", "teacher", "curriculum", "education"])
-    math_deg = any(k in all_edu_text for k in ["math", "mathematics", "education", "physics", "science"])
+    # Tier 2: Domain-Aware Adjacent Disciplines (10 - 14 pts)
+    is_tier2 = False
+    if is_health_jd:
+        health_adjacent_pats = [
+            r"\bbiolog\w*\b", r"\bchemist\w*\b", r"\bbiochem\w*\b", r"\bhealth\s+science\b",
+            r"\blife\s+science\b", r"\bpre-med\b", r"\bpublic\s+health\b", r"\bkinesiolog\w*\b",
+            r"\bbioengineer\w*\b", r"\bbiomed\w*\b"
+        ]
+        if any(re.search(pat, all_edu_text) for pat in health_adjacent_pats):
+            is_tier2 = True
+    elif is_law_jd:
+        law_adjacent_pats = [
+            r"\bpoliti\w*\b", r"\bjustice\b", r"\bcriminolog\w*\b", r"\bphilosoph\w*\b",
+            r"\bpolicy\b", r"\bgovernment\b", r"\bhistory\b", r"\bbusiness\b"
+        ]
+        if any(re.search(pat, all_edu_text) for pat in law_adjacent_pats):
+            is_tier2 = True
+    elif is_biz_jd:
+        biz_adjacent_pats = [
+            r"\beconomic\w*\b", r"\bbusiness\b", r"\bmathematic\w*\b", r"\bmath\b",
+            r"\bstatistics\b", r"\bdata\b", r"\bmanagement\b", r"\banalytics\b", r"\bcommerce\b"
+        ]
+        if any(re.search(pat, all_edu_text) for pat in biz_adjacent_pats):
+            is_tier2 = True
+    elif is_tech_jd or is_non_cs_eng_jd:
+        tech_adjacent_pats = [
+            r"\bengineering\b", r"\btechnology\b", r"\bmathematic\w*\b", r"\bmath\b",
+            r"\bphysics\b", r"\bstatistics\b", r"\bdata\b", r"\belectrical\b",
+            r"\bmechanical\b", r"\bcivil\b", r"\bindustrial\b", r"\baerospace\b",
+            r"\bchemical\b", r"\bcomputer\b", r"\bscience\b"
+        ]
+        if any(re.search(pat, all_edu_text) for pat in tech_adjacent_pats):
+            is_tier2 = True
+    else:
+        general_stem_pats = [
+            r"\bengineering\b", r"\btechnology\b", r"\bmathematic\w*\b", r"\bphysics\b",
+            r"\bchemistry\b", r"\bbiology\b", r"\beconomics\b", r"\bbusiness\b"
+        ]
+        if any(re.search(pat, all_edu_text) for pat in general_stem_pats):
+            is_tier2 = True
 
-    biz_jd = any(k in jd_text for k in ["business", "marketing", "sales", "finance", "accounting", "management"])
-    biz_deg = any(k in all_edu_text for k in ["business", "mba", "finance", "economics", "marketing", "accounting"])
+    if is_tier2:
+        pts = 14.0 if (len(edu_strings) >= 2 or is_advanced) else 10.0
+        return pts, f"Adjacent STEM / Foundational Discipline ({'; '.join(edu_strings)}). Provides core quantitative or technical background.", "partial"
 
-    is_domain_relevant = bool(direct_match or (tech_jd and tech_deg) or (math_jd and math_deg) or (biz_jd and biz_deg))
-    
-    if is_domain_relevant:
-        pts = 25.0 if (len(edu_strings) >= 2 or is_advanced) else 20.0
-        return pts, f"Domain-Relevant Degree ({'; '.join(edu_strings)}) matching target field.", "full"
-
-    broad_disciplines = {"science", "engineering", "technology", "mathematics", "computer", "business", "finance", "economics", "education", "management", "law", "medicine", "nursing", "artificial", "intelligence", "ai", "data"}
-    if broad_disciplines & edu_tokens:
-        pts = 18.0 if (len(edu_strings) >= 2 or is_advanced) else 14.0
-        return pts, f"Foundational Degree ({'; '.join(edu_strings)}) providing general core discipline background.", "partial"
-
+    # Tier 3: Unrelated Degree (5.0 pts)
     return 5.0, f"Unrelated Degree Completed ({'; '.join(edu_strings)}). Low direct relevance to target role domain.", "partial"
 
-def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, eval_mode: str, jd_keywords: list = None) -> Tuple[float, list, str]:
+def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, eval_mode: str, jd_keywords: list = None, canonical_jd_spec: Any = None) -> Tuple[float, list, str]:
     """
     Domain-agnostic trajectory calculated from verifiable structural profile signals.
     Returns (score, sub_criteria_list, calculation_summary).
@@ -311,7 +437,7 @@ def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, ev
     sub_criteria = []
 
     # 1. Career Progression
-    roles = getattr(candidate_profile, "previous_roles", [])
+    roles = getattr(candidate_profile, "previous_roles", []) or []
     unique_titles = []
     for r in roles:
         t = getattr(r, "title", "") if hasattr(r, "title") else (r.get("title", "") if isinstance(r, dict) else "")
@@ -344,38 +470,98 @@ def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, ev
         status=s1
     ))
 
-    # 2. Skill Portfolio Breadth
+    # 2. Skill Portfolio Breadth (Universal Cross-Domain Verification)
     skills = getattr(candidate_profile, "skills", []) or []
-    skill_names = [str(s) for s in skills if s]
-    if len(skill_names) >= 8:
+    raw_skill_names = [str(s).strip() for s in skills if str(s).strip()]
+
+    GENERIC_SOFT_SKILLS = {
+        "communication", "teamwork", "leadership", "time management", "problem solving",
+        "adaptability", "creativity", "organization", "work ethic", "punctuality",
+        "interpersonal skills", "multitasking", "attention to detail", "critical thinking",
+        "collaboration", "flexibility", "self-motivated", "analytical skills", "soft skills"
+    }
+
+    # Extract substantive profile corpus from previous_roles and projects (excluding isolated skills section)
+    roles_corpus_parts = []
+    for r in roles:
+        if isinstance(r, str):
+            roles_corpus_parts.append(r)
+        elif isinstance(r, dict):
+            title = r.get("title", "")
+            desc = r.get("description", "")
+            skills_used = " ".join([str(s) for s in (r.get("skills_used", []) or [])])
+            roles_corpus_parts.append(f"{title} {desc} {skills_used}")
+        else:
+            title = getattr(r, "title", "")
+            desc = getattr(r, "description", "")
+            skills_used = " ".join([str(s) for s in (getattr(r, "skills_used", []) or [])])
+            roles_corpus_parts.append(f"{title} {desc} {skills_used}")
+
+    projects = getattr(candidate_profile, "projects", []) or []
+    achievements = getattr(candidate_profile, "key_achievements", []) or []
+    projects_corpus_parts = []
+    for p in projects:
+        if isinstance(p, str):
+            projects_corpus_parts.append(p)
+        elif isinstance(p, dict):
+            projects_corpus_parts.append(f"{p.get('title', '')} {p.get('name', '')} {p.get('description', '')}")
+        else:
+            p_t = getattr(p, "title", None) or getattr(p, "name", None) or str(p)
+            p_d = getattr(p, "description", "")
+            projects_corpus_parts.append(f"{p_t} {p_d}")
+    for a in achievements:
+        projects_corpus_parts.append(str(a))
+
+    raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "").lower()
+
+    substantive_corpus = (
+        " ".join(roles_corpus_parts + projects_corpus_parts) + " " + raw_cv
+    ).lower()
+
+    verified_skills = []
+    unverified_skills = []
+
+    for skill in raw_skill_names:
+        s_clean = skill.lower().strip()
+        if s_clean in GENERIC_SOFT_SKILLS:
+            continue
+
+        req_tokens = extract_dynamic_requirement_tokens(skill)
+        if req_tokens and check_dynamic_token_presence(req_tokens, substantive_corpus):
+            verified_skills.append(skill)
+        else:
+            unverified_skills.append(skill)
+
+    verified_count = len(verified_skills)
+    total_listed = len(raw_skill_names)
+
+    if verified_count >= 8:
         p2 = 25.0
         s2 = "full"
-        e2 = f"{len(skill_names)} competencies listed on CV: " + ", ".join(skill_names[:12]) + ("..." if len(skill_names) > 12 else "")
-    elif len(skill_names) >= 4:
+        e2 = f"{verified_count} verified domain skills across roles/projects out of {total_listed} listed: " + ", ".join(verified_skills[:10]) + ("..." if len(verified_skills) > 10 else "")
+    elif verified_count >= 4:
         p2 = 15.0
         s2 = "partial"
-        e2 = f"{len(skill_names)} competencies listed: " + ", ".join(skill_names)
-    elif len(skill_names) >= 1:
+        e2 = f"{verified_count} verified domain skills across roles/projects out of {total_listed} listed: " + ", ".join(verified_skills)
+    elif verified_count >= 1:
         p2 = 7.0
         s2 = "partial"
-        e2 = f"{len(skill_names)} skill listed: " + ", ".join(skill_names)
+        e2 = f"{verified_count} verified domain skill on CV: " + ", ".join(verified_skills) + (f" ({len(unverified_skills)} unverified/soft skills excluded)" if unverified_skills else "")
     else:
         p2 = 0.0
         s2 = "none"
-        e2 = "No explicit skills extracted from CV."
+        e2 = f"0 domain skills verified in employment/project history ({total_listed} unverified/soft skills listed)."
 
     sub_criteria.append(TrajectorySubCriterion(
         criterion_name="Skill Portfolio Breadth",
         points_earned=p2,
         max_points=25.0,
-        rubric_rule="≥8 skills = 25 pts | 4-7 skills = 15 pts | 1-3 skills = 7 pts",
+        rubric_rule="≥8 verified skills = 25 pts | 4-7 verified = 15 pts | 1-3 verified = 7 pts",
         evidence=e2,
         status=s2
     ))
 
     # 3. Proven Deliverables & Projects
-    projects = getattr(candidate_profile, "projects", []) or []
-    achievements = getattr(candidate_profile, "key_achievements", []) or []
     proj_names = []
     for p in projects:
         if isinstance(p, str):
@@ -388,7 +574,6 @@ def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, ev
 
     achieve_names = [str(a) for a in achievements if a]
 
-    # Filter out generic responsibility phrases that are unquantified duties
     GENERIC_DUTY_PATTERNS = [
         r"^participated\s+in", r"^attended\s+", r"^assisted\s+with", r"^responsible\s+for",
         r"^helped\s+with", r"^monitored\s+", r"^on-call\s+rotation"
@@ -400,7 +585,7 @@ def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, ev
         if any(re.search(pat, item_lower) for pat in GENERIC_DUTY_PATTERNS) and not any(char.isdigit() for char in item_str):
             continue
         evidence_items.append(item_str)
-    
+
     if len(evidence_items) >= 3:
         p3 = 25.0
         s3 = "full"
@@ -425,13 +610,13 @@ def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, ev
 
     # 4. Educational Attainment & Degree Relevance
     education = getattr(candidate_profile, "education", []) or []
-    p4, e4, s4 = classify_degree_relevance(education, jd_keywords)
+    p4, e4, s4 = classify_degree_relevance(education, jd_keywords, canonical_jd_spec=canonical_jd_spec)
 
     sub_criteria.append(TrajectorySubCriterion(
         criterion_name="Educational Relevance & Credentials",
         points_earned=p4,
         max_points=25.0,
-        rubric_rule="Relevant Degree = 18-25 pts | Adjacent = 10-14 pts | Unrelated = 5 pts",
+        rubric_rule="Relevant Degree = 20-25 pts | Adjacent STEM/Foundational = 10-14 pts | Unrelated = 5 pts",
         evidence=e4,
         status=s4
     ))
@@ -691,7 +876,7 @@ def calculate_weighted_fit_score(
         traj_calc_summary = f"Pre-computed trajectory score ({traj_score:.0f} pts)."
     else:
         traj_score, traj_sub_criteria, traj_calc_summary = _compute_evidence_trajectory(
-            candidate_profile, skills_score, eval_mode_key, jd_keywords=jd_kw_list
+            candidate_profile, skills_score, eval_mode_key, jd_keywords=jd_kw_list, canonical_jd_spec=canonical_jd_spec
         )
 
     # Trajectory Skill Bounding:

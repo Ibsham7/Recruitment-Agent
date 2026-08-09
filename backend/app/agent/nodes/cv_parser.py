@@ -250,7 +250,11 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         # Link candidate to existing resume & update extracted name
         if "candidate_id" in state and not state["candidate_id"].startswith("candidate_") and prisma.is_connected():
             try:
-                update_data = {"resumeId": resume.id}
+                update_data = {
+                    "resumeId": resume.id,
+                    "totalExperienceYears": candidate_profile.total_experience_years,
+                    "currentRole": candidate_profile.current_role_resolved,
+                }
                 if candidate_profile.name and candidate_profile.name not in ["Unknown Candidate", "Processing Candidate..."]:
                     update_data["name"] = candidate_profile.name
                 await prisma.candidate.update(
@@ -373,7 +377,11 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             
             # Link candidate & update extracted name
             if "candidate_id" in state and not state["candidate_id"].startswith("candidate_"):
-                update_data = {"resumeId": new_resume.id}
+                update_data = {
+                    "resumeId": new_resume.id,
+                    "totalExperienceYears": candidate_profile.total_experience_years,
+                    "currentRole": candidate_profile.current_role_resolved,
+                }
                 if candidate_profile.name and candidate_profile.name not in ["Unknown Candidate", "Processing Candidate..."]:
                     update_data["name"] = candidate_profile.name
                 await prisma.candidate.update(

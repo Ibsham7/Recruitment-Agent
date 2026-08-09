@@ -108,9 +108,9 @@ export interface Evaluation {
   id: string;
   candidateId: string;
   overallScore: number;
-  technicalScore: number;
-  communicationScore: number;
-  culturalFitScore: number;
+  technicalScore?: number | null;
+  communicationScore?: number | null;
+  culturalFitScore?: number | null;
   recommendation: string;
   summary: string;
   strengths: string[];
@@ -126,9 +126,9 @@ export interface Evaluation {
 }
 
 export interface CandidateScores {
-  technical: number;
-  communication: number;
-  culturalFit: number;
+  technical?: number | null;
+  communication?: number | null;
+  culturalFit?: number | null;
   overall: number;
 }
 
@@ -143,13 +143,14 @@ export interface Candidate {
   status: CandidateStage;
   fitScore: number | null;
   decision: string | null;
+  totalExperienceYears?: number | null;
+  currentRole?: string | null;
   structuredProfile: any;
   currentQuestion?: string | null;
   createdAt: string;
   updatedAt: string;
   
   // UI fallbacks (often derived from structuredProfile or Evaluation)
-  currentRole?: string;
   experience?: string;
   score?: number;
   stage?: CandidateStage;

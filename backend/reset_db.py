@@ -1,5 +1,11 @@
 import asyncio
 import logging
+import os
+from dotenv import load_dotenv
+
+# Ensure environment variables from backend/.env are loaded regardless of current working directory
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
 from prisma import Prisma
 
 logging.basicConfig(
@@ -28,10 +34,10 @@ async def reset_db() -> None:
         campaigns_deleted = await db.campaign.delete_many()
         logger.info(f"Deleted {campaigns_deleted} campaigns.")
         
-        logger.info("✅ Database reset completed successfully. All data wiped.")
+        logger.info("[SUCCESS] Database reset completed successfully. All data wiped.")
         
     except Exception as e:
-        logger.error(f"❌ Error resetting database: {e}")
+        logger.error(f"[ERROR] Error resetting database: {e}")
         
     finally:
         if db.is_connected():
