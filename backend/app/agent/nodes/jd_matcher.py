@@ -85,11 +85,14 @@ _MATCH_ASSESSMENT_CACHE: dict[str, CompactScreeningOutput] = {}
 
 
 def _fuzzy_requirement_match(canonical_name: str, llm_name: str) -> bool:
-    """Domain-agnostic fuzzy match using normalized token overlap."""
+    """Domain-agnostic fuzzy match using normalized token overlap and canonical skill normalization."""
     if not canonical_name or not llm_name:
         return False
-    c_lower = canonical_name.strip().lower()
-    m_lower = llm_name.strip().lower()
+    from app.agent.tools.skills import normalize_canonical_skill
+    c_norm = normalize_canonical_skill(canonical_name)
+    m_norm = normalize_canonical_skill(llm_name)
+    c_lower = c_norm.strip().lower()
+    m_lower = m_norm.strip().lower()
     if c_lower == m_lower or c_lower in m_lower or m_lower in c_lower:
         return True
     c_tokens = set(re.findall(r'\w+', c_lower))
@@ -140,6 +143,9 @@ def verify_and_clean_quote(quote: str, raw_jd: str) -> tuple[bool, str]:
             return True, clean_q
 
     return False, ""
+
+# (Skipping down to alignment loops in jd_matcher_node...)
+
 
 
 async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
@@ -434,24 +440,21 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         if found:
             ev_text = getattr(found, "evidence", "") or ""
             is_valid_ev, clean_ev = verify_and_clean_quote(ev_text, raw_cv_text)
-            req_tokens = extract_dynamic_requirement_tokens(c_name, getattr(canonical_req, "jd_quote", ""))
-            has_presence = check_dynamic_token_presence(req_tokens, cand_corpus)
+            struct_ev_type = classify_evidence_source(
+                req_name=c_name,
+                jd_quote=getattr(canonical_req, "jd_quote", ""),
+                candidate_profile=profile,
+                evidence_quote=clean_ev or ev_text
+            )
 
-            if is_valid_ev:
-                final_match = found.match
-                final_ev = clean_ev
-                struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=clean_ev or ev_text)
-                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else (getattr(found, "evidence_type", None) or "employment")
-                prof_sig = getattr(found, "proficiency_signal", None) or "used"
-            elif has_presence:
+            if is_valid_ev or struct_ev_type != "absent":
                 final_match = found.match
                 final_ev = clean_ev if clean_ev else ev_text
-                struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=ev_text)
-                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else "inferred"
+                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred") else (getattr(found, "evidence_type", None) or "employment")
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             else:
                 final_match = "none"
-                final_ev = "No direct evidence or matching requirement tokens found on CV"
+                final_ev = "No direct evidence found on CV"
                 ev_type = "absent"
                 prof_sig = "none"
 
@@ -482,24 +485,21 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         if found:
             ev_text = getattr(found, "evidence", "") or ""
             is_valid_ev, clean_ev = verify_and_clean_quote(ev_text, raw_cv_text)
-            req_tokens = extract_dynamic_requirement_tokens(c_name, getattr(canonical_req, "jd_quote", ""))
-            has_presence = check_dynamic_token_presence(req_tokens, cand_corpus)
+            struct_ev_type = classify_evidence_source(
+                req_name=c_name,
+                jd_quote=getattr(canonical_req, "jd_quote", ""),
+                candidate_profile=profile,
+                evidence_quote=clean_ev or ev_text
+            )
 
-            if is_valid_ev:
-                final_match = found.match
-                final_ev = clean_ev
-                struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=clean_ev or ev_text)
-                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else (getattr(found, "evidence_type", None) or "employment")
-                prof_sig = getattr(found, "proficiency_signal", None) or "used"
-            elif has_presence:
+            if is_valid_ev or struct_ev_type != "absent":
                 final_match = found.match
                 final_ev = clean_ev if clean_ev else ev_text
-                struct_ev_type = classify_evidence_source(c_name, getattr(canonical_req, "jd_quote", ""), candidate_profile=profile, evidence_quote=ev_text)
-                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred", "absent") else "inferred"
+                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred") else (getattr(found, "evidence_type", None) or "employment")
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             else:
                 final_match = "none"
-                final_ev = "No direct evidence or matching requirement tokens found on CV"
+                final_ev = "No direct evidence found on CV"
                 ev_type = "absent"
                 prof_sig = "none"
 

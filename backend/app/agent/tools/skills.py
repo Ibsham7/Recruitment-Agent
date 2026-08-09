@@ -2,11 +2,51 @@ import re
 import difflib
 from typing import List, Set, Tuple
 
+ALIAS_MAP = {
+    "k8s": "Kubernetes",
+    "containerisation": "Containerization",
+    "containerise": "Containerization",
+    "ci/cd pipelines": "CI/CD",
+    "ci/cd workflows": "CI/CD",
+    "continuous integration": "CI/CD",
+    "react.js": "React",
+    "reactjs": "React",
+    "node.js": "Node.js",
+    "nodejs": "Node.js",
+    "vue.js": "Vue.js",
+    "vuejs": "Vue.js",
+}
+
+def normalize_canonical_skill(skill: str) -> str:
+    """
+    Normalizes raw skill strings into standardized canonical concepts across domains.
+    Handles British/American spelling variations (-ise -> -ize), common acronyms, and formatting variations.
+    """
+    if not skill:
+        return ""
+    clean = str(skill).strip()
+    clean_lower = clean.lower()
+
+    if clean_lower in ALIAS_MAP:
+        return ALIAS_MAP[clean_lower]
+
+    # 1. Spelling normalization (-ise -> -ize, -isation -> -ization, -ising -> -izing)
+    clean = re.sub(r'(\w+)isation\b', r'\1ization', clean, flags=re.IGNORECASE)
+    clean = re.sub(r'(\w+)ise\b', r'\1ize', clean, flags=re.IGNORECASE)
+    clean = re.sub(r'(\w+)ising\b', r'\1izing', clean, flags=re.IGNORECASE)
+
+    clean_lower_after = clean.lower()
+    if clean_lower_after in ALIAS_MAP:
+        return ALIAS_MAP[clean_lower_after]
+
+    return clean
+
 def normalize_skill(skill: str) -> str:
     """Normalize skill string by lowering, stripping punctuation, and compressing spaces."""
     if not skill:
         return ""
-    clean = str(skill).lower().strip()
+    canonical = normalize_canonical_skill(skill)
+    clean = canonical.lower().strip()
     # Strip common variations like .js, .py, -
     clean = re.sub(r'[\.\-\_\/]', '', clean)
     clean = re.sub(r'\s+', ' ', clean)
@@ -60,3 +100,4 @@ def evaluate_mandatory_skills(candidate_skills: List[str], required_skills: List
             missing.append(req_clean)
             
     return len(missing) == 0, missing
+

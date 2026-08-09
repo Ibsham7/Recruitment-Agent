@@ -97,6 +97,53 @@ def count_matching_tokens(req_tokens: Set[str], candidate_corpus: str) -> int:
     if not req_tokens or not candidate_corpus:
         return 0
     corpus_lower = candidate_corpus.lower()
+def normalize_text(text: str) -> str:
+    """Normalize text by converting to lower case, removing quotes/punctuation, and compressing whitespace."""
+    if not text:
+        return ""
+    t = str(text).lower()
+    t = re.sub(r"[\"'`‘’‚‛“”„‟«»‹›]", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+def _is_quote_in_text(q_norm: str, text_norm: str) -> bool:
+    """
+    Checks if a normalized evidence quote (or substantive snippet) is present in target text.
+    Handles exact substring, whitespace-collapsed, and 3-4 word n-gram window matching.
+    """
+    if not q_norm or not text_norm:
+        return False
+
+    # 1. Direct substring match
+    if q_norm in text_norm:
+        return True
+
+    # 2. Extract substantive words (len >= 2)
+    words = [w for w in re.findall(r"\w+", q_norm) if len(w) >= 2]
+    if not words:
+        return False
+
+    # 3. For multi-word quotes (>= 4 words), check if any 4-word window exists in target
+    if len(words) >= 4:
+        for i in range(len(words) - 3):
+            window = " ".join(words[i:i+4])
+            if window in text_norm:
+                return True
+        matches = sum(1 for w in words if w in text_norm)
+        if matches / len(words) >= 0.75:
+            return True
+    else:
+        # For 1-3 words, check if all substantive words are present
+        if all(w in text_norm for w in words):
+            return True
+
+    return False
+
+def count_matching_tokens(req_tokens: Set[str], candidate_corpus: str) -> int:
+    """Count how many requirement tokens are present in candidate corpus."""
+    if not req_tokens or not candidate_corpus:
+        return 0
+    corpus_lower = candidate_corpus.lower()
     count = 0
     for token in req_tokens:
         if len(token) <= 3 and not any(c in token for c in "+#/-."):
@@ -126,135 +173,116 @@ SUBSTANTIVE_EXECUTION_VERBS = {
 }
 
 def classify_evidence_source(
-    req_name: str,
+    req_name: str = "",
     jd_quote: str = "",
     candidate_profile: Optional[Any] = None,
     evidence_quote: str = ""
 ) -> str:
     """
     Deterministically classify the source of requirement evidence across any domain
-    by comparing section-specific token match scores in candidate profile (roles vs projects vs education vs skills).
+    by verifying the verbatim candidate evidence quote against structural sections of the candidate profile
+    (employment history vs projects vs skills list vs education).
 
     Returns: 'employment' | 'project' | 'education' | 'skills_list_only' | 'inferred' | 'absent'
     """
-    req_tokens = extract_dynamic_requirement_tokens(req_name, jd_quote)
-    ev_lower = (evidence_quote or "").lower()
+    ev_raw = (evidence_quote or "").strip()
+    ev_lower = ev_raw.lower()
+
+    if not ev_raw:
+        return "absent"
+
+    if any(w in ev_lower for w in ["no evidence", "no direct evidence", "not mentioned", "absence of", "unmentioned"]):
+        return "absent"
 
     if not candidate_profile:
         if any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or "listed as a skill" in ev_lower or "skills list" in ev_lower:
             return "skills_list_only"
-        if any(w in ev_lower for w in ["no evidence", "not mentioned", "absence of", "unmentioned"]):
-            return "absent"
         return "employment"
 
-    # Extract section-specific text from structured profile
+    q_norm = normalize_text(ev_raw)
+
+    # 1. Extract and normalize structural sections from profile
     roles = getattr(candidate_profile, "previous_roles", []) or []
-    roles_text_parts = []
+    roles_parts = []
     for r in roles:
         if isinstance(r, str):
-            roles_text_parts.append(r)
+            roles_parts.append(r)
         elif isinstance(r, dict):
             title = r.get("title", "")
             company = r.get("company", "")
             desc = r.get("description", "")
-            skills_used = r.get("skills_used", []) or []
-            roles_text_parts.append(f"{title} {company} {desc} {' '.join([str(s) for s in skills_used])}")
+            skills_used = " ".join([str(s) for s in (r.get("skills_used", []) or [])])
+            roles_parts.append(f"{title} {company} {desc} {skills_used}")
         else:
             title = getattr(r, "title", "")
             company = getattr(r, "company", "")
             desc = getattr(r, "description", "")
-            skills_used = getattr(r, "skills_used", []) or []
-            roles_text_parts.append(f"{title} {company} {desc} {' '.join([str(s) for s in skills_used])}")
-    roles_text = " ".join(roles_text_parts).lower()
+            skills_used = " ".join([str(s) for s in (getattr(r, "skills_used", []) or [])])
+            roles_parts.append(f"{title} {company} {desc} {skills_used}")
+    roles_norm = normalize_text(" ".join(roles_parts))
 
     projects = getattr(candidate_profile, "projects", []) or []
     achievements = getattr(candidate_profile, "key_achievements", []) or []
-    projects_text_parts = []
+    proj_parts = []
     for p in projects:
         if isinstance(p, str):
-            projects_text_parts.append(p)
+            proj_parts.append(p)
         elif isinstance(p, dict):
-            projects_text_parts.append(f"{p.get('title', '')} {p.get('name', '')} {p.get('description', '')}")
+            proj_parts.append(f"{p.get('title', '')} {p.get('name', '')} {p.get('description', '')}")
         else:
             p_t = getattr(p, "title", None) or getattr(p, "name", None) or str(p)
             p_d = getattr(p, "description", "")
-            projects_text_parts.append(f"{p_t} {p_d}")
+            proj_parts.append(f"{p_t} {p_d}")
     for a in achievements:
-        projects_text_parts.append(str(a))
-    projects_text = " ".join(projects_text_parts).lower()
-
-    education = getattr(candidate_profile, "education", []) or []
-    edu_text_parts = []
-    for e in education:
-        if isinstance(e, str):
-            edu_text_parts.append(e)
-        elif isinstance(e, dict):
-            edu_text_parts.append(f"{e.get('degree', '')} {e.get('institution', '')}")
-        else:
-            edu_text_parts.append(str(e))
-    edu_text = " ".join(edu_text_parts).lower()
+        proj_parts.append(str(a))
+    projects_norm = normalize_text(" ".join(proj_parts))
 
     skills = getattr(candidate_profile, "skills", []) or []
-    skills_text = " ".join([str(s) for s in skills]).lower()
+    skills_norm = normalize_text(" ".join([str(s) for s in skills]))
 
-    raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "").lower()
+    education = getattr(candidate_profile, "education", []) or []
+    edu_parts = []
+    for e in education:
+        if isinstance(e, str):
+            edu_parts.append(e)
+        elif isinstance(e, dict):
+            edu_parts.append(f"{e.get('degree', '')} {e.get('institution', '')}")
+        else:
+            edu_parts.append(str(e))
+    edu_norm = normalize_text(" ".join(edu_parts))
 
-    # Check if evidence quote itself contains substantive execution language or matches role/project text
-    has_substantive_verb = any(v in ev_lower for v in SUBSTANTIVE_EXECUTION_VERBS)
-    matches_role = bool(ev_lower and (ev_lower in roles_text or any(w in roles_text for w in re.findall(r'\b[a-z]{4,}\b', ev_lower) if w not in {"with", "that", "this", "from", "using", "used", "role"})))
-    matches_project = bool(ev_lower and (ev_lower in projects_text or any(w in projects_text for w in re.findall(r'\b[a-z]{4,}\b', ev_lower) if w not in {"with", "that", "this", "from", "using", "used", "role"})))
+    raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "")
+    raw_cv_norm = normalize_text(raw_cv)
 
-    if not req_tokens:
-        if any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or "listed as a skill" in ev_lower or "skills list" in ev_lower:
-            return "skills_list_only"
-        if has_substantive_verb or matches_role or roles_text:
-            return "employment"
+    # 2. Check quote presence across structural sections
+    in_roles = _is_quote_in_text(q_norm, roles_norm)
+    in_projects = _is_quote_in_text(q_norm, projects_norm)
+    in_edu = _is_quote_in_text(q_norm, edu_norm)
+    in_skills = _is_quote_in_text(q_norm, skills_norm)
+    in_raw = _is_quote_in_text(q_norm, raw_cv_norm)
+
+    is_skills_prose = any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or "listed as a skill" in ev_lower or "skills list" in ev_lower
+
+    if in_roles:
         return "employment"
-
-    # Score each section by counting matching tokens
-    roles_score = count_matching_tokens(req_tokens, roles_text)
-    projects_score = count_matching_tokens(req_tokens, projects_text)
-    edu_score = count_matching_tokens(req_tokens, edu_text)
-    skills_score = count_matching_tokens(req_tokens, skills_text)
-    raw_score = count_matching_tokens(req_tokens, raw_cv)
-
-    # Boost education score if requirement specifically references degree/educational credentials
-    EDU_INDICATOR_TERMS = {"degree", "bachelor", "bachelors", "master", "masters", "phd", "doctorate", "diploma", "education", "university", "college", "bs", "ms", "ba", "ma", "mba"}
-    req_name_lower = (req_name or "").lower()
-    if any(t in req_name_lower for t in EDU_INDICATOR_TERMS) and edu_score > 0:
-        edu_score += 10
-
-    max_score = max(roles_score, projects_score, edu_score, skills_score, raw_score)
-
-    if max_score == 0:
-        if any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or "listed as a skill" in ev_lower or "skills list" in ev_lower:
-            return "skills_list_only"
-        if has_substantive_verb and matches_role:
-            return "employment"
-        if has_substantive_verb and matches_project:
-            return "project"
-        if any(w in ev_lower for w in ["no evidence", "not mentioned", "absence of", "unmentioned"]):
-            return "absent"
-        if ev_lower and len(ev_lower) >= 10 and not any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS):
-            return "employment"
-        return "absent"
-
-    # Select section with highest match count
-    if edu_score == max_score and edu_score > 0:
-        return "education"
-    if roles_score == max_score and roles_score > 0:
-        return "employment"
-    if projects_score == max_score and projects_score > 0:
+    if in_projects:
         return "project"
-    if skills_score == max_score and skills_score > 0:
-        # If tokens are also present in employment or projects, prioritize employment/project execution
-        if roles_score > 0:
-            return "employment"
-        if projects_score > 0:
-            return "project"
+    if in_edu:
+        return "education"
+    if in_skills or is_skills_prose:
         return "skills_list_only"
-    if raw_score == max_score and raw_score > 0:
+    if in_raw:
         return "inferred"
 
+    # If quote is not found in CV text at all, check if requirement name itself is in roles/projects/skills
+    req_clean = normalize_text(req_name)
+    if req_clean and _is_quote_in_text(req_clean, roles_norm):
+        return "employment"
+    if req_clean and _is_quote_in_text(req_clean, projects_norm):
+        return "project"
+    if req_clean and _is_quote_in_text(req_clean, skills_norm):
+        return "skills_list_only"
+
     return "absent"
+
 

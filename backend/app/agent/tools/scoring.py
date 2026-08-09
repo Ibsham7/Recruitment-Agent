@@ -12,7 +12,9 @@ from app.agent.tools.verification import (
     extract_dynamic_requirement_tokens,
     check_dynamic_token_presence,
     classify_evidence_source,
-    SKILLS_LIST_PROSE_PATTERNS
+    SKILLS_LIST_PROSE_PATTERNS,
+    normalize_text,
+    _is_quote_in_text
 )
 
 TENURE_PATTERN = re.compile(
@@ -99,9 +101,10 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
         prof_signal = item.get("proficiency_signal")
 
     # Deterministically classify evidence source using structural candidate profile sections
+    struct_source = ev_type if ev_type else "inferred"
     raw_cv_text = str(getattr(candidate_profile, "raw_cv_text", "") or "").strip() if candidate_profile else ""
     if candidate_profile and raw_cv_text and evidence_val:
-        struct_source = classify_evidence_source(req_name, candidate_profile=candidate_profile, evidence_quote=evidence_val)
+        struct_source = classify_evidence_source(req_name=req_name, candidate_profile=candidate_profile, evidence_quote=evidence_val)
         if struct_source in ("skills_list_only", "absent") or ev_type in (None, "inferred"):
             ev_type = struct_source
 
@@ -200,16 +203,10 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             if struct_source in ("skills_list_only", "absent"):
                 ev_type = struct_source
 
-        # 2. Unconditional Anti-Fabrication Check: If raw_cv_text is available but requirement tokens are absent from CV corpus, force match to none
-        if candidate_profile and raw_cv_text and len(raw_cv_text.strip()) >= 20:
-            skills_txt = " ".join([str(s) for s in (getattr(candidate_profile, "skills", []) or [])])
-            roles_txt = " ".join([str(getattr(r, "title", r.get("title", "") if isinstance(r, dict) else "")) for r in (getattr(candidate_profile, "previous_roles", []) or [])])
-            projects_txt = " ".join([str(p) for p in (getattr(candidate_profile, "projects", []) or [])])
-            corpus = f"{raw_cv_text} {skills_txt} {roles_txt} {projects_txt}".lower()
-            req_tokens = extract_dynamic_requirement_tokens(req_name)
-            if req_tokens and not check_dynamic_token_presence(req_tokens, corpus):
-                match_val = "none"
-                override_note = " [Overridden to none: fabricated evidence without requirement tokens on CV]"
+        # 2. Quote Grounded Anti-Fabrication Check: If evidence quote is absent/unverified on CV, force match to none
+        if struct_source == "absent" and evidence_val and len(evidence_val.strip()) >= 5:
+            match_val = "none"
+            override_note = " [Overridden to none: unevidenced or absent quote on CV]"
 
         # 3. Check prose pattern matching & skills-list-only override (only if not substantive execution)
         if match_val != "none":
@@ -231,9 +228,7 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                 substantive = re.sub(r"used\s+in\s+(previous\s+)?role", "", substantive, flags=re.IGNORECASE)
                 substantive = re.sub(r"listed\s+in\s+(summary|cv|profile)", "", substantive, flags=re.IGNORECASE)
                 substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive, flags=re.IGNORECASE).strip(" ;,.-")
-                req_tokens_r4 = extract_dynamic_requirement_tokens(req_name)
-                sub_words = [w for w in re.findall(r'\b[a-zA-Z0-9+#/\-]+\b', substantive) if w not in req_tokens_r4 and w not in {"and", "or", "in", "with"}]
-                if not sub_words or len(substantive) < 5 or ev_type == "skills_list_only":
+                if len(substantive) < 5 or ev_type == "skills_list_only":
                     match_val = "none"
                     override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
 
@@ -286,6 +281,10 @@ def classify_degree_relevance(education_list: list, jd_keywords: list = None, ca
 
     jd_text = " ".join(jd_parts).lower()
     is_advanced = any(deg in all_edu_text for deg in ["master", "m.s.", "m.a.", "ph.d", "phd", "doctorate", "mba", "md", "jd", "msn", "dnp"])
+
+    if not jd_parts:
+        pts = 20.0 if (len(edu_strings) >= 2 or is_advanced) else 14.0
+        return pts, f"Educational Credentials ({'; '.join(edu_strings)}).", "partial"
 
     # Extract domain tokens
     from app.agent.tools.timeline import extract_domain_tokens
@@ -536,14 +535,18 @@ def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, ev
 
     verified_skills = []
     unverified_skills = []
+    skills_corpus = normalize_text(" ".join([str(s) for s in raw_skill_names]))
 
     for skill in raw_skill_names:
         s_clean = skill.lower().strip()
         if s_clean in GENERIC_SOFT_SKILLS:
             continue
 
-        req_tokens = extract_dynamic_requirement_tokens(skill)
-        if req_tokens and check_dynamic_token_presence(req_tokens, substantive_corpus):
+        s_norm = normalize_text(skill)
+        if not s_norm:
+            continue
+
+        if _is_quote_in_text(s_norm, substantive_corpus) or _is_quote_in_text(s_norm, skills_corpus):
             verified_skills.append(skill)
         else:
             unverified_skills.append(skill)
