@@ -2,6 +2,7 @@ import hashlib
 import json
 import re
 from datetime import date
+from typing import Any, Optional, Tuple
 from app.agent.config import get_model, MODELS
 from app.agent.schemas import (
     ScreeningResult,
@@ -143,6 +144,75 @@ def verify_and_clean_quote(quote: str, raw_jd: str) -> tuple[bool, str]:
             return True, clean_q
 
     return False, ""
+
+
+def verify_verbatim_cv_quote(quote: str, raw_cv_text: str) -> tuple[bool, str]:
+    """Verify if evidence quote is present in candidate raw_cv_text via case-insensitive, punctuation-insensitive, and whitespace-normalized verbatim matching."""
+    if not quote or not quote.strip():
+        return False, ""
+
+    clean_q = quote.strip()
+    quote_chars = "\"'`‘’‚‛“”„‟«»‹›"
+    prev = None
+    while clean_q != prev:
+        prev = clean_q
+        clean_q = clean_q.strip(quote_chars).strip()
+
+    if not clean_q or clean_q.lower().startswith("no direct evidence"):
+        return False, ""
+
+    clean_q_lower = clean_q.lower()
+    clean_cv = raw_cv_text.strip().lower()
+
+    # 1. Exact substring match
+    if clean_q_lower in clean_cv:
+        return True, clean_q
+
+    # 2. Collapse internal whitespace
+    norm_q = re.sub(r"\s+", " ", clean_q_lower)
+    norm_cv = re.sub(r"\s+", " ", clean_cv)
+    if norm_q in norm_cv:
+        return True, clean_q
+
+    # 3. Punctuation-stripped match
+    strip_punc_q = re.sub(r"[^\w\s]", "", norm_q)
+    strip_punc_cv = re.sub(r"[^\w\s]", "", norm_cv)
+    if strip_punc_q and strip_punc_q in strip_punc_cv:
+        return True, clean_q
+
+    # 4. Partial window match (at least 4 consecutive words found in raw CV)
+    words = [w for w in re.findall(r"\w+", norm_q) if len(w) >= 2]
+    if len(words) >= 4:
+        four_words = " ".join(words[:4])
+        if four_words in strip_punc_cv:
+            return True, clean_q
+
+    return False, ""
+
+
+def extract_verbatim_sentence_for_requirement(req_name: str, candidate_profile: Any) -> str | None:
+    """Finds the exact verbatim line/sentence in raw_cv_text that contains key substantive requirement tokens."""
+    if not candidate_profile:
+        return None
+
+    raw_cv = getattr(candidate_profile, "raw_cv_text", "") or ""
+    if not raw_cv.strip():
+        return None
+
+    from app.agent.tools.scoring import extract_dynamic_requirement_tokens
+    req_tokens = extract_dynamic_requirement_tokens(req_name)
+    if not req_tokens:
+        return None
+
+    lines = [line.strip() for line in raw_cv.splitlines() if line.strip()]
+    for line in lines:
+        line_lower = line.lower()
+        if any(token in line_lower for token in req_tokens if len(token) >= 3):
+            clean_line = re.sub(r"^[•\-\*–—\d\.\)]+\s*", "", line).strip()
+            if clean_line and len(clean_line) >= 5:
+                return clean_line[:150]
+
+    return None
 
 # (Skipping down to alignment loops in jd_matcher_node...)
 
@@ -398,6 +468,59 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         _MATCH_ASSESSMENT_CACHE[match_cache_key] = compact_output
         logger.info(f"[JD Matcher] Cached new match assessment for {profile.name} (mode={eval_mode})")
 
+    # 2.5 Verbatim Quote Verification & Retry Logic
+    raw_cv_text = getattr(profile, "raw_cv_text", "") or ""
+    unverified_items = []
+    all_extracted_matches = (compact_output.must_have or []) + (compact_output.nice_to_have or [])
+    for m in all_extracted_matches:
+        if m.match != "none" and m.evidence:
+            is_valid, _ = verify_verbatim_cv_quote(m.evidence, raw_cv_text)
+            if not is_valid:
+                unverified_items.append((m.requirement, m.evidence))
+
+    if unverified_items:
+        logger.warning(
+            f"[JD Matcher] [RETRY TRIGGERED] Verbatim evidence verification failed for candidate '{profile.name}' "
+            f"on {len(unverified_items)} requirements: "
+            + ", ".join([f"'{name}' (quote: \"{q}\")" for name, q in unverified_items])
+        )
+
+        retry_notice = (
+            "\n\nCRITICAL RETRY NOTICE — VERBATIM QUOTE FAILURE:\n"
+            f"The evidence quotes for candidate '{profile.name}' on the following requirements were non-verbatim or rephrased:\n"
+            + "\n".join([f"- Requirement '{name}': invalid quote \"{q}\"" for name, q in unverified_items])
+            + "\nYOU MUST COPY EXACT VERBATIM SUBSTRINGS DIRECTLY FROM THE CANDIDATE CV TEXT. DO NOT REPHRASE, MODERNISE, OR REWRITE VERBS OR QUALIFIERS."
+        )
+        retry_prompt = (
+            f"JOB DESCRIPTION:\n{jd}\n\n{canonical_context}"
+            + JD_MATCHER_PROMPTS["default"].replace("{current_date}", today_str)
+            + retry_notice
+        )
+
+        try:
+            retry_output, retry_cost, retry_tokens = await invoke_model(retry_prompt, profile_dict)
+            cost += retry_cost
+            stage_tokens["input_tokens"] += retry_tokens.get("input_tokens", 0)
+            stage_tokens["output_tokens"] += retry_tokens.get("output_tokens", 0)
+            stage_tokens["total_tokens"] += retry_tokens.get("total_tokens", 0)
+
+            post_unverified = []
+            for rm in (retry_output.must_have or []) + (retry_output.nice_to_have or []):
+                if rm.match != "none" and rm.evidence:
+                    is_valid, _ = verify_verbatim_cv_quote(rm.evidence, raw_cv_text)
+                    if not is_valid:
+                        post_unverified.append((rm.requirement, rm.evidence))
+
+            logger.info(
+                f"[JD Matcher] [RETRY OUTCOME] Candidate '{profile.name}': "
+                f"{len(unverified_items) - len(post_unverified)}/{len(unverified_items)} quotes recovered verbatim after retry. "
+                f"Remaining unverified: {len(post_unverified)}"
+            )
+            compact_output = retry_output
+            _MATCH_ASSESSMENT_CACHE[match_cache_key] = compact_output
+        except Exception as retry_err:
+            logger.error(f"[JD Matcher] Retry pass failed for candidate '{profile.name}': {retry_err}")
+
     # Override relevant_experience_years with deterministic domain calculation
     domain_keywords = [req.requirement_name for req in canonical_spec.must_have_skills]
     if canonical_spec.role_title:
@@ -412,7 +535,6 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         )
 
     # 3. Align compact_output matches against canonical_spec requirements
-    raw_cv_text = getattr(profile, "raw_cv_text", "") or ""
     profile_skills_text = " ".join([str(s) for s in (getattr(profile, "skills", []) or [])])
     roles_text = ""
     for r in (getattr(profile, "previous_roles", []) or []):
@@ -439,7 +561,17 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 break
         if found:
             ev_text = getattr(found, "evidence", "") or ""
-            is_valid_ev, clean_ev = verify_and_clean_quote(ev_text, raw_cv_text)
+            is_valid_ev, clean_ev = verify_verbatim_cv_quote(ev_text, raw_cv_text)
+            
+            if not is_valid_ev and found.match != "none":
+                verbatim_sentence = extract_verbatim_sentence_for_requirement(c_name, profile)
+                if verbatim_sentence:
+                    is_valid_ev = True
+                    clean_ev = verbatim_sentence
+                    logger.info(f"[JD Matcher] Substituted exact CV verbatim sentence for requirement '{c_name}': \"{clean_ev}\"")
+                else:
+                    logger.warning(f"[JD Matcher] Forcing match to 'none' for requirement '{c_name}' due to unverified non-verbatim quote: \"{ev_text}\"")
+
             struct_ev_type = classify_evidence_source(
                 req_name=c_name,
                 jd_quote=getattr(canonical_req, "jd_quote", ""),
@@ -447,14 +579,19 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 evidence_quote=clean_ev or ev_text
             )
 
-            if is_valid_ev or struct_ev_type != "absent":
+            if is_valid_ev:
                 final_match = found.match
-                final_ev = clean_ev if clean_ev else ev_text
-                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred") else (getattr(found, "evidence_type", None) or "employment")
+                final_ev = clean_ev
+                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only") else (getattr(found, "evidence_type", None) or "employment")
+                prof_sig = getattr(found, "proficiency_signal", None) or "used"
+            elif struct_ev_type == "skills_list_only":
+                final_match = found.match
+                final_ev = clean_ev or ev_text or "Listed in skills section"
+                ev_type = "skills_list_only"
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             else:
                 final_match = "none"
-                final_ev = "No direct evidence found on CV"
+                final_ev = "No direct verbatim evidence found on CV"
                 ev_type = "absent"
                 prof_sig = "none"
 
@@ -484,7 +621,17 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 break
         if found:
             ev_text = getattr(found, "evidence", "") or ""
-            is_valid_ev, clean_ev = verify_and_clean_quote(ev_text, raw_cv_text)
+            is_valid_ev, clean_ev = verify_verbatim_cv_quote(ev_text, raw_cv_text)
+
+            if not is_valid_ev and found.match != "none":
+                verbatim_sentence = extract_verbatim_sentence_for_requirement(c_name, profile)
+                if verbatim_sentence:
+                    is_valid_ev = True
+                    clean_ev = verbatim_sentence
+                    logger.info(f"[JD Matcher] Substituted exact CV verbatim sentence for requirement '{c_name}': \"{clean_ev}\"")
+                else:
+                    logger.warning(f"[JD Matcher] Forcing match to 'none' for requirement '{c_name}' due to unverified non-verbatim quote: \"{ev_text}\"")
+
             struct_ev_type = classify_evidence_source(
                 req_name=c_name,
                 jd_quote=getattr(canonical_req, "jd_quote", ""),
@@ -492,14 +639,19 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 evidence_quote=clean_ev or ev_text
             )
 
-            if is_valid_ev or struct_ev_type != "absent":
+            if is_valid_ev:
                 final_match = found.match
-                final_ev = clean_ev if clean_ev else ev_text
-                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only", "inferred") else (getattr(found, "evidence_type", None) or "employment")
+                final_ev = clean_ev
+                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only") else (getattr(found, "evidence_type", None) or "employment")
+                prof_sig = getattr(found, "proficiency_signal", None) or "used"
+            elif struct_ev_type == "skills_list_only":
+                final_match = found.match
+                final_ev = clean_ev or ev_text or "Listed in skills section"
+                ev_type = "skills_list_only"
                 prof_sig = getattr(found, "proficiency_signal", None) or "used"
             else:
                 final_match = "none"
-                final_ev = "No direct evidence found on CV"
+                final_ev = "No direct verbatim evidence found on CV"
                 ev_type = "absent"
                 prof_sig = "none"
 

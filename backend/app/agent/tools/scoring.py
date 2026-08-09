@@ -136,13 +136,13 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                 has_hedge = True
                 break
 
-    # Scope raw CV hedging check to the line containing the actual evidence quote
-    if not has_hedge and candidate_profile and match_val == "full" and ev_lower:
+    # Scope raw CV hedging check to lines containing the evidence quote snippet or requirement tokens
+    if not has_hedge and candidate_profile and match_val == "full":
         raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "").lower()
         if raw_cv:
-            # Find exact line or sentence containing the evidence quote snippet
-            ev_snippet = ev_lower[:40].strip()
-            if ev_snippet in raw_cv:
+            # 1. Exact line check via evidence snippet
+            ev_snippet = ev_lower[:40].strip() if ev_lower else ""
+            if ev_snippet and ev_snippet in raw_cv:
                 idx = raw_cv.find(ev_snippet)
                 line_start = raw_cv.rfind('\n', 0, idx)
                 line_end = raw_cv.find('\n', idx)
@@ -151,6 +151,16 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                 cv_line = raw_cv[line_start:line_end]
                 if any(k in cv_line for k in LOW_PROFICIENCY_KEYWORDS):
                     has_hedge = True
+
+            # 2. Token-based line check in raw CV if snippet match didn't find hedge
+            if not has_hedge:
+                req_tokens_hedge = extract_dynamic_requirement_tokens(req_name)
+                if req_tokens_hedge:
+                    for cv_line in raw_cv.splitlines():
+                        if any(tw in cv_line for tw in req_tokens_hedge if len(tw) >= 3):
+                            if any(k in cv_line for k in LOW_PROFICIENCY_KEYWORDS):
+                                has_hedge = True
+                                break
 
     if match_val == "full" and has_hedge:
         match_val = "partial"

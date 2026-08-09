@@ -43,7 +43,7 @@ experience (counted at 50% credit).
 
 For each requirement match object in JSON, populate:
 - `match`: "full" | "partial" | "none"
-- `evidence`: concise quote/proof from CV (max 10 words)
+- `evidence`: EXACT VERBATIM SUBSTRING QUOTE from the candidate CV text (max 15 words). MUST NOT rephrase, modernize, or alter ANY words, verbs, or hedging phrases (e.g. keep "assisted", "basic knowledge", "learning" verbatim).
 - `evidence_type`: "employment" | "project" | "education" | "skills_list_only" | "inferred" | "absent"
   (MUST use "skills_list_only" if the skill ONLY appears in a skills list/section without employment or project execution proof)
 - `proficiency_signal`: "led" | "built" | "used" | "assisted" | "learning" | "none"
@@ -142,7 +142,7 @@ tool/domain or aspirational transferability.
 
 For each requirement match object in JSON, populate:
 - `match`: "full" | "partial" | "none"
-- `evidence`: concise quote/proof from CV (max 10 words)
+- `evidence`: EXACT VERBATIM SUBSTRING QUOTE from the candidate CV text (max 15 words). MUST NOT rephrase, modernize, or alter ANY words, verbs, or hedging phrases (e.g. keep "assisted", "basic knowledge", "learning" verbatim).
 - `evidence_type`: "employment" | "project" | "education" | "skills_list_only" | "inferred" | "absent"
   (MUST use "skills_list_only" if the skill ONLY appears in a skills list/section without employment or project execution proof)
 - `proficiency_signal`: "led" | "built" | "used" | "assisted" | "learning" | "none"
