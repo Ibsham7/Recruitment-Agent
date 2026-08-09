@@ -160,15 +160,9 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
                         extracted_yrs = float(years_match.group(1))
                         max_tenure_years = max(max_tenure_years, extracted_yrs)
 
-                    # Strip tenure phrases from requirement name instead of discarding qualitative requirement
-                    cleaned_name = TENURE_PATTERN.sub("", req.requirement_name).strip(" ().-:,")
-                    cleaned_name = re.sub(r"\(?\s*\d+\+?\s*(?:years?|yrs?|yr)\s*\)?", "", cleaned_name, flags=re.IGNORECASE).strip(" ().-:,")
-
-                    # If requirement is a pure tenure duration (e.g. "5+ years of software engineering experience"), exclude from qualitative list
-                    if not cleaned_name or len(cleaned_name) < 3 or cleaned_name.lower() in ("software engineering experience", "professional experience", "experience"):
-                        continue
-
-                    req.requirement_name = cleaned_name
+                    logger.info(f"[JD Distiller] Excluding tenure requirement '{req.requirement_name}' from qualitative skill lists; max tenure updated to {max_tenure_years} yrs.")
+                    # Tenure requirements are strictly owned by Experience Depth evaluation. Exclude unconditionally from qualitative lists.
+                    continue
 
                 # Substring verification of quote against raw JD text
                 is_valid_quote, cleaned_quote = verify_and_clean_quote(req.jd_quote, jd_clean)

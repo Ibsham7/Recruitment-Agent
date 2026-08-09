@@ -29,29 +29,22 @@ GENERIC_TENURE_WORDS = {
 
 def _filter_tenure_requirements(items: list) -> list:
     """Sanitize requirement lists to ensure years of experience are strictly owned by Experience Depth, avoiding double-scoring.
-    If a requirement contains qualitative skills + a tenure phrase (e.g. 'Python and FastAPI (3+ years)'),
-    strip the tenure phrase rather than discarding the qualitative skill requirement.
-    Exclude only pure tenure requirements (e.g. '5+ years of experience').
+    Unconditionally discard any requirement containing tenure patterns or tagged as tenure duration.
     """
     if not items:
         return []
     filtered = []
     for item in items:
         req_name = getattr(item, "requirement", item.get("requirement", "") if isinstance(item, dict) else str(item))
-        if TENURE_PATTERN.search(req_name) or re.search(r"\b\d+\+?\s*(?:years?|yrs?|yr)\b", req_name, re.IGNORECASE):
-            cleaned = TENURE_PATTERN.sub("", req_name).strip(" ().-:," )
-            cleaned = re.sub(r"\(?\s*\d+\+?\s*(?:years?|yrs?|yr)\s*\)?", "", cleaned, flags=re.IGNORECASE).strip(" ().-:," )
-            cleaned = re.sub(r"^(?:experience\s+(?:in|with|of)?|of\s+experience\s+(?:in|with)?)\s*", "", cleaned, flags=re.IGNORECASE).strip(" ().-:," )
-            tokens = set(re.findall(r'\w+', cleaned.lower()))
-            if not cleaned or len(cleaned) < 3 or not (tokens - GENERIC_TENURE_WORDS):
-                continue
-            if hasattr(item, "requirement"):
-                try:
-                    item.requirement = cleaned
-                except AttributeError:
-                    pass
-            elif isinstance(item, dict):
-                item["requirement"] = cleaned
+        req_type = getattr(item, "req_type", item.get("req_type", "") if isinstance(item, dict) else "")
+        
+        is_tenure = (
+            req_type == "tenure_duration" or
+            TENURE_PATTERN.search(req_name) is not None or
+            bool(re.search(r"\b\d+\+?\s*(?:years?|yrs?|yr)\b", req_name, re.IGNORECASE))
+        )
+        if is_tenure:
+            continue
         filtered.append(item)
     return filtered
 
