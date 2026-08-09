@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 from datetime import date
@@ -13,14 +14,67 @@ from app.agent.schemas import (
 from app.agent.state import RecruitmentState
 from app.agent.utils import extract_cost_and_tokens, extract_json, clean_surrogates
 from langchain_core.messages import HumanMessage, SystemMessage
-from app.agent.prompts import JD_MATCHER_PROMPTS, CANONICAL_JD_DISTILLER_PROMPT
+from app.agent.prompts import JD_MATCHER_PROMPTS, CANONICAL_JD_DISTILLER_PROMPT, PROMPT_VERSION
 from app.core.logging import logger
 from app.agent.tools.scoring import TENURE_PATTERN, calculate_weighted_fit_score
 from app.agent.tools.timeline import calculate_experience_for_domain
 from app.agent.tools.verification import extract_dynamic_requirement_tokens, check_dynamic_token_presence, classify_evidence_source
 
-# In-memory cache for canonical JD specifications to freeze requirements per JD text
+# In-memory cache for canonical JD specifications to freeze requirements per JD text + PROMPT_VERSION
 _JD_SPEC_CACHE: dict[str, CanonicalJDSpec] = {}
+
+GENERIC_TENURE_WORDS = {
+    "software", "engineering", "experience", "professional", "development", "minimum",
+    "years", "yrs", "year", "yr", "work", "industry", "field", "hands-on", "proven",
+    "track", "record", "background", "overall", "total", "relevant", "domain", "building",
+    "operating", "production", "backend", "systems", "system", "in", "of", "with", "and",
+    "for", "a", "an", "the", "strong", "expertise", "knowledge", "skills", "skill",
+    "ability", "demonstrated", "required", "at", "least", "plus", "building", "operating",
+    "senior", "lead", "engineer"
+}
+
+def classify_and_clean_requirement(req: CanonicalJDRequirement) -> tuple[str, float, str]:
+    """
+    Classifies requirement bullet into:
+    - 'tenure_only': Pure experience duration bullet (e.g., '5+ years software engineering experience'). Returns ('tenure_only', extracted_years, cleaned_name)
+    - 'skill_with_tenure': Technical skill with tenure specifier (e.g., 'Python and FastAPI (3+ years)'). Returns ('skill_with_tenure', extracted_years, cleaned_name)
+    - 'qualitative_skill': Technical/qualitative skill with no tenure quantifier. Returns ('qualitative_skill', 0.0, cleaned_name)
+    """
+    name = req.requirement_name or ""
+    quote = req.jd_quote or ""
+    combined = f"{name} {quote}"
+    
+    # 1. Extract numerical tenure years
+    extracted_yrs = 0.0
+    years_match = re.search(r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?|yr)", combined, re.IGNORECASE)
+    if years_match:
+        extracted_yrs = float(years_match.group(1))
+
+    # 2. Strip tenure parentheticals and expressions from requirement_name
+    cleaned = re.sub(r"\s*\(\s*\d+(?:\.\d+)?\+?\s*(?:years?|yrs?|yr)\b[^\)]*\)", "", name, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\b(?:minimum\s+)?\d+(?:\.\d+)?\+?\s*(?:years?|yrs?|yr)\b(?:\s+of\s+(?:professional\s+)?(?:software\s+engineering\s+|development\s+)?experience)?", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^\s*(?:experience\s+with|expertise\s+with|strong\s+hands-on\s+expertise\s+with|hands-on\s+experience\s+with|minimum\s+of)\s+", "", cleaned, flags=re.IGNORECASE)
+    cleaned = cleaned.strip(" :-–—(),.")
+
+    # 3. Check remaining substantive tokens (ignoring pure digits and generic tenure words)
+    tokens = [w.lower() for w in re.findall(r"\w+", cleaned)]
+    substantive_tokens = [w for w in tokens if not w.isdigit() and w not in GENERIC_TENURE_WORDS]
+
+    is_pure_tenure = (
+        req.req_type == "tenure_duration" or
+        TENURE_PATTERN.search(name) is not None or
+        TENURE_PATTERN.search(quote) is not None
+    )
+
+    if (is_pure_tenure or extracted_yrs > 0) and len(substantive_tokens) == 0:
+        return "tenure_only", extracted_yrs, name.strip()
+    elif extracted_yrs > 0:
+        display_name = cleaned if cleaned else name.strip()
+        return "skill_with_tenure", extracted_yrs, display_name
+    else:
+        display_name = cleaned if cleaned else name.strip()
+        return "qualitative_skill", 0.0, display_name
+
 
 # In-memory cache for match assessments: keyed by (candidate_name, jd_fingerprint).
 # Ensures all screening modes (lenient / moderate / strict) share the SAME LLM-assigned
@@ -91,6 +145,12 @@ def verify_and_clean_quote(quote: str, raw_jd: str) -> tuple[bool, str]:
 async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
     """Distill raw Job Description into a canonical specification upfront with model escalation and quote verification."""
     jd_clean = clean_surrogates(jd_text)
+    spec_hash = hashlib.sha256(f"{jd_clean.strip()}::{PROMPT_VERSION}".encode("utf-8")).hexdigest()
+
+    if spec_hash in _JD_SPEC_CACHE:
+        logger.info(f"[JD Distiller] Returning cached CanonicalJDSpec for hash {spec_hash[:12]}")
+        return _JD_SPEC_CACHE[spec_hash]
+
     cache_key = jd_clean.strip()
     if cache_key in _JD_SPEC_CACHE:
         logger.info("[JD Distiller] Returning cached CanonicalJDSpec")
@@ -139,7 +199,7 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
             if not r or not (r.must_have_skills or r.nice_to_have_skills or r.required_years > 0):
                 raise ValueError("Incomplete CanonicalJDSpec extracted from LLM")
 
-            # Post-processing: Substring verification & tenure separation
+            # Post-processing: Substring verification & generic bullet classification
             final_must_have: list[CanonicalJDRequirement] = []
             final_nice_to_have: list[CanonicalJDRequirement] = []
             max_tenure_years = r.required_years
@@ -147,22 +207,16 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
             all_raw_requirements = list(r.must_have_skills) + list(r.nice_to_have_skills)
 
             for req in all_raw_requirements:
-                # Check for tenure match using regex pattern or req_type
-                is_tenure = (
-                    req.req_type == "tenure_duration" or
-                    TENURE_PATTERN.search(req.requirement_name) is not None or
-                    TENURE_PATTERN.search(req.jd_quote) is not None
-                )
+                bullet_type, extracted_yrs, cleaned_name = classify_and_clean_requirement(req)
+                if extracted_yrs > 0:
+                    max_tenure_years = max(max_tenure_years, extracted_yrs)
 
-                if is_tenure:
-                    years_match = re.search(r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?|yr)", req.requirement_name + " " + req.jd_quote, re.IGNORECASE)
-                    if years_match:
-                        extracted_yrs = float(years_match.group(1))
-                        max_tenure_years = max(max_tenure_years, extracted_yrs)
-
-                    logger.info(f"[JD Distiller] Excluding tenure requirement '{req.requirement_name}' from qualitative skill lists; max tenure updated to {max_tenure_years} yrs.")
-                    # Tenure requirements are strictly owned by Experience Depth evaluation. Exclude unconditionally from qualitative lists.
+                if bullet_type == "tenure_only":
+                    logger.info(f"[JD Distiller] Excluding pure tenure requirement '{req.requirement_name}' from qualitative skill lists; max tenure updated to {max_tenure_years} yrs.")
                     continue
+
+                req.requirement_name = cleaned_name
+                req.req_type = "qualitative_skill"
 
                 # Substring verification of quote against raw JD text
                 is_valid_quote, cleaned_quote = verify_and_clean_quote(req.jd_quote, jd_clean)
@@ -174,7 +228,6 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
                     cleaned_quote = req.requirement_name
 
                 req.jd_quote = cleaned_quote
-                req.req_type = "qualitative_skill"
 
                 if req.category == "must_have":
                     final_must_have.append(req)
@@ -185,12 +238,14 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
                 logger.warning(f"[JD Distiller] must_have count ({len(final_must_have)}) outside standard range [4, 8].")
 
             spec = CanonicalJDSpec(
+                spec_hash=spec_hash,
                 role_title=r.role_title or "Software Engineer",
                 required_years=max_tenure_years,
                 must_have_skills=final_must_have,
                 nice_to_have_skills=final_nice_to_have
             )
 
+            _JD_SPEC_CACHE[spec_hash] = spec
             _JD_SPEC_CACHE[cache_key] = spec
             return spec
 
@@ -199,6 +254,7 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
             logger.warning(f"[JD Distiller] Attempt {attempt+1} (tier={tier}, model={model_name}) failed: {e}")
 
     raise RuntimeError(f"Failed to distill canonical JD specification after {len(model_escalation)} attempts: {last_exception}")
+
 
 
 async def jd_matcher_node(state: RecruitmentState) -> dict:

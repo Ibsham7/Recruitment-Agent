@@ -28,8 +28,9 @@ GENERIC_TENURE_WORDS = {
 }
 
 def _filter_tenure_requirements(items: list) -> list:
-    """Sanitize requirement lists to ensure years of experience are strictly owned by Experience Depth, avoiding double-scoring.
-    Unconditionally discard any requirement containing tenure patterns or tagged as tenure duration.
+    """Sanitize requirement lists to ensure pure experience duration requirements are strictly owned by Experience Depth,
+    while technical skills with embedded tenure quantifiers (e.g., 'Python and FastAPI (3+ years)') have the tenure phrase stripped
+    and are retained in the qualitative skill list.
     """
     if not items:
         return []
@@ -44,7 +45,22 @@ def _filter_tenure_requirements(items: list) -> list:
             bool(re.search(r"\b\d+\+?\s*(?:years?|yrs?|yr)\b", req_name, re.IGNORECASE))
         )
         if is_tenure:
-            continue
+            cleaned = re.sub(r"\s*\(\s*\d+(?:\.\d+)?\+?\s*(?:years?|yrs?|yr)\b[^\)]*\)", "", req_name, flags=re.IGNORECASE)
+            cleaned = re.sub(r"\b(?:minimum\s+)?\d+(?:\.\d+)?\+?\s*(?:years?|yrs?|yr)\b(?:\s+of\s+(?:professional\s+)?(?:software\s+engineering\s+|development\s+)?experience)?", "", cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r"^\s*(?:experience\s+with|expertise\s+with|strong\s+hands-on\s+expertise\s+with|hands-on\s+experience\s+with|minimum\s+of)\s+", "", cleaned, flags=re.IGNORECASE)
+            cleaned = cleaned.strip(" :-–—(),.")
+
+            tokens = [w.lower() for w in re.findall(r"\w+", cleaned)]
+            substantive_tokens = [w for w in tokens if w not in GENERIC_TENURE_WORDS]
+
+            if not substantive_tokens:
+                continue
+
+            if hasattr(item, "requirement"):
+                item.requirement = cleaned
+            elif isinstance(item, dict) and "requirement" in item:
+                item["requirement"] = cleaned
+
         filtered.append(item)
     return filtered
 

@@ -375,11 +375,13 @@ Rules:
 - Do not invent information. If something is not in the CV, omit it or use null.
 """
 
+PROMPT_VERSION = "v1.0"
+
 CANONICAL_JD_DISTILLER_PROMPT = """You are an expert recruitment analyst extracting a canonical job specification from a Job Description.
 
 ## Task
 Distill the raw Job Description into a single JSON object matching the CanonicalJDSpec schema.
-Separate qualitative technical/domain skills from total experience duration requirements, and classify qualifications into must_have (mandatory) versus nice_to_have (preferred/plus).
+Separate qualitative technical/domain skills from overall experience duration requirements, and classify qualifications into must_have (mandatory) versus nice_to_have (preferred/plus).
 
 ## Fields to Extract:
 1. `role_title`: The target job title stated in the JD (e.g., "Senior Software Engineer", "High School Math Teacher", "Marketing Director").
@@ -387,27 +389,26 @@ Separate qualitative technical/domain skills from total experience duration requ
 3. `must_have_skills`: List of MANDATORY qualifications.
    Each item must contain:
    - `id`: Unique string ID (e.g. "MUST_01", "MUST_02").
-   - `requirement_name`: Short canonical name for the requirement (e.g., "Python & Django Development", "Curriculum Design & Lesson Planning", "Financial Modeling").
+   - `requirement_name`: Short canonical name for the skill (e.g., "Python and FastAPI", "PostgreSQL Optimization", "Cloud Deployment"). Keep the requirement name focused on the skill/technology, omitting parenthetical tenure specifiers like "(3+ years)".
    - `req_type`:
-     - Set `"tenure_duration"` ONLY if the requirement specifies years of experience or tenure duration (e.g. "5+ years experience").
-     - Set `"qualitative_skill"` for all technical skills, frameworks, databases, tools, degree requirements, or domain competencies.
+     - Set `"tenure_duration"` ONLY if the bullet is a pure experience duration requirement with no specific technology or tool (e.g., "5+ years software engineering experience").
+     - Set `"qualitative_skill"` for all technical skills, frameworks, databases, tools, degree requirements, or domain competencies (even if the bullet mentions a tenure quantifier like "Python and FastAPI (3+ years)").
    - `category`: `"must_have"`
    - `jd_quote`: VERBATIM string quote copied directly from the Job Description text proving requirement existence.
 4. `nice_to_have_skills`: List of PREFERRED or PLUS qualifications.
    Each item must contain:
    - `id`: Unique string ID (e.g. "NICE_01", "NICE_02").
    - `requirement_name`: Short canonical name for preferred skill.
-   - `req_type`: `"qualitative_skill"` (or `"tenure_duration"` if tenure-related).
+   - `req_type`: `"qualitative_skill"` (or `"tenure_duration"` if pure tenure).
    - `category`: `"nice_to_have"`
    - `jd_quote`: VERBATIM string quote copied directly from the Job Description text proving requirement existence.
 
 ## CRITICAL RULES:
 1. VERBATIM ANCHORING (`jd_quote`): Every extracted requirement MUST include an exact verbatim substring copied directly from the input Job Description text. Do NOT synthesize or summarize quotes.
-2. TENURE SEPARATION: Explicitly tag years-of-experience requirements as `req_type="tenure_duration"`. Do NOT tag qualitative technical skills as tenure.
+2. TENURE SEPARATION: Tag pure experience duration requirements (with no specific technology) as `req_type="tenure_duration"`. If a requirement specifies a technology with a tenure requirement (e.g., "Python and FastAPI (3+ years)"), set `req_type="qualitative_skill"` and use clean skill name ("Python and FastAPI") in `requirement_name`.
 3. ZERO HALLUCINATION: Extract ONLY requirements explicitly mentioned in the Job Description text. Do NOT invent certifications, frameworks, or tools not present in the text.
 """
 
 JD_DISTILLER_SYSTEM = CANONICAL_JD_DISTILLER_PROMPT
 
-JD_DISTILLER_SYSTEM = CANONICAL_JD_DISTILLER_PROMPT
 

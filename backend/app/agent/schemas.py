@@ -491,6 +491,10 @@ class CanonicalJDRequirement(BaseModel):
 
 class CanonicalJDSpec(BaseModel):
     """Canonical Job Description specification distilled upfront."""
+    spec_hash: Optional[str] = Field(
+        default=None,
+        description="SHA256 hash of raw JD text + PROMPT_VERSION for strict immutability"
+    )
     role_title: str = Field(
         default="Software Engineer",
         validation_alias=AliasChoices("role_title", "job_title", "title"),
