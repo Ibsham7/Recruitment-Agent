@@ -2,8 +2,14 @@ from pydantic import BaseModel, Field, field_validator, AliasChoices
 from typing import Optional, Literal, Any
 from datetime import datetime
 
+class ExperienceBullet(BaseModel):
+    """Represents a single verbatim bullet point with a unique ID."""
+    id: str = Field(description="Unique bullet ID, e.g. 'E1.1', 'P1.2'")
+    text: str = Field(description="The verbatim text of the bullet point")
+
 class WorkExperienceRole(BaseModel):
     """Structured role record extracted from a candidate CV."""
+    id: Optional[str] = Field(default=None, description="Role ID, e.g. 'E1', 'E2'")
     title: str = Field(description="Job title held")
     company: Optional[str] = Field(default=None, description="Company or organization name")
     start_date: Optional[str] = Field(default=None, description="Start date as written on CV (e.g., '01/2021', 'Jan 2021', '2021')")
@@ -11,6 +17,7 @@ class WorkExperienceRole(BaseModel):
     is_current: bool = Field(default=False, description="True if role is ongoing")
     skills_used: list[str] = Field(default_factory=list, description="Key skills, tools, or domain keywords used in this role")
     description: Optional[str] = Field(default="", description="Brief summary of duties and responsibilities")
+    bullets: list[ExperienceBullet] = Field(default_factory=list, description="Verbatim bullet points extracted with bullet IDs")
 
     def __str__(self) -> str:
         if self.company:
@@ -27,10 +34,12 @@ class CandidateProfileOutput(BaseModel):
     total_experience_years: float = Field(default=0.0, ge=0, validation_alias=AliasChoices("total_experience_years", "years_experience", "experience_years", "years_of_experience"), description="Total years of professional experience calculated deterministically")
     education: list[str] = Field(default_factory=list, description="Degrees and institutions")
     skills: list[str] = Field(default_factory=list, description="Technical and soft skills")
+    skills_declared: list[str] = Field(default_factory=list, description="Skills listed in the candidate's Skills section ONLY. Self-reported claims.")
     previous_roles: list[WorkExperienceRole] = Field(default_factory=list, description="Structured work experience history")
     key_achievements: list[str] = Field(default_factory=list, description="Notable accomplishments")
     projects: list[str] = Field(default_factory=list, description="Notable projects")
     other_info: Optional[str] = Field(default="", description="Any other relevant info from the CV")
+    parse_flags: list[str] = Field(default_factory=list, description="Flags raised during parsing")
 
     @property
     def current_role_resolved(self) -> str:
@@ -121,6 +130,18 @@ class RequirementMatch(BaseModel):
     )
     match: Literal["full", "partial", "none"]
     evidence: str = Field(default="", description="Detailed evidence from CV supporting this match rating")
+    evidence_bullet_ids: list[str] = Field(
+        default_factory=list,
+        description="IDs of bullets that provide evidence (e.g. ['E1.2', 'P1.1']). Empty if no bullet evidence."
+    )
+    scope: Optional[Literal["exact", "adjacent", "unrelated"]] = Field(
+        default=None,
+        description="How closely the evidence matches the requirement"
+    )
+    declared_in_skills: bool = Field(
+        default=False,
+        description="Whether this skill/technology appears in the candidate's SKILLS DECLARED section"
+    )
     evidence_type: Optional[Literal["employment", "project", "education", "skills_list_only", "inferred", "absent"]] = Field(
         default="employment",
         description="Source classification of evidence"

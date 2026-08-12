@@ -41,8 +41,15 @@ def _filter_tenure_requirements(items: list) -> list:
         req_name = getattr(item, "requirement", item.get("requirement", "") if isinstance(item, dict) else str(item))
         req_type = getattr(item, "req_type", item.get("req_type", "") if isinstance(item, dict) else "")
         
+        # Explicit tenure duration items are strictly owned by Experience Depth
+        if req_type == "tenure_duration":
+            continue
+
+        # Bullets starting with a tenure quantifier (e.g. '5+ years...', 'Minimum 3 years...') are pure tenure requirements
+        if re.match(r"^\s*(?:minimum\s+|at\s+least\s+)?\d+(?:\.\d+)?\+?\s*(?:years?|yrs?|yr)\b", req_name, re.IGNORECASE):
+            continue
+
         is_tenure = (
-            req_type == "tenure_duration" or
             TENURE_PATTERN.search(req_name) is not None or
             bool(re.search(r"\b\d+\+?\s*(?:years?|yrs?|yr)\b", req_name, re.IGNORECASE))
         )
@@ -210,37 +217,44 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
         # 1. Deterministic structural classification if profile and text evidence available
         if candidate_profile and raw_cv_text and evidence_val:
             struct_source = classify_evidence_source(req_name, candidate_profile=candidate_profile, evidence_quote=evidence_val)
-            if struct_source in ("skills_list_only", "absent"):
+            if struct_source in ("skills_list_only", "absent") and ev_type != "unverified":
                 ev_type = struct_source
 
-        # 2. Quote Grounded Anti-Fabrication Check: If evidence quote is absent/unverified on CV, force match to none
-        if struct_source == "absent" and evidence_val and len(evidence_val.strip()) >= 5:
+        # 2. Quote Grounded Anti-Fabrication Check: If evidence quote is absent on CV and not fail-soft unverified, force match to none
+        if struct_source == "absent" and ev_type != "unverified" and evidence_val and len(evidence_val.strip()) >= 5:
             match_val = "none"
             override_note = " [Overridden to none: unevidenced or absent quote on CV]"
 
-        # 3. Check prose pattern matching & skills-list-only override (only if not substantive execution)
+        # 3. Check prose pattern matching & skills-list-only override (only if not declared_in_skills or claim_only)
         if match_val != "none":
+            declared_in_skills = getattr(item, "declared_in_skills", False) or False
             is_skills_only = (
                 ev_type == "skills_list_only" or
                 any(pat.search(ev_lower) for pat in SKILLS_LIST_PROSE_PATTERNS) or
                 "listed as a skill" in ev_lower or
                 "listed in skills" in ev_lower or
-                "skills list" in ev_lower
+                "skills list" in ev_lower or
+                "declared in skills" in ev_lower
             )
 
             from app.agent.tools.verification import SUBSTANTIVE_EXECUTION_VERBS
             has_substantive_execution = any(v in ev_lower for v in SUBSTANTIVE_EXECUTION_VERBS)
 
             if is_skills_only and not has_substantive_execution:
-                substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower, flags=re.IGNORECASE)
-                substantive = re.sub(r"listed\s+in\s+skills\s*(section)?", "", substantive, flags=re.IGNORECASE)
-                substantive = re.sub(r"skills?\s+list\s*(includes?)?", "", substantive, flags=re.IGNORECASE)
-                substantive = re.sub(r"used\s+in\s+(previous\s+)?role", "", substantive, flags=re.IGNORECASE)
-                substantive = re.sub(r"listed\s+in\s+(summary|cv|profile)", "", substantive, flags=re.IGNORECASE)
-                substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive, flags=re.IGNORECASE).strip(" ;,.-")
-                if len(substantive) < 5 or ev_type == "skills_list_only":
-                    match_val = "none"
-                    override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
+                if declared_in_skills or "declared in skills" in ev_lower or "skills section" in ev_lower:
+                    # Claim-Aware Scoring: Declared-only skills score partial credit + raised flag
+                    match_val = "partial"
+                    override_note = " [Claim-only skill: declared in skills section, partial credit assigned]"
+                else:
+                    substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower, flags=re.IGNORECASE)
+                    substantive = re.sub(r"listed\s+in\s+skills\s*(section)?", "", substantive, flags=re.IGNORECASE)
+                    substantive = re.sub(r"skills?\s+list\s*(includes?)?", "", substantive, flags=re.IGNORECASE)
+                    substantive = re.sub(r"used\s+in\s+(previous\s+)?role", "", substantive, flags=re.IGNORECASE)
+                    substantive = re.sub(r"listed\s+in\s+(summary|cv|profile)", "", substantive, flags=re.IGNORECASE)
+                    substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive, flags=re.IGNORECASE).strip(" ;,.-")
+                    if len(substantive) < 5 or ev_type == "skills_list_only":
+                        match_val = "none"
+                        override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
 
     if item is not None and match_val != getattr(item, "match", None):
         if hasattr(item, "match"):
@@ -866,8 +880,9 @@ def calculate_weighted_fit_score(
         exp_score = 100.0
     elif req_years > 0:
         ratio_score = min(100.0, max(0.0, (effective_exp_years / req_years) * 100.0))
-        # Relevance proportion discount: blend 70% requirement ratio + 30% career relevance ratio
-        if cand_years > 0 and effective_exp_years < cand_years:
+        # Relevance proportion discount: apply ONLY when candidate meets or exceeds the required years (effective_exp_years >= req_years)
+        # to prevent double-counting penalties and monotonicity inversions for career-changers below requirement.
+        if cand_years > 0 and effective_exp_years >= req_years and effective_exp_years < cand_years:
             relevance_ratio = effective_exp_years / cand_years
             exp_score = (ratio_score * 0.7) + (relevance_ratio * 100.0 * 0.3)
         else:

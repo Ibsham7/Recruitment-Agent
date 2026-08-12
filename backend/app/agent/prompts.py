@@ -361,18 +361,21 @@ CRITICAL DATE ANCHOR: Today's date is {current_date}. All ongoing, current, or p
 
 Rules:
 - previous_roles: Extract each past/current job position as a structured object with:
+  * id: unique role ID (e.g. 'E1', 'E2')
   * title: clean job title (e.g. 'Backend Engineer', 'QA Engineer')
   * company: organization or employer name
-  * start_date: start year/month (e.g., '2023', '01/2023', 'Jan 2020'). ALWAYS separate start_date and end_date into distinct fields! Do NOT combine date ranges like '2020-2023' into start_date or title!
-  * end_date: end year/month or 'Present' for ongoing roles (e.g., '2023', '06/2024', 'Present', 'Current')
+  * start_date: start year/month (e.g., '2023', '01/2023', 'Jan 2020'). ALWAYS separate start_date and end_date into distinct fields!
+  * end_date: end year/month or 'Present' for ongoing roles
   * is_current: true if role is ongoing
   * skills_used: list of key tools/technologies/methods used in this role
-  * description: brief summary of duties and responsibilities
-- Do NOT compute or guess date arithmetic for total_experience_years — extract raw dates accurately and backend Python code will calculate non-overlapping tenure deterministically.
-- skills: include both domain/technical (e.g., Python, SEO, Financial Analysis, Curriculum Design) and soft (e.g., leadership, communication)
-- projects: include notable academic, personal, or professional projects/campaigns
+  * description: summary of duties and responsibilities
+  * bullets: list of VERBATIM bullet objects copied character-for-character from CV text. Assign sequential IDs: E1.1, E1.2, E2.1, etc.
+- skills_declared: list of skills extracted ONLY from the explicitly labeled "Skills" or "Technical Skills" section. Self-reported claims. Do NOT include bullet IDs here.
+- LINE UNWRAPPING: If a line in the CV does NOT start with a bullet marker (•, -, *, ▪) or section heading, and the previous line does NOT end with terminal punctuation (. ! ? :), JOIN that line to the previous line with a space to preserve continuation lines.
+- skills: include both domain/technical and soft skills across the entire CV.
+- projects: include notable academic, personal, or professional projects/campaigns.
 - other_info: include anything else that is relevant like certifications, awards, licenses, etc.
-- Do not invent information. If something is not in the CV, omit it or use null.
+- Do not invent information. Every bullet text MUST be an EXACT substring of the CV text.
 """
 
 PROMPT_VERSION = "v1.0"

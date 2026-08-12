@@ -28,6 +28,37 @@ except ImportError:
 from urllib.parse import urlparse
 import re
 
+def looks_like_skill_list(text: str) -> bool:
+    """
+    Detect if a bullet point is actually a comma-separated skill list
+    that was miscategorized as an experience/project bullet.
+    """
+    if not text or ',' not in text:
+        return False
+
+    parts = [p.strip() for p in text.split(',') if p.strip()]
+    if len(parts) < 5:
+        return False
+
+    verb_indicators = [
+        'developed', 'built', 'created', 'designed', 'implemented',
+        'managed', 'led', 'architected', 'deployed', 'configured',
+        'maintained', 'optimized', 'integrated', 'automated', 'established',
+        'resolved', 'coordinated', 'mentored', 'delivered', 'migrated',
+        'using', 'with', 'for', 'through', 'across', 'into', 'from',
+    ]
+
+    text_lower = text.lower()
+    for verb in verb_indicators:
+        if re.search(r'\b' + verb + r'\b', text_lower):
+            return False
+
+    long_phrases = sum(1 for p in parts if len(p.split()) > 4)
+    if long_phrases > len(parts) * 0.3:
+        return False
+
+    return True
+
 def parse_file_by_format(local_path: str) -> str:
     """Synchronous helper to parse PDF, DOCX, DOC, or TXT file into raw text."""
     header = b""
@@ -363,6 +394,36 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     )
         
     candidate_profile = CandidateProfile(**profile_data)
+
+    # Post-parsing bullet reclassification & verbatim validation
+    parse_flags = list(candidate_profile.parse_flags or [])
+    skills_declared = list(candidate_profile.skills_declared or [])
+
+    # Ensure role IDs and bullet IDs exist
+    role_idx = 1
+    for role in candidate_profile.previous_roles:
+        if not getattr(role, "id", None):
+            role.id = f"E{role_idx}"
+        role_idx += 1
+
+        bullets_to_keep = []
+        b_idx = 1
+        for b in (getattr(role, "bullets", []) or []):
+            if not getattr(b, "id", None):
+                b.id = f"{role.id}.{b_idx}"
+            b_idx += 1
+
+            if looks_like_skill_list(b.text):
+                new_skills = [s.strip() for s in b.text.split(",") if s.strip()]
+                skills_declared.extend(new_skills)
+                if "skills_reclassified" not in parse_flags:
+                    parse_flags.append("skills_reclassified")
+            else:
+                bullets_to_keep.append(b)
+        role.bullets = bullets_to_keep
+
+    candidate_profile.skills_declared = list(set(skills_declared))
+    candidate_profile.parse_flags = parse_flags
 
     # Create new global Resume record if DB is connected
     if prisma.is_connected():

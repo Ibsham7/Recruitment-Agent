@@ -181,17 +181,31 @@ def verify_verbatim_cv_quote(quote: str, raw_cv_text: str) -> tuple[bool, str]:
         return True, clean_q
 
     # 4. Partial window match (at least 4 consecutive words found in raw CV)
+    # FIX 5: Truncate to the matched CV line/snippet, not returning unverified full clean_q
     words = [w for w in re.findall(r"\w+", norm_q) if len(w) >= 2]
     if len(words) >= 4:
-        four_words = " ".join(words[:4])
-        if four_words in strip_punc_cv:
-            return True, clean_q
+        for i in range(len(words) - 3):
+            four_words = " ".join(words[i:i+4])
+            if four_words in strip_punc_cv:
+                for line in raw_cv_text.splitlines():
+                    line_clean = re.sub(r"[^\w\s]", "", line.lower())
+                    if four_words in line_clean:
+                        cv_line = re.sub(r"^[•\-\*–—\d\.\)]+\s*", "", line).strip()
+                        if cv_line:
+                            return True, cv_line[:150]
+                return True, four_words
 
     return False, ""
 
 
-def extract_verbatim_sentence_for_requirement(req_name: str, candidate_profile: Any) -> str | None:
-    """Finds the exact verbatim line/sentence in raw_cv_text that contains key substantive requirement tokens."""
+def extract_verbatim_sentence_for_requirement(
+    req_name: str,
+    candidate_profile: Any,
+    proposed_evidence: str = "",
+    jd_quote: str = "",
+    prefer_employment_only: bool = False
+) -> str | None:
+    """Finds and ranks verbatim lines in raw_cv_text based on token overlap with proposed LLM quote + requirement name and section priority."""
     if not candidate_profile:
         return None
 
@@ -199,20 +213,89 @@ def extract_verbatim_sentence_for_requirement(req_name: str, candidate_profile: 
     if not raw_cv.strip():
         return None
 
-    from app.agent.tools.scoring import extract_dynamic_requirement_tokens
-    req_tokens = extract_dynamic_requirement_tokens(req_name)
-    if not req_tokens:
+    from app.agent.tools.verification import (
+        extract_dynamic_requirement_tokens,
+        stem_token,
+        SECTION_PRIORITY_WEIGHTS,
+        SUBSTANTIVE_EXECUTION_VERBS,
+        SKILLS_LIST_PROSE_PATTERNS
+    )
+
+    # Check if proposed_evidence is a skills dump (contains no substantive execution verbs)
+    has_verbs = any(v in proposed_evidence.lower() for v in SUBSTANTIVE_EXECUTION_VERBS) if proposed_evidence else False
+
+    # If proposed_evidence has execution verbs, extract ev_tokens; otherwise ignore proposed_evidence token contamination!
+    ev_tokens = extract_dynamic_requirement_tokens(proposed_evidence) if (proposed_evidence and has_verbs) else set()
+    req_tokens = extract_dynamic_requirement_tokens(req_name, jd_quote) if req_name else set()
+
+    all_target = ev_tokens | req_tokens
+    if not all_target:
         return None
 
-    lines = [line.strip() for line in raw_cv.splitlines() if line.strip()]
-    for line in lines:
-        line_lower = line.lower()
-        if any(token in line_lower for token in req_tokens if len(token) >= 3):
-            clean_line = re.sub(r"^[•\-\*–—\d\.\)]+\s*", "", line).strip()
-            if clean_line and len(clean_line) >= 5:
-                return clean_line[:150]
+    roles = getattr(candidate_profile, "previous_roles", []) or []
+    roles_text = ""
+    for r in roles:
+        if isinstance(r, dict):
+            roles_text += f" {r.get('title', '')} {r.get('description', '')} {' '.join([str(s) for s in r.get('skills_used', [])])}"
+        else:
+            roles_text += f" {getattr(r, 'title', '')} {getattr(r, 'description', '')} {' '.join([str(s) for s in getattr(r, 'skills_used', [])])}"
+    roles_text = roles_text.lower()
 
-    return None
+    projects = getattr(candidate_profile, "projects", []) or []
+    proj_text = ""
+    for p in projects:
+        if isinstance(p, dict):
+            proj_text += f" {p.get('title', '')} {p.get('name', '')} {p.get('description', '')}"
+        else:
+            proj_text += f" {getattr(p, 'title', '')} {getattr(p, 'description', '')}"
+    proj_text = proj_text.lower()
+
+    skills = getattr(candidate_profile, "skills", []) or []
+    skills_text = " ".join([str(s) for s in skills]).lower()
+
+    lines = [line.strip() for line in raw_cv.splitlines() if line.strip()]
+    best_line = None
+    best_score = 0.0
+
+    for line in lines:
+        line_clean = re.sub(r"^[•\-\*–—\d\.\)]+\s*", "", line).strip()
+        if not line_clean or len(line_clean) < 4:
+            continue
+
+        line_lower = line_clean.lower()
+        if line_lower in ("experience", "work experience", "employment", "projects", "education", "skills", "technical skills", "summary", "personal projects"):
+            continue
+
+        is_in_skills = (line_lower in skills_text or any(pat.search(line_lower) for pat in SKILLS_LIST_PROSE_PATTERNS)) and not any(v in line_lower for v in SUBSTANTIVE_EXECUTION_VERBS)
+        if prefer_employment_only and is_in_skills:
+            continue
+
+        line_words = [stem_token(w) for w in re.findall(r"\w+", line_lower)]
+        if not line_words:
+            continue
+
+        line_words_set = set(line_words)
+
+        ev_matches = sum(1 for t in ev_tokens if stem_token(t) in line_words_set or any(w.startswith(stem_token(t)[:4]) for w in line_words if len(stem_token(t)) >= 4))
+        req_matches = sum(1 for t in req_tokens if stem_token(t) in line_words_set or any(w.startswith(stem_token(t)[:4]) for w in line_words if len(stem_token(t)) >= 4))
+
+        if ev_matches == 0 and req_matches == 0:
+            continue
+
+        sec_mult = SECTION_PRIORITY_WEIGHTS["inferred"]
+        if line_lower in roles_text or any(v in line_lower for v in SUBSTANTIVE_EXECUTION_VERBS):
+            sec_mult = SECTION_PRIORITY_WEIGHTS["employment"]
+        elif line_lower in proj_text:
+            sec_mult = SECTION_PRIORITY_WEIGHTS["project"]
+        elif is_in_skills:
+            sec_mult = SECTION_PRIORITY_WEIGHTS["skills_list_only"]
+
+        line_score = (2.0 * ev_matches + 1.0 * req_matches) * sec_mult
+        if line_score > best_score:
+            best_score = line_score
+            best_line = line_clean[:150]
+
+    return best_line if best_score >= 1.0 else None
 
 # (Skipping down to alignment loops in jd_matcher_node...)
 
@@ -468,58 +551,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         _MATCH_ASSESSMENT_CACHE[match_cache_key] = compact_output
         logger.info(f"[JD Matcher] Cached new match assessment for {profile.name} (mode={eval_mode})")
 
-    # 2.5 Verbatim Quote Verification & Retry Logic
     raw_cv_text = getattr(profile, "raw_cv_text", "") or ""
-    unverified_items = []
-    all_extracted_matches = (compact_output.must_have or []) + (compact_output.nice_to_have or [])
-    for m in all_extracted_matches:
-        if m.match != "none" and m.evidence:
-            is_valid, _ = verify_verbatim_cv_quote(m.evidence, raw_cv_text)
-            if not is_valid:
-                unverified_items.append((m.requirement, m.evidence))
-
-    if unverified_items:
-        logger.warning(
-            f"[JD Matcher] [RETRY TRIGGERED] Verbatim evidence verification failed for candidate '{profile.name}' "
-            f"on {len(unverified_items)} requirements: "
-            + ", ".join([f"'{name}' (quote: \"{q}\")" for name, q in unverified_items])
-        )
-
-        retry_notice = (
-            "\n\nCRITICAL RETRY NOTICE — VERBATIM QUOTE FAILURE:\n"
-            f"The evidence quotes for candidate '{profile.name}' on the following requirements were non-verbatim or rephrased:\n"
-            + "\n".join([f"- Requirement '{name}': invalid quote \"{q}\"" for name, q in unverified_items])
-            + "\nYOU MUST COPY EXACT VERBATIM SUBSTRINGS DIRECTLY FROM THE CANDIDATE CV TEXT. DO NOT REPHRASE, MODERNISE, OR REWRITE VERBS OR QUALIFIERS."
-        )
-        retry_prompt = (
-            f"JOB DESCRIPTION:\n{jd}\n\n{canonical_context}"
-            + JD_MATCHER_PROMPTS["default"].replace("{current_date}", today_str)
-            + retry_notice
-        )
-
-        try:
-            retry_output, retry_cost, retry_tokens = await invoke_model(retry_prompt, profile_dict)
-            cost += retry_cost
-            stage_tokens["input_tokens"] += retry_tokens.get("input_tokens", 0)
-            stage_tokens["output_tokens"] += retry_tokens.get("output_tokens", 0)
-            stage_tokens["total_tokens"] += retry_tokens.get("total_tokens", 0)
-
-            post_unverified = []
-            for rm in (retry_output.must_have or []) + (retry_output.nice_to_have or []):
-                if rm.match != "none" and rm.evidence:
-                    is_valid, _ = verify_verbatim_cv_quote(rm.evidence, raw_cv_text)
-                    if not is_valid:
-                        post_unverified.append((rm.requirement, rm.evidence))
-
-            logger.info(
-                f"[JD Matcher] [RETRY OUTCOME] Candidate '{profile.name}': "
-                f"{len(unverified_items) - len(post_unverified)}/{len(unverified_items)} quotes recovered verbatim after retry. "
-                f"Remaining unverified: {len(post_unverified)}"
-            )
-            compact_output = retry_output
-            _MATCH_ASSESSMENT_CACHE[match_cache_key] = compact_output
-        except Exception as retry_err:
-            logger.error(f"[JD Matcher] Retry pass failed for candidate '{profile.name}': {retry_err}")
 
     # Override relevant_experience_years with deterministic domain calculation
     domain_keywords = [req.requirement_name for req in canonical_spec.must_have_skills]
@@ -551,7 +583,12 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
 
     cand_corpus = f"{raw_cv_text} {profile_skills_text} {roles_text} {projects_text} {education_text}".lower()
 
+    # 3. Align compact_output matches against canonical_spec requirements via 3-Branch Reduction Engine
+    from app.agent.tools.reduction_engine import reduce_match
+
     aligned_must_have: list[RequirementMatch] = []
+    claim_only_must_haves = []
+
     for canonical_req in canonical_spec.must_have_skills:
         c_name = canonical_req.requirement_name
         found = None
@@ -559,55 +596,66 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
             if _fuzzy_requirement_match(c_name, m.requirement):
                 found = m
                 break
-        if found:
-            ev_text = getattr(found, "evidence", "") or ""
-            is_valid_ev, clean_ev = verify_verbatim_cv_quote(ev_text, raw_cv_text)
-            
-            if not is_valid_ev and found.match != "none":
-                verbatim_sentence = extract_verbatim_sentence_for_requirement(c_name, profile)
-                if verbatim_sentence:
-                    is_valid_ev = True
-                    clean_ev = verbatim_sentence
-                    logger.info(f"[JD Matcher] Substituted exact CV verbatim sentence for requirement '{c_name}': \"{clean_ev}\"")
-                else:
-                    logger.warning(f"[JD Matcher] Forcing match to 'none' for requirement '{c_name}' due to unverified non-verbatim quote: \"{ev_text}\"")
 
-            struct_ev_type = classify_evidence_source(
-                req_name=c_name,
-                jd_quote=getattr(canonical_req, "jd_quote", ""),
-                candidate_profile=profile,
-                evidence_quote=clean_ev or ev_text
+        if found:
+            ev_bullet_ids = getattr(found, "evidence_bullet_ids", []) or []
+            ev_scope = getattr(found, "scope", None) or "exact"
+            ev_depth = getattr(found, "proficiency_signal", None) or getattr(found, "depth", None) or "used"
+            declared_in_skills = getattr(found, "declared_in_skills", False) or False
+            ev_quote = getattr(found, "evidence", "") or ""
+
+            # Deterministic 3-branch reduction engine call
+            verdict, flag = reduce_match(
+                requirement_name=c_name,
+                evidence_bullet_ids=ev_bullet_ids,
+                scope=ev_scope,
+                depth=ev_depth,
+                declared_in_skills=declared_in_skills,
+                candidate_profile=profile
             )
 
-            if is_valid_ev:
-                final_match = found.match
-                final_ev = clean_ev
-                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only") else (getattr(found, "evidence_type", None) or "employment")
-                prof_sig = getattr(found, "proficiency_signal", None) or "used"
-            elif struct_ev_type == "skills_list_only":
-                final_match = found.match
-                final_ev = clean_ev or ev_text or "Listed in skills section"
+            if flag == "claim_only":
+                claim_only_must_haves.append(c_name)
                 ev_type = "skills_list_only"
-                prof_sig = getattr(found, "proficiency_signal", None) or "used"
-            else:
-                final_match = "none"
-                final_ev = "No direct verbatim evidence found on CV"
+                final_ev = ev_quote or "Declared in skills section (no experience/project bullet evidence)"
+            elif flag == "absent":
                 ev_type = "absent"
-                prof_sig = "none"
+                final_ev = "No evidence found in experience, projects, or skills section"
+            else:
+                ev_type = "employment" if any(b.startswith("E") for b in ev_bullet_ids) else "project"
+                final_ev = ev_quote or (f"Evidenced in bullet(s): {', '.join(ev_bullet_ids)}" if ev_bullet_ids else "Evidenced on CV")
 
             aligned_must_have.append(RequirementMatch(
                 requirement=c_name,
-                match=final_match,
+                match=verdict,
                 evidence=final_ev,
+                evidence_bullet_ids=ev_bullet_ids,
+                scope=ev_scope,
+                declared_in_skills=declared_in_skills,
                 evidence_type=ev_type,
-                proficiency_signal=prof_sig
+                proficiency_signal=ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning", "none") else "used"
             ))
         else:
+            # Deterministic fallback check via alias_hit / profile skills
+            skills_declared = getattr(profile, "skills_declared", []) or getattr(profile, "skills", []) or []
+            from app.agent.tools.reduction_engine import alias_hit
+            is_declared = alias_hit(c_name, skills_declared)
+            if is_declared:
+                claim_only_must_haves.append(c_name)
+                verdict = "partial"
+                ev_type = "skills_list_only"
+                final_ev = "Declared in skills section"
+            else:
+                verdict = "none"
+                ev_type = "absent"
+                final_ev = "No evidence found on CV"
+
             aligned_must_have.append(RequirementMatch(
                 requirement=c_name,
-                match="none",
-                evidence="No direct evidence found on CV",
-                evidence_type="absent",
+                match=verdict,
+                evidence=final_ev,
+                declared_in_skills=is_declared,
+                evidence_type=ev_type,
                 proficiency_signal="none"
             ))
 
@@ -619,54 +667,48 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
             if _fuzzy_requirement_match(c_name, m.requirement):
                 found = m
                 break
+
         if found:
-            ev_text = getattr(found, "evidence", "") or ""
-            is_valid_ev, clean_ev = verify_verbatim_cv_quote(ev_text, raw_cv_text)
+            ev_bullet_ids = getattr(found, "evidence_bullet_ids", []) or []
+            ev_scope = getattr(found, "scope", None) or "exact"
+            ev_depth = getattr(found, "proficiency_signal", None) or getattr(found, "depth", None) or "used"
+            declared_in_skills = getattr(found, "declared_in_skills", False) or False
+            ev_quote = getattr(found, "evidence", "") or ""
 
-            if not is_valid_ev and found.match != "none":
-                verbatim_sentence = extract_verbatim_sentence_for_requirement(c_name, profile)
-                if verbatim_sentence:
-                    is_valid_ev = True
-                    clean_ev = verbatim_sentence
-                    logger.info(f"[JD Matcher] Substituted exact CV verbatim sentence for requirement '{c_name}': \"{clean_ev}\"")
-                else:
-                    logger.warning(f"[JD Matcher] Forcing match to 'none' for requirement '{c_name}' due to unverified non-verbatim quote: \"{ev_text}\"")
-
-            struct_ev_type = classify_evidence_source(
-                req_name=c_name,
-                jd_quote=getattr(canonical_req, "jd_quote", ""),
-                candidate_profile=profile,
-                evidence_quote=clean_ev or ev_text
+            verdict, flag = reduce_match(
+                requirement_name=c_name,
+                evidence_bullet_ids=ev_bullet_ids,
+                scope=ev_scope,
+                depth=ev_depth,
+                declared_in_skills=declared_in_skills,
+                candidate_profile=profile
             )
 
-            if is_valid_ev:
-                final_match = found.match
-                final_ev = clean_ev
-                ev_type = struct_ev_type if struct_ev_type in ("employment", "project", "education", "skills_list_only") else (getattr(found, "evidence_type", None) or "employment")
-                prof_sig = getattr(found, "proficiency_signal", None) or "used"
-            elif struct_ev_type == "skills_list_only":
-                final_match = found.match
-                final_ev = clean_ev or ev_text or "Listed in skills section"
+            if flag == "claim_only":
                 ev_type = "skills_list_only"
-                prof_sig = getattr(found, "proficiency_signal", None) or "used"
-            else:
-                final_match = "none"
-                final_ev = "No direct verbatim evidence found on CV"
+                final_ev = ev_quote or "Declared in skills section"
+            elif flag == "absent":
                 ev_type = "absent"
-                prof_sig = "none"
+                final_ev = "No evidence found on CV"
+            else:
+                ev_type = "employment" if any(b.startswith("E") for b in ev_bullet_ids) else "project"
+                final_ev = ev_quote or "Evidenced on CV"
 
             aligned_nice_to_have.append(RequirementMatch(
                 requirement=c_name,
-                match=final_match,
+                match=verdict,
                 evidence=final_ev,
+                evidence_bullet_ids=ev_bullet_ids,
+                scope=ev_scope,
+                declared_in_skills=declared_in_skills,
                 evidence_type=ev_type,
-                proficiency_signal=prof_sig
+                proficiency_signal=ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning", "none") else "used"
             ))
         else:
             aligned_nice_to_have.append(RequirementMatch(
                 requirement=c_name,
                 match="none",
-                evidence="No direct evidence found on CV",
+                evidence="No evidence found on CV",
                 evidence_type="absent",
                 proficiency_signal="none"
             ))
@@ -698,6 +740,19 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         required_years=canonical_spec.required_years,
         canonical_jd_spec=canonical_spec
     )
+
+    # Claim-aware flags & STUFFER_ALERT
+    num_must = len(aligned_must_have)
+    claim_only_count = len(claim_only_must_haves)
+    if num_must > 0:
+        coverage = claim_only_count / num_must
+        if coverage >= 0.5:
+            if "STUFFER_ALERT" not in penalties:
+                penalties.append("STUFFER_ALERT")
+            result.reasoning_summary += f" [🚩 STUFFER_ALERT: {claim_only_count} of {num_must} required skills appear only in skills section ({coverage:.0%})]"
+        elif claim_only_count > 0:
+            if "unproven_claims" not in penalties:
+                penalties.append("unproven_claims")
 
     result.fit_score = final_score
     result.decision = decision

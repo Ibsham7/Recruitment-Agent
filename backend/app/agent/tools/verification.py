@@ -19,14 +19,45 @@ GENERIC_BOILERPLATE_WORDS = {
     "statement", "statements", "service", "level", "general", "specialist", "lead"
 }
 
+CATEGORY_ALIASES: dict[str, list[str]] = {
+    "cloud": ["aws", "gcp", "azure", "ec2", "ecs", "fargate", "lambda", "app service", "cloudformation", "terraform"],
+    "ci/cd": ["github actions", "jenkins", "gitlab ci", "azure devops", "pipeline", "circleci", "travis"],
+    "task queue": ["celery", "kafka", "rabbitmq", "sqs", "redis queue", "bullmq", "sidekiq"],
+    "container": ["docker", "kubernetes", "k8s", "containerise", "containerize", "helm"],
+    "database": ["mysql", "postgresql", "postgres", "mongodb", "redis", "dynamodb", "oracle", "sql server"],
+    "version control": ["git", "github", "gitlab", "bitbucket"],
+    "testing": ["pytest", "jest", "cypress", "junit", "selenium", "mocha"],
+    "api": ["rest", "graphql", "grpc", "fastapi", "flask", "express"]
+}
+
+SECTION_PRIORITY_WEIGHTS: dict[str, float] = {
+    "employment": 1.5,
+    "project": 1.2,
+    "education": 1.0,
+    "skills_list_only": 0.5,
+    "inferred": 1.0,
+    "absent": 0.0
+}
+
+def stem_token(token: str) -> str:
+    """Lightweight morphological stemmer for domain and technical terms (e.g., deployed -> deploy, containerise/ization -> container)."""
+    if not token or len(token) <= 3:
+        return (token or "").lower()
+    t = token.lower()
+    if t.endswith("isation") or t.endswith("ization"):
+        t = t[:-7] + "ize"
+    elif t.endswith("ise") and len(t) > 4:
+        t = t[:-3] + "ize"
+
+    for suffix in ("ing", "ed", "ment", "ness", "ability", "ive", "s"):
+        if t.endswith(suffix) and len(t) - len(suffix) >= 3:
+            t = t[:-len(suffix)]
+            break
+    return t
+
 def extract_dynamic_requirement_tokens(requirement_name: str, jd_quote: str = "") -> Set[str]:
     """
-    Dynamically extract substantive requirement tokens and alternatives from requirement name & quote
-    without hardcoding any industry/domain terms.
-
-    E.g. 'Pediatric ICU Nursing (or Emergency Trauma)' -> {'pediatric', 'icu', 'nursing', 'emergency', 'trauma'}
-         'GAAP Accounting & IFRS Standards' -> {'gaap', 'accounting', 'ifrs'}
-         'Containerization with Docker' -> {'containerization', 'docker'}
+    Dynamically extract substantive requirement tokens, stems, and category aliases from requirement name & quote.
     """
     combined_text = f"{requirement_name or ''} {jd_quote or ''}".lower()
     if not combined_text.strip():
@@ -34,7 +65,13 @@ def extract_dynamic_requirement_tokens(requirement_name: str, jd_quote: str = ""
 
     clean_tokens = set()
 
-    # 1. Extract parenthetical and slashed alternatives (e.g. "(AWS / GCP)", "GAAP/IFRS", "(Pediatric/Trauma)")
+    # Category alias expansion
+    for cat_key, aliases in CATEGORY_ALIASES.items():
+        if cat_key in combined_text or any(word in combined_text for word in cat_key.split()):
+            for alias in aliases:
+                clean_tokens.add(alias.lower())
+
+    # 1. Extract parenthetical and slashed alternatives
     paren_matches = re.findall(r'\(([^)]+)\)', combined_text)
     for p_content in paren_matches:
         alts = [t.strip() for t in re.split(r'[/,|]|\b(?:or|and/or|and|e\.g\.|i\.e\.)\b', p_content, flags=re.IGNORECASE)]
@@ -44,6 +81,7 @@ def extract_dynamic_requirement_tokens(requirement_name: str, jd_quote: str = ""
                 w_clean = w.strip(" -/,.")
                 if w_clean and len(w_clean) >= 2 and w_clean not in GENERIC_BOILERPLATE_WORDS:
                     clean_tokens.add(w_clean)
+                    clean_tokens.add(stem_token(w_clean))
 
     # 2. Extract words from overall requirement text
     raw_words = re.findall(r'[a-zA-Z0-9+#/\-]+', combined_text)
@@ -51,52 +89,69 @@ def extract_dynamic_requirement_tokens(requirement_name: str, jd_quote: str = ""
         w_clean = word.strip(" -/,.")
         if w_clean and len(w_clean) >= 2 and w_clean not in GENERIC_BOILERPLATE_WORDS:
             clean_tokens.add(w_clean)
+            clean_tokens.add(stem_token(w_clean))
 
-    # Fallback for generic requirements (e.g. 'Professional software engineering experience'):
-    # If all tokens were filtered by boilerplate list, preserve substantive words (len >= 3)
+    # Fallback for generic requirements
     if not clean_tokens:
         stop_words = {"with", "and", "or", "the", "a", "an", "in", "for", "of", "to", "at", "on", "by", "from", "as", "is", "are", "be"}
         for word in raw_words:
             w_clean = word.strip(" -/,.")
             if w_clean and len(w_clean) >= 3 and w_clean not in stop_words:
                 clean_tokens.add(w_clean)
+                clean_tokens.add(stem_token(w_clean))
 
     return clean_tokens
 
 def check_dynamic_token_presence(req_tokens: Set[str], candidate_corpus: str) -> bool:
     """
-    Check if at least one core substantive requirement token or root prefix is present
-    in the candidate corpus (case-insensitive, word-bounded or root prefix matching).
+    Check if at least one core substantive requirement token, stem, or root prefix is present in candidate corpus.
     """
     if not req_tokens or not candidate_corpus:
         return False
 
     corpus_lower = candidate_corpus.lower()
+    corpus_words = set(re.findall(r"\w+", corpus_lower))
+    stemmed_corpus = {stem_token(w) for w in corpus_words}
 
     for token in req_tokens:
-        # For short tokens (<= 3 chars e.g. 'aws', 'gcp', 'sql', 'icu', 'seo', 'rag', 'k8s'), use strict word boundary
+        token_stem = stem_token(token)
+        if token_stem in stemmed_corpus:
+            return True
         if len(token) <= 3 and not any(c in token for c in "+#/-."):
             pattern = rf"\b{re.escape(token)}\b"
             if re.search(pattern, corpus_lower):
                 return True
         else:
-            # Direct substring check
             if token in corpus_lower:
                 return True
-
-            # Morphological prefix check for tokens >= 5 chars (e.g. 'containeriz' for 'containerization'/'containerise')
-            if len(token) >= 5:
-                prefix = token[:5]
-                if prefix in corpus_lower:
-                    return True
+            if len(token) >= 5 and token[:5] in corpus_lower:
+                return True
 
     return False
 
 def count_matching_tokens(req_tokens: Set[str], candidate_corpus: str) -> int:
-    """Count how many requirement tokens are present in candidate corpus."""
+    """Count how many requirement tokens or stemmed variants are present in candidate corpus."""
     if not req_tokens or not candidate_corpus:
         return 0
     corpus_lower = candidate_corpus.lower()
+    corpus_words = set(re.findall(r"\w+", corpus_lower))
+    stemmed_corpus = {stem_token(w) for w in corpus_words}
+    count = 0
+    for token in req_tokens:
+        token_stem = stem_token(token)
+        if token_stem in stemmed_corpus:
+            count += 1
+        elif len(token) <= 3 and not any(c in token for c in "+#/-."):
+            pattern = rf"\b{re.escape(token)}\b"
+            if re.search(pattern, corpus_lower):
+                count += 1
+        else:
+            if token in corpus_lower:
+                count += 1
+            elif len(token) >= 5 and token[:5] in corpus_lower:
+                count += 1
+    return count
+
 def normalize_text(text: str) -> str:
     """Normalize text by converting to lower case, removing quotes/punctuation, and compressing whitespace."""
     if not text:
@@ -138,24 +193,6 @@ def _is_quote_in_text(q_norm: str, text_norm: str) -> bool:
             return True
 
     return False
-
-def count_matching_tokens(req_tokens: Set[str], candidate_corpus: str) -> int:
-    """Count how many requirement tokens are present in candidate corpus."""
-    if not req_tokens or not candidate_corpus:
-        return 0
-    corpus_lower = candidate_corpus.lower()
-    count = 0
-    for token in req_tokens:
-        if len(token) <= 3 and not any(c in token for c in "+#/-."):
-            pattern = rf"\b{re.escape(token)}\b"
-            if re.search(pattern, corpus_lower):
-                count += 1
-        else:
-            if token in corpus_lower:
-                count += 1
-            elif len(token) >= 5 and token[:5] in corpus_lower:
-                count += 1
-    return count
 
 SKILLS_LIST_PROSE_PATTERNS = [
     re.compile(r"\bskills?\s+(?:list|section|summary|bullet|includes?)\b", re.IGNORECASE),
