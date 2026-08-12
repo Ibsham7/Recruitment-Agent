@@ -76,11 +76,21 @@ export function AntiCheatInspectionCard({ candidate, theme: t }: AntiCheatInspec
   }
   const pasteRatio = Math.min(100, Math.max(0, pasteRatioRaw));
 
-  // Anti-Cheat Flags Breakdown
-  const rawFlags: any[] = candidate.antiCheatFlags || evalObj.antiCheatFlags || [];
+  // Anti-Cheat & Keyword Stuffer Risk Flags Breakdown
+  const sbFlags: string[] = evalObj.scoreBreakdown?.flags || evalObj.score_breakdown?.flags || candidate.scoreBreakdown?.flags || [];
+  const rawFlags: any[] = [
+    ...(candidate.antiCheatFlags || evalObj.antiCheatFlags || []),
+    ...sbFlags.map((f: string) => ({
+      flag: f === "STUFFER_ALERT" ? "🚩 KEYWORD STUFFER ALERT" : f,
+      severity: f === "STUFFER_ALERT" ? "high" : "medium",
+      description: f === "STUFFER_ALERT"
+        ? `Candidate declared mandatory skills in Skills section without bullet evidence in work history (${evalObj.scoreBreakdown?.claim_only_coverage ? Math.round(evalObj.scoreBreakdown.claim_only_coverage * 100) : 80}% Claim-Only Coverage).`
+        : "Unproven skill claims detected in candidate profile."
+    }))
+  ];
   const flags: AntiCheatFlag[] = rawFlags.map((f: any) => {
     if (typeof f === "string") {
-      return { flag: f, severity: "medium", description: f };
+      return { flag: f === "STUFFER_ALERT" ? "🚩 KEYWORD STUFFER ALERT" : f, severity: "medium", description: f };
     }
     return {
       flag: f.flag || f.name || f.rule || "Suspicious Activity",

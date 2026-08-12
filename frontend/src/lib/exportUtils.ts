@@ -101,23 +101,49 @@ export function generateCampaignMarkdownReport(campaign: Campaign, candidates: C
     const niceContrib = Number((niceScore * weights.nice).toFixed(1));
     const trajContrib = Number((trajScore * weights.traj).toFixed(1));
 
+    let mustHaveItems: RequirementItemBreakdown[] = breakdown?.must_have_breakdown || [];
+
+    // Calculate claim-only metrics & STUFFER_ALERT for export
+    const claimOnlyCount = mustHaveItems.filter(
+      (req) => req.declared_in_skills || req.evidence?.includes("Declared in skills") || req.deduction_reason?.includes("Claim-only")
+    ).length;
+    const claimOnlyCoverage = mustHaveItems.length > 0 ? claimOnlyCount / mustHaveItems.length : 0;
+    const hasStufferAlert = Boolean(
+      breakdown?.flags?.includes("STUFFER_ALERT") ||
+      penalties.some((p) => p.reason?.includes("STUFFER_ALERT")) ||
+      (mustHaveItems.length > 0 && claimOnlyCoverage >= 0.5)
+    );
+
+    if (hasStufferAlert) {
+      md += `> 🚩 **KEYWORD STUFFER ALERT**: Candidate listed ${claimOnlyCount} of ${mustHaveItems.length} mandatory skills in their Skills section with zero evidence in work/project history (**${Math.round(claimOnlyCoverage * 100)}% Claim-Only Coverage**).\n\n`;
+    }
+
     md += `- **Required Skills Score**: ${reqSkillScore}/100 (Weight: ${Math.round(weights.skills * 100)}% → Contribution: **${reqContrib}** pts)\n`;
     md += `- **Experience & Tenure Score**: ${expScore}/100 (Weight: ${Math.round(weights.exp * 100)}% → Contribution: **${expContrib}** pts)\n`;
     md += `- **Nice-to-Have Skills Score**: ${niceScore}/100 (Weight: ${Math.round(weights.nice * 100)}% → Contribution: **${niceContrib}** pts)\n`;
     md += `- **Growth Trajectory Score**: ${trajScore}/100 (Weight: ${Math.round(weights.traj * 100)}% → Contribution: **${trajContrib}** pts)\n`;
+    if (mustHaveItems.length > 0) {
+      md += `- **Claim-Only Skill Coverage**: **${Math.round(claimOnlyCoverage * 100)}%** (${claimOnlyCount}/${mustHaveItems.length} must-haves declared without bullet evidence)\n`;
+    }
     md += `\n> **Formula Equation**: Fit Score (${score}) = ${reqContrib} (Skills) + ${expContrib} (Exp) + ${niceContrib} (Nice) + ${trajContrib} (Traj)\n\n`;
 
     // Must Have Requirements Breakdown
-    let mustHaveItems: RequirementItemBreakdown[] = breakdown?.must_have_breakdown || [];
     if (mustHaveItems.length > 0) {
       md += `##### Must-Have Requirements Audit\n\n`;
-      md += `| Requirement | Match Status | Points Earned | Max Points | Evidence / Deduction Reason |\n`;
-      md += `|---|---|---|---|---|\n`;
+      md += `| Requirement | Match Status | Scope | Bullet Evidence | Points Earned | Max Points | Evidence / Deduction Reason |\n`;
+      md += `|---|---|---|---|---|---|---|\n`;
       mustHaveItems.forEach((item) => {
-        const matchBadge = item.match === "full" ? "✅ FULL" : item.match === "partial" ? "⚠️ PARTIAL" : "❌ NONE";
+        const isClaimOnly = Boolean(
+          item.declared_in_skills ||
+          item.evidence?.includes("Declared in skills") ||
+          item.deduction_reason?.includes("Claim-only")
+        );
+        const matchBadge = isClaimOnly ? "⚠️ CLAIM-ONLY" : item.match === "full" ? "✅ FULL" : item.match === "partial" ? "⚠️ PARTIAL" : "❌ NONE";
+        const scopeStr = item.scope ? `\`${item.scope}\`` : "N/A";
+        const bulletsStr = item.evidence_bullet_ids && item.evidence_bullet_ids.length > 0 ? `\`${item.evidence_bullet_ids.join(", ")}\`` : "None";
         const evidence = item.evidence || "N/A";
         const reason = item.deduction_reason ? ` (${item.deduction_reason})` : "";
-        md += `| ${item.requirement} | ${matchBadge} | ${item.points_earned} | ${item.max_points} | ${evidence}${reason} |\n`;
+        md += `| ${item.requirement} | ${matchBadge} | ${scopeStr} | ${bulletsStr} | ${item.points_earned} | ${item.max_points} | ${evidence}${reason} |\n`;
       });
       md += `\n`;
     }

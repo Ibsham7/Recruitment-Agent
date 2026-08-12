@@ -56,12 +56,21 @@ def _build_evaluation_from_screening(res, strictness: str = "moderate"):
         if req.match == "none":
             concerns.append(f"[CRITICAL GAP] Missing Must-Have: {req.requirement}" + (f" ({req.evidence})" if req.evidence else ""))
             
-    # Must-have partial
+    sb = getattr(res, "score_breakdown", None)
+    sb_flags = getattr(sb, "flags", []) or []
+    sb_coverage = getattr(sb, "claim_only_coverage", 0.0) or 0.0
+
+    # Must-have partial & claim-only flags
     for req in getattr(res, "must_have", []):
         if req.match == "partial":
-            concerns.append(f"[MODERATE GAP] Partial Skill Match: {req.requirement}" + (f" - {req.evidence}" if req.evidence else ""))
-            
-    sb = getattr(res, "score_breakdown", None)
+            is_claim_only = getattr(req, "declared_in_skills", False) or "declared in skills" in (req.evidence or "").lower() or "skills section" in (req.evidence or "").lower()
+            if is_claim_only:
+                concerns.append(f"[CLAIM-ONLY] ⚠️ {req.requirement}: Declared in skills section, no trace in experience or projects. Scored at partial credit. Human verification recommended.")
+            else:
+                concerns.append(f"[MODERATE GAP] Partial Skill Match: {req.requirement}" + (f" - {req.evidence}" if req.evidence else ""))
+
+    if "STUFFER_ALERT" in sb_flags or sb_coverage >= 0.5:
+        concerns.insert(0, f"[FLAG] 🚩 STUFFER_ALERT: Candidate listed mandatory skills in Skills section without bullet evidence ({Math.round if False else int(round(sb_coverage * 100))}% Claim-Only Coverage). Human review required.")
     decision = getattr(res, "decision", None)
     fit_score_val = getattr(res, "fit_score", None)
     if fit_score_val is not None:

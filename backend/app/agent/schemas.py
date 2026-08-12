@@ -122,6 +122,11 @@ class RequirementItemBreakdown(BaseModel):
     percentage: float = 0.0
     evidence: str = ""
     deduction_reason: Optional[str] = None
+    declared_in_skills: bool = False
+    evidence_bullet_ids: list[str] = Field(default_factory=list)
+    scope: Optional[str] = None
+    warning_flag: Optional[str] = None
+    ui_warning: Optional[str] = None
 
 class RequirementMatch(BaseModel):
     requirement: str = Field(
@@ -262,6 +267,9 @@ class ScoreBreakdown(BaseModel):
     experience_breakdown: Optional[ExperienceBreakdown] = None
     trajectory_breakdown: Optional[TrajectoryBreakdown] = None
     penalties_breakdown: list[PenaltyBreakdownItem] = Field(default_factory=list)
+    flags: list[str] = Field(default_factory=list)
+    claim_only_coverage: float = Field(default=0.0)
+    claim_only_count: int = Field(default=0)
 
     @field_validator("required_skills_score", "experience_score", "nice_to_have_score", "trajectory_score", mode="before")
     @classmethod

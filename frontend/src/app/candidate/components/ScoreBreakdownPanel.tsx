@@ -101,6 +101,17 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
     { id: "traj", label: "Growth Trajectory", weight: `${Math.round(weights.traj * 100)}%`, score: trajScore, contrib: trajContrib, maxContrib: Math.round(weights.traj * 100), color: t.accentBadge, count: trajBreakdown ? 1 : 0 },
   ];
 
+  // Calculate claim-only metrics for STUFFER_ALERT banner and requirement badges
+  const claimOnlyCount = mustHaveItems.filter(
+    (req) => req.declared_in_skills || req.evidence?.includes("Declared in skills") || req.deduction_reason?.includes("Claim-only")
+  ).length;
+  const claimOnlyCoverage = mustHaveItems.length > 0 ? claimOnlyCount / mustHaveItems.length : 0;
+  const hasStufferAlert = Boolean(
+    breakdown?.flags?.includes("STUFFER_ALERT") ||
+    penalties.some((p) => p.reason?.includes("STUFFER_ALERT")) ||
+    (mustHaveItems.length > 0 && claimOnlyCoverage >= 0.5)
+  );
+
   const toggleSection = (id: string) => {
     setExpandedSection(expandedSection === id ? null : id);
   };
@@ -151,6 +162,36 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
           </div>
         </div>
       </div>
+
+      {/* Keyword Stuffer Alert Banner */}
+      {hasStufferAlert && (
+        <div
+          className="mb-4 p-3.5 rounded-xl flex items-center justify-between text-xs transition-all"
+          style={{
+            background: hexToRgba(t.numNeg, 0.12),
+            border: `1px solid ${hexToRgba(t.numNeg, 0.35)}`,
+            color: t.numNeg,
+          }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">🚩</span>
+            <div>
+              <div className="font-bold tracking-wider uppercase text-[11px]">
+                Keyword Stuffer Alert Triggered
+              </div>
+              <div className="text-[10px] opacity-90">
+                {claimOnlyCount} of {mustHaveItems.length} required skills appear ONLY in the candidate's skills section without work or project experience proof.
+              </div>
+            </div>
+          </div>
+          <div
+            className="px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] whitespace-nowrap"
+            style={{ background: hexToRgba(t.numNeg, 0.2), border: `1px solid ${hexToRgba(t.numNeg, 0.3)}` }}
+          >
+            {Math.round(claimOnlyCoverage * 100)}% Claim-Only Coverage
+          </div>
+        </div>
+      )}
 
       {/* Mathematical Formula Summary Bar */}
       <div
@@ -252,7 +293,12 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
                         mustHaveItems.map((req, idx) => {
                           const isFull = req.match === "full";
                           const isPartial = req.match === "partial";
-                          const badgeColor = isFull ? t.numPos : isPartial ? "#f59e0b" : t.numNeg;
+                          const isClaimOnly = Boolean(
+                            req.declared_in_skills ||
+                            req.evidence?.includes("Declared in skills") ||
+                            req.deduction_reason?.includes("Claim-only")
+                          );
+                          const badgeColor = isClaimOnly ? "#f59e0b" : isFull ? t.numPos : isPartial ? "#f59e0b" : t.numNeg;
                           const IconComp = isFull ? CheckCircle2 : isPartial ? AlertTriangle : XCircle;
 
                           return (
@@ -268,11 +314,21 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
                                 <div className="flex items-center gap-1.5 font-medium" style={{ color: t.txtPrimary }}>
                                   <IconComp size={13} style={{ color: badgeColor }} />
                                   <span>{req.requirement}</span>
+                                  {req.scope && (
+                                    <span className="text-[8px] font-mono px-1 py-0.2 rounded uppercase" style={{ background: hexToRgba(t.bgCard, 0.6), color: t.txtMuted }}>
+                                      {req.scope}
+                                    </span>
+                                  )}
+                                  {req.evidence_bullet_ids && req.evidence_bullet_ids.length > 0 && (
+                                    <span className="text-[8px] font-mono px-1 py-0.2 rounded font-bold" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}>
+                                      {req.evidence_bullet_ids.join(", ")}
+                                    </span>
+                                  )}
                                 </div>
 
                                 <div className="flex items-center gap-2 font-mono">
                                   <span className="px-1.5 py-0.2 rounded text-[9px] uppercase font-bold" style={{ background: hexToRgba(badgeColor, 0.18), color: badgeColor }}>
-                                    {req.match} ({req.percentage}%)
+                                    {isClaimOnly ? "claim-only" : req.match} ({req.percentage}%)
                                   </span>
                                   <span className="font-semibold" style={{ color: badgeColor }}>
                                     +{req.points_earned} / {req.max_points} pts
@@ -287,7 +343,21 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
                                 </div>
                               )}
 
-                              {req.deduction_reason && !isFull && (
+                              {isClaimOnly && (
+                                <div
+                                  className="mt-1 ml-5 p-1.5 rounded-md text-[10px] font-mono flex items-center gap-1.5"
+                                  style={{
+                                    background: hexToRgba("#f59e0b", 0.12),
+                                    color: "#f59e0b",
+                                    border: `1px solid ${hexToRgba("#f59e0b", 0.25)}`,
+                                  }}
+                                >
+                                  <span>⚠️</span>
+                                  <span>Declared in skills section; no trace in experience or projects. Scored at partial credit. Human verification recommended.</span>
+                                </div>
+                              )}
+
+                              {req.deduction_reason && !isFull && !isClaimOnly && (
                                 <div className="text-[10px] pl-5 font-mono" style={{ color: t.numNeg }}>
                                   ⚠️ {req.deduction_reason}
                                 </div>

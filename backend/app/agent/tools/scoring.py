@@ -107,16 +107,20 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
     if prof_signal is None and isinstance(item, dict):
         prof_signal = item.get("proficiency_signal")
 
-    # Deterministically classify evidence source using structural candidate profile sections
-    struct_source = ev_type if ev_type else "inferred"
-    raw_cv_text = str(getattr(candidate_profile, "raw_cv_text", "") or "").strip() if candidate_profile else ""
-    if candidate_profile and raw_cv_text and evidence_val:
-        struct_source = classify_evidence_source(req_name=req_name, candidate_profile=candidate_profile, evidence_quote=evidence_val)
-        if struct_source in ("skills_list_only", "absent") or ev_type in (None, "inferred"):
-            ev_type = struct_source
+    declared_in_skills = getattr(item, "declared_in_skills", False) or (isinstance(item, dict) and item.get("declared_in_skills", False)) or False
+    is_declared_only = bool(
+        declared_in_skills or
+        ev_type == "skills_list_only" or
+        "declared in skills" in ev_lower or
+        "skills section" in ev_lower or
+        "listed in skills" in ev_lower
+    )
 
-    # Rule 0: Zero Proficiency Signal Guardrail
-    if match_val != "none" and prof_signal == "none":
+    raw_cv_text = str(getattr(candidate_profile, "raw_cv_text", "") or "").strip() if candidate_profile else ""
+    struct_source = ev_type if ev_type else "inferred"
+
+    # Rule 0: Zero Proficiency Signal Guardrail (only for unevidenced & non-declared skills)
+    if match_val != "none" and prof_signal == "none" and not is_declared_only and not declared_in_skills:
         match_val = "none"
         override_note = " [Overridden to none: proficiency signal is none]"
         if item is not None:
@@ -215,13 +219,13 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
     # Rule 4: Soft / Unevidenced Skill Listing & Anti-Fabrication Guardrail
     if match_val != "none":
         # 1. Deterministic structural classification if profile and text evidence available
-        if candidate_profile and raw_cv_text and evidence_val:
+        if candidate_profile and raw_cv_text and evidence_val and not is_declared_only and not declared_in_skills:
             struct_source = classify_evidence_source(req_name, candidate_profile=candidate_profile, evidence_quote=evidence_val)
             if struct_source in ("skills_list_only", "absent") and ev_type != "unverified":
                 ev_type = struct_source
 
-        # 2. Quote Grounded Anti-Fabrication Check: If evidence quote is absent on CV and not fail-soft unverified, force match to none
-        if struct_source == "absent" and ev_type != "unverified" and evidence_val and len(evidence_val.strip()) >= 5:
+        # 2. Quote Grounded Anti-Fabrication Check: If evidence quote is absent on CV and not fail-soft unverified or claim_only, force match to none
+        if struct_source == "absent" and ev_type != "unverified" and not is_declared_only and not declared_in_skills and evidence_val and len(evidence_val.strip()) >= 5:
             match_val = "none"
             override_note = " [Overridden to none: unevidenced or absent quote on CV]"
 
@@ -737,6 +741,8 @@ def calculate_weighted_fit_score(
     must_have_breakdown_items = []
     max_skills_pts = weights["skills"] * 100.0
     num_must = len(must_have_list)
+    claim_only_count = 0
+
     if num_must > 0:
         pts_per_must = max_skills_pts / num_must
         for item in must_have_list:
@@ -744,11 +750,29 @@ def calculate_weighted_fit_score(
             raw_match_val = getattr(item, "match", item.get("match", "none") if isinstance(item, dict) else "none")
             evidence_val = getattr(item, "evidence", item.get("evidence", "") if isinstance(item, dict) else "")
             
+            declared_in_skills = getattr(item, "declared_in_skills", False) or (isinstance(item, dict) and item.get("declared_in_skills", False)) or False
+            ev_bullet_ids = getattr(item, "evidence_bullet_ids", []) or (item.get("evidence_bullet_ids", []) if isinstance(item, dict) else []) or []
+            ev_scope = getattr(item, "scope", None) or (item.get("scope") if isinstance(item, dict) else None)
+
             match_val, override_note = _sanitize_match_val(req_name, raw_match_val, evidence_val, item=item, eval_mode=eval_mode_key, candidate_profile=candidate_profile)
             
             mult = multipliers.get(match_val, 0.0)
             pct = mult * 100.0
             pts_earned = pts_per_must * mult
+
+            is_claim_only = bool(
+                declared_in_skills or
+                "declared in skills" in evidence_val.lower() or
+                "skills section" in evidence_val.lower() or
+                "claim-only" in override_note.lower()
+            )
+
+            w_flag = None
+            u_warning = None
+            if is_claim_only:
+                claim_only_count += 1
+                w_flag = "CLAIM_ONLY"
+                u_warning = f"⚠️ {req_name} — declared in skills section, no trace in experience or projects. Scored at partial credit. Human verification recommended."
 
             if match_val == "full":
                 reason = f"Full requirement match (+{pts_earned:.1f} pts){override_note}"
@@ -765,7 +789,12 @@ def calculate_weighted_fit_score(
                 max_points=round(pts_per_must, 1),
                 percentage=pct,
                 evidence=evidence_val,
-                deduction_reason=reason
+                deduction_reason=reason,
+                declared_in_skills=is_claim_only,
+                evidence_bullet_ids=ev_bullet_ids,
+                scope=ev_scope,
+                warning_flag=w_flag,
+                ui_warning=u_warning
             ))
 
     # 2. Itemized Nice-To-Have Skills Breakdown (Sanitized)
@@ -1024,6 +1053,17 @@ def calculate_weighted_fit_score(
     if scaled_deduction > 0:
         formula_str += f" - {scaled_deduction:.1f} (Penalties)"
 
+    # Calculate flags & claim-only coverage
+    claim_only_coverage = (claim_only_count / num_must) if num_must > 0 else 0.0
+    flags_list = []
+    has_stuffer_penalty = penalties and any(
+        ("STUFFER_ALERT" in str(p)) or (isinstance(p, dict) and "STUFFER_ALERT" in str(p.get("reason", "")))
+        for p in penalties
+    )
+    if claim_only_coverage >= 0.5 or claim_only_count >= 3 or has_stuffer_penalty:
+        flags_list.append("STUFFER_ALERT")
+        flags_list.append("unproven_claims")
+
     # Populate fields on score_breakdown if it is an object
     if score_breakdown is not None:
         if hasattr(score_breakdown, "required_skills_score"):
@@ -1040,6 +1080,9 @@ def calculate_weighted_fit_score(
             score_breakdown.experience_breakdown = exp_breakdown_obj
             score_breakdown.trajectory_breakdown = traj_breakdown_obj
             score_breakdown.penalties_breakdown = penalties_breakdown_items
+            score_breakdown.flags = flags_list
+            score_breakdown.claim_only_coverage = round(claim_only_coverage, 2)
+            score_breakdown.claim_only_count = claim_only_count
 
     # Thresholding logic
     if eval_mode_key == "strict":

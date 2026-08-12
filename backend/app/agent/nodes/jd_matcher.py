@@ -625,6 +625,8 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 ev_type = "employment" if any(b.startswith("E") for b in ev_bullet_ids) else "project"
                 final_ev = ev_quote or (f"Evidenced in bullet(s): {', '.join(ev_bullet_ids)}" if ev_bullet_ids else "Evidenced on CV")
 
+            prof_sig = ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning") else ("used" if (verdict == "partial" or declared_in_skills or flag == "claim_only") else "none")
+
             aligned_must_have.append(RequirementMatch(
                 requirement=c_name,
                 match=verdict,
@@ -633,7 +635,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 scope=ev_scope,
                 declared_in_skills=declared_in_skills,
                 evidence_type=ev_type,
-                proficiency_signal=ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning", "none") else "used"
+                proficiency_signal=prof_sig
             ))
         else:
             # Deterministic fallback check via alias_hit / profile skills
@@ -645,10 +647,12 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 verdict = "partial"
                 ev_type = "skills_list_only"
                 final_ev = "Declared in skills section"
+                prof_sig = "used"
             else:
                 verdict = "none"
                 ev_type = "absent"
                 final_ev = "No evidence found on CV"
+                prof_sig = "none"
 
             aligned_must_have.append(RequirementMatch(
                 requirement=c_name,
@@ -656,7 +660,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 evidence=final_ev,
                 declared_in_skills=is_declared,
                 evidence_type=ev_type,
-                proficiency_signal="none"
+                proficiency_signal=prof_sig
             ))
 
     aligned_nice_to_have: list[RequirementMatch] = []
@@ -694,6 +698,8 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 ev_type = "employment" if any(b.startswith("E") for b in ev_bullet_ids) else "project"
                 final_ev = ev_quote or "Evidenced on CV"
 
+            prof_sig = ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning") else ("used" if (verdict == "partial" or declared_in_skills or flag == "claim_only") else "none")
+
             aligned_nice_to_have.append(RequirementMatch(
                 requirement=c_name,
                 match=verdict,
@@ -702,7 +708,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 scope=ev_scope,
                 declared_in_skills=declared_in_skills,
                 evidence_type=ev_type,
-                proficiency_signal=ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning", "none") else "used"
+                proficiency_signal=prof_sig
             ))
         else:
             aligned_nice_to_have.append(RequirementMatch(
@@ -727,8 +733,22 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     )
     result.score_breakdown.relevant_experience_years = compact_output.relevant_experience_years
 
+    # Claim-aware flags & STUFFER_ALERT detection
+    num_must = len(aligned_must_have)
+    claim_only_count = len(claim_only_must_haves)
+    penalties = state.get("penalties", []) or []
+
+    if num_must > 0:
+        coverage = claim_only_count / num_must
+        if coverage >= 0.5:
+            penalties.append({
+                "reason": f"STUFFER_ALERT: {claim_only_count} of {num_must} mandatory skills listed in skills section without bullet evidence ({coverage:.0%} coverage)",
+                "severity": "intermediate_penalize",
+                "points_deducted": 10.0
+            })
+            compact_output.reasoning_summary += f" [🚩 STUFFER_ALERT: {claim_only_count} of {num_must} required skills appear only in skills section ({coverage:.0%})]"
+
     # Calculate final weighted score, penalty deductions, and decision deterministically
-    penalties = state.get("penalties", [])
     final_score, decision, score_note = calculate_weighted_fit_score(
         result.score_breakdown,
         eval_mode=eval_mode,
@@ -740,19 +760,6 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         required_years=canonical_spec.required_years,
         canonical_jd_spec=canonical_spec
     )
-
-    # Claim-aware flags & STUFFER_ALERT
-    num_must = len(aligned_must_have)
-    claim_only_count = len(claim_only_must_haves)
-    if num_must > 0:
-        coverage = claim_only_count / num_must
-        if coverage >= 0.5:
-            if "STUFFER_ALERT" not in penalties:
-                penalties.append("STUFFER_ALERT")
-            result.reasoning_summary += f" [🚩 STUFFER_ALERT: {claim_only_count} of {num_must} required skills appear only in skills section ({coverage:.0%})]"
-        elif claim_only_count > 0:
-            if "unproven_claims" not in penalties:
-                penalties.append("unproven_claims")
 
     result.fit_score = final_score
     result.decision = decision

@@ -30,6 +30,11 @@ export interface RequirementItemBreakdown {
   percentage: number;
   evidence: string;
   deduction_reason?: string;
+  evidence_bullet_ids?: string[];
+  scope?: "exact" | "adjacent" | "unrelated";
+  declared_in_skills?: boolean;
+  warning_flag?: string;
+  ui_warning?: string;
 }
 
 export interface ExperienceBreakdown {
@@ -85,6 +90,10 @@ export interface ScoreBreakdown {
   experience_breakdown?: ExperienceBreakdown;
   trajectory_breakdown?: TrajectoryBreakdown;
   penalties_breakdown?: PenaltyBreakdownItem[];
+  flags?: string[];
+  claim_only_coverage?: number;
+  claim_only_count?: number;
+  flag_details?: string[];
 }
 
 export interface AntiCheatFlag {
