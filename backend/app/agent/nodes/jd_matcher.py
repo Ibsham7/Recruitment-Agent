@@ -1,9 +1,12 @@
+import os
 import hashlib
 import json
 import re
 from datetime import date
 from typing import Any, Optional, Tuple
 from app.agent.config import get_model, MODELS
+
+DISABLE_SHA256_CACHE = os.getenv("DISABLE_SHA256_CACHE", "true").lower() == "true"
 from app.agent.schemas import (
     ScreeningResult,
     CompactScreeningOutput,
@@ -301,19 +304,15 @@ def extract_verbatim_sentence_for_requirement(
 
 
 
-async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
-    """Distill raw Job Description into a canonical specification upfront with model escalation and quote verification."""
+async def distill_jd_requirements_with_cost(jd_text: str) -> tuple[CanonicalJDSpec, float, dict]:
+    """Distill raw Job Description into a canonical specification upfront with model escalation, quote verification, and cost tracking."""
     jd_clean = clean_surrogates(jd_text)
     spec_hash = hashlib.sha256(f"{jd_clean.strip()}::{PROMPT_VERSION}".encode("utf-8")).hexdigest()
 
-    if spec_hash in _JD_SPEC_CACHE:
-        logger.info(f"[JD Distiller] Returning cached CanonicalJDSpec for hash {spec_hash[:12]}")
-        return _JD_SPEC_CACHE[spec_hash]
-
-    cache_key = jd_clean.strip()
-    if cache_key in _JD_SPEC_CACHE:
+    cached_spec = _JD_SPEC_CACHE.get(spec_hash) or _JD_SPEC_CACHE.get(jd_clean.strip())
+    if cached_spec:
         logger.info("[JD Distiller] Returning cached CanonicalJDSpec")
-        return _JD_SPEC_CACHE[cache_key]
+        return cached_spec, 0.0, {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "cost": 0.0}
 
     logger.info("[JD Distiller] Extracting canonical JD requirements upfront")
 
@@ -325,9 +324,11 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
 
     human_content = f"JOB DESCRIPTION:\n{jd_clean}"
     last_exception = None
+    accumulated_cost = 0.0
+    accumulated_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
     for attempt, (tier, token_limit, use_structured) in enumerate(model_escalation):
-        model_name = MODELS.get(tier, "google/gemini-2.5-flash-lite")
+        model_name = MODELS.get(tier, "google/gemini-3.1-flash-lite")
         try:
             m = get_model(tier, max_tokens=token_limit)
             if use_structured:
@@ -336,6 +337,7 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
                     SystemMessage(content=CANONICAL_JD_DISTILLER_PROMPT),
                     HumanMessage(content=human_content)
                 ])
+                c, t_info = extract_cost_and_tokens(response, model_name=model_name)
                 r = response.get("parsed") if isinstance(response, dict) else None
                 if not r and isinstance(response, dict):
                     raw_msg = response.get("raw")
@@ -350,10 +352,16 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
                     SystemMessage(content=raw_prompt),
                     HumanMessage(content=human_content)
                 ])
+                c, t_info = extract_cost_and_tokens(raw_resp, model_name=model_name)
                 raw_text = raw_resp.content if hasattr(raw_resp, "content") else str(raw_resp)
                 extracted = extract_json(raw_text)
                 parsed_dict = json.loads(extracted)
                 r = CanonicalJDSpec.model_validate(parsed_dict)
+
+            accumulated_cost += c
+            accumulated_tokens["input_tokens"] += t_info.get("input_tokens", 0)
+            accumulated_tokens["output_tokens"] += t_info.get("output_tokens", 0)
+            accumulated_tokens["total_tokens"] += t_info.get("total_tokens", 0)
 
             if not r or not (r.must_have_skills or r.nice_to_have_skills or r.required_years > 0):
                 raise ValueError("Incomplete CanonicalJDSpec extracted from LLM")
@@ -405,14 +413,18 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
             )
 
             _JD_SPEC_CACHE[spec_hash] = spec
-            _JD_SPEC_CACHE[cache_key] = spec
-            return spec
+            _JD_SPEC_CACHE[jd_clean.strip()] = spec
+            return spec, round(accumulated_cost, 6), accumulated_tokens
 
         except Exception as e:
             last_exception = e
             logger.warning(f"[JD Distiller] Attempt {attempt+1} (tier={tier}, model={model_name}) failed: {e}")
 
     raise RuntimeError(f"Failed to distill canonical JD specification after {len(model_escalation)} attempts: {last_exception}")
+
+async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
+    spec, _, _ = await distill_jd_requirements_with_cost(jd_text)
+    return spec
 
 
 
@@ -461,7 +473,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
 
     async def invoke_model(system_prompt, candidate_dict):
         model_escalation = [
-            ("fast", 4096, True),
+            ("fast", 8192, True),
             ("smart", 8192, True),
             ("smart", 8192, False),
         ]
@@ -474,7 +486,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         last_exception = None
 
         for attempt, (tier, token_limit, use_structured) in enumerate(model_escalation):
-            model_name = MODELS.get(tier, "google/gemini-2.5-flash-lite")
+            model_name = MODELS.get(tier, "google/gemini-3.1-flash-lite")
             try:
                 attempt_prompt = system_prompt
                 if attempt > 0:
@@ -534,7 +546,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     # All 3 modes share the SAME match assessment to guarantee monotonicity.
     match_cache_key = f"{profile.name}::{jd[:120]}"
 
-    if match_cache_key in _MATCH_ASSESSMENT_CACHE:
+    if match_cache_key in _MATCH_ASSESSMENT_CACHE and not DISABLE_SHA256_CACHE:
         compact_output = _MATCH_ASSESSMENT_CACHE[match_cache_key]
         cost = 0.0
         stage_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
@@ -559,7 +571,10 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         domain_keywords.append(canonical_spec.role_title)
     det_rel_years = calculate_experience_for_domain(profile.previous_roles, keywords=domain_keywords)
     if det_rel_years > 0:
-        compact_output.relevant_experience_years = det_rel_years
+        if compact_output.relevant_experience_years is not None and compact_output.relevant_experience_years > 0:
+            compact_output.relevant_experience_years = min(det_rel_years, compact_output.relevant_experience_years)
+        else:
+            compact_output.relevant_experience_years = det_rel_years
     elif compact_output.relevant_experience_years is not None:
         compact_output.relevant_experience_years = min(
             compact_output.relevant_experience_years,
@@ -611,10 +626,12 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 scope=ev_scope,
                 depth=ev_depth,
                 declared_in_skills=declared_in_skills,
-                candidate_profile=profile
+                candidate_profile=profile,
+                evidence_quote=ev_quote
             )
 
-            if flag == "claim_only":
+            is_claim_only = (flag == "claim_only")
+            if is_claim_only:
                 claim_only_must_haves.append(c_name)
                 ev_type = "skills_list_only"
                 final_ev = ev_quote or "Declared in skills section (no experience/project bullet evidence)"
@@ -623,9 +640,13 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 final_ev = "No evidence found in experience, projects, or skills section"
             else:
                 ev_type = "employment" if any(b.startswith("E") for b in ev_bullet_ids) else "project"
-                final_ev = ev_quote or (f"Evidenced in bullet(s): {', '.join(ev_bullet_ids)}" if ev_bullet_ids else "Evidenced on CV")
+                if not ev_quote or "declared in skills" in ev_quote.lower() or "skills section" in ev_quote.lower():
+                    verb_line = extract_verbatim_sentence_for_requirement(c_name, profile, proposed_evidence=ev_quote, prefer_employment_only=True)
+                    final_ev = verb_line or (f"Evidenced in bullet(s): {', '.join(ev_bullet_ids)}" if ev_bullet_ids else "Evidenced on CV")
+                else:
+                    final_ev = ev_quote
 
-            prof_sig = ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning") else ("used" if (verdict == "partial" or declared_in_skills or flag == "claim_only") else "none")
+            prof_sig = ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning") else ("used" if (verdict == "partial" or is_claim_only) else "none")
 
             aligned_must_have.append(RequirementMatch(
                 requirement=c_name,
@@ -633,32 +654,70 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 evidence=final_ev,
                 evidence_bullet_ids=ev_bullet_ids,
                 scope=ev_scope,
-                declared_in_skills=declared_in_skills,
+                declared_in_skills=is_claim_only,
                 evidence_type=ev_type,
                 proficiency_signal=prof_sig
             ))
         else:
-            # Deterministic fallback check via alias_hit / profile skills
+            # Deterministic fallback check via degree/soft skill/reduction engine recovery
+            from app.agent.tools.scoring import _is_degree_requirement, _is_soft_skill_requirement
             skills_declared = getattr(profile, "skills_declared", []) or getattr(profile, "skills", []) or []
             from app.agent.tools.reduction_engine import alias_hit
             is_declared = alias_hit(c_name, skills_declared)
-            if is_declared:
-                claim_only_must_haves.append(c_name)
-                verdict = "partial"
-                ev_type = "skills_list_only"
-                final_ev = "Declared in skills section"
+
+            if _is_degree_requirement(c_name):
+                verdict = "full"
+                ev_type = "education"
+                edu_list = getattr(profile, "education", []) or []
+                edu_summary = "; ".join([str(e) for e in edu_list]) if edu_list else "Degree requirement satisfied from candidate education records"
+                final_ev = f"Education record: {edu_summary}"
                 prof_sig = "used"
+                is_claim_only = False
+            elif _is_soft_skill_requirement(c_name):
+                verdict = "full"
+                ev_type = "employment"
+                achievements = getattr(profile, "key_achievements", []) or []
+                soft_quote = None
+                for ach in achievements:
+                    ach_str = str(ach)
+                    if any(w in ach_str.lower() for w in ("mentor", "lead", "manage", "collaborat", "team", "autonomy", "guid")):
+                        soft_quote = ach_str
+                        break
+                final_ev = soft_quote or "Demonstrated soft skills and team collaboration across professional roles"
+                prof_sig = "used"
+                is_claim_only = False
             else:
-                verdict = "none"
-                ev_type = "absent"
-                final_ev = "No evidence found on CV"
-                prof_sig = "none"
+                # Deterministic 3-branch reduction engine recovery
+                verdict, flag = reduce_match(
+                    requirement_name=c_name,
+                    evidence_bullet_ids=[],
+                    scope="exact",
+                    depth="used",
+                    declared_in_skills=is_declared,
+                    candidate_profile=profile,
+                    evidence_quote=None
+                )
+                is_claim_only = (flag == "claim_only")
+                if is_claim_only:
+                    claim_only_must_haves.append(c_name)
+                    ev_type = "skills_list_only"
+                    final_ev = "Declared in skills section"
+                    prof_sig = "used"
+                elif flag == "absent":
+                    ev_type = "absent"
+                    final_ev = "No evidence found on CV"
+                    prof_sig = "none"
+                else:
+                    ev_type = "employment"
+                    verb_line = extract_verbatim_sentence_for_requirement(c_name, profile, prefer_employment_only=True)
+                    final_ev = verb_line or "Evidenced in employment history"
+                    prof_sig = "used"
 
             aligned_must_have.append(RequirementMatch(
                 requirement=c_name,
                 match=verdict,
                 evidence=final_ev,
-                declared_in_skills=is_declared,
+                declared_in_skills=is_claim_only,
                 evidence_type=ev_type,
                 proficiency_signal=prof_sig
             ))
@@ -685,10 +744,12 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 scope=ev_scope,
                 depth=ev_depth,
                 declared_in_skills=declared_in_skills,
-                candidate_profile=profile
+                candidate_profile=profile,
+                evidence_quote=ev_quote
             )
 
-            if flag == "claim_only":
+            is_claim_only = (flag == "claim_only")
+            if is_claim_only:
                 ev_type = "skills_list_only"
                 final_ev = ev_quote or "Declared in skills section"
             elif flag == "absent":
@@ -696,9 +757,13 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 final_ev = "No evidence found on CV"
             else:
                 ev_type = "employment" if any(b.startswith("E") for b in ev_bullet_ids) else "project"
-                final_ev = ev_quote or "Evidenced on CV"
+                if not ev_quote or "declared in skills" in ev_quote.lower() or "skills section" in ev_quote.lower():
+                    verb_line = extract_verbatim_sentence_for_requirement(c_name, profile, proposed_evidence=ev_quote, prefer_employment_only=True)
+                    final_ev = verb_line or (f"Evidenced in bullet(s): {', '.join(ev_bullet_ids)}" if ev_bullet_ids else "Evidenced on CV")
+                else:
+                    final_ev = ev_quote
 
-            prof_sig = ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning") else ("used" if (verdict == "partial" or declared_in_skills or flag == "claim_only") else "none")
+            prof_sig = ev_depth if ev_depth in ("led", "built", "used", "assisted", "learning") else ("used" if (verdict == "partial" or is_claim_only) else "none")
 
             aligned_nice_to_have.append(RequirementMatch(
                 requirement=c_name,
@@ -706,17 +771,46 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 evidence=final_ev,
                 evidence_bullet_ids=ev_bullet_ids,
                 scope=ev_scope,
-                declared_in_skills=declared_in_skills,
+                declared_in_skills=is_claim_only,
                 evidence_type=ev_type,
                 proficiency_signal=prof_sig
             ))
+
         else:
+            skills_declared = getattr(profile, "skills_declared", []) or getattr(profile, "skills", []) or []
+            from app.agent.tools.reduction_engine import alias_hit
+            is_declared = alias_hit(c_name, skills_declared)
+            verdict, flag = reduce_match(
+                requirement_name=c_name,
+                evidence_bullet_ids=[],
+                scope="exact",
+                depth="used",
+                declared_in_skills=is_declared,
+                candidate_profile=profile,
+                evidence_quote=None
+            )
+            is_claim_only = (flag == "claim_only")
+            if is_claim_only:
+                ev_type = "skills_list_only"
+                final_ev = "Declared in skills section"
+                prof_sig = "used"
+            elif flag == "absent":
+                ev_type = "absent"
+                final_ev = "No evidence found on CV"
+                prof_sig = "none"
+            else:
+                ev_type = "employment"
+                verb_line = extract_verbatim_sentence_for_requirement(c_name, profile, prefer_employment_only=True)
+                final_ev = verb_line or "Evidenced in employment history"
+                prof_sig = "used"
+
             aligned_nice_to_have.append(RequirementMatch(
                 requirement=c_name,
-                match="none",
-                evidence="No evidence found on CV",
-                evidence_type="absent",
-                proficiency_signal="none"
+                match=verdict,
+                evidence=final_ev,
+                declared_in_skills=is_claim_only,
+                evidence_type=ev_type,
+                proficiency_signal=prof_sig
             ))
 
     compact_output.must_have = aligned_must_have
@@ -741,11 +835,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     if num_must > 0:
         coverage = claim_only_count / num_must
         if coverage >= 0.5:
-            penalties.append({
-                "reason": f"STUFFER_ALERT: {claim_only_count} of {num_must} mandatory skills listed in skills section without bullet evidence ({coverage:.0%} coverage)",
-                "severity": "intermediate_penalize",
-                "points_deducted": 10.0
-            })
+            # STUFFER_ALERT is a non-mutating flag — claim-only skills already receive reduced credit (partial)
             compact_output.reasoning_summary += f" [🚩 STUFFER_ALERT: {claim_only_count} of {num_must} required skills appear only in skills section ({coverage:.0%})]"
 
     # Calculate final weighted score, penalty deductions, and decision deterministically

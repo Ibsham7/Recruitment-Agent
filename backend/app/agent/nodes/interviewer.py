@@ -2,7 +2,7 @@
 from langgraph.types import interrupt
 from app.agent.schemas import InterviewTranscript, InterviewQuestion
 from app.agent.state import RecruitmentState
-from app.agent.config import get_model
+from app.agent.config import get_model, MODELS
 from langchain_core.messages import HumanMessage
 
 from app.agent.utils import extract_cost_and_tokens
@@ -18,7 +18,7 @@ async def generate_followup_probe(question_text: str, brief_answer: str) -> tupl
     try:
         model = get_model("fast")
         res = await model.ainvoke([HumanMessage(content=prompt)])
-        cost, token_info = extract_cost_and_tokens(res, model_name="google/gemini-2.5-flash-lite")
+        cost, token_info = extract_cost_and_tokens(res, model_name=MODELS.get("fast", "google/gemini-3.1-flash-lite"))
         return res.content.strip(), cost, token_info
     except Exception:
         return "Could you please elaborate with a specific example or more details on your role in this?", 0.0, {}

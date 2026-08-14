@@ -12,15 +12,16 @@ OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY_PAID")
 MODELS = {
     "smart": "google/gemini-3.1-flash-lite",
     "fast": "google/gemini-3.1-flash-lite",
-    "ocr": "google/gemini-2.5-flash-lite",
+    "ocr": "google/gemini-3.1-flash-lite",
 }
 EMBEDDING_MODEL = "text-embedding-3-small"
 # ----------------------
 
 def get_model(tier: str = "smart", max_tokens: int = None) -> ChatOpenAI:
     """
-    smart  → google/gemini-2.5-flash: High-performance reasoning model for structured/complex extraction.
-    fast   → google/gemini-2.5-flash-lite: Fast, cost-effective model for initial extraction pass.
+    smart  → google/gemini-3.1-flash-lite: Fast, cost-effective model for screening and evaluation.
+    fast   → google/gemini-3.1-flash-lite: Fast, cost-effective model for extraction pass.
+    ocr    → google/gemini-3.1-flash-lite: Vision OCR model for document fallback.
     """
     kwargs = {
         "seed": 42,

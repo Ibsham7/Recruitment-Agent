@@ -28,6 +28,10 @@ model Campaign {
   updatedAt         DateTime    @updatedAt
   candidates        Candidate[]
 
+  // COST_TRACKING & TELEMETRY BREAKDOWN
+  apiCost           Float       @default(0)
+  costBreakdown     Json?
+
   @@index([userId])
 }
 

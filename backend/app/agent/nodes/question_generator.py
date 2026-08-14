@@ -1,6 +1,6 @@
 # nodes/question_generator.py
 import json
-from app.agent.config import get_model
+from app.agent.config import get_model, MODELS
 from app.agent.schemas import InterviewQuestion, InterviewQuestionList
 from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -86,7 +86,7 @@ Generate 3 targeted, anchor-grounded interview questions for this specific candi
                 raise ValueError(f"Failed to parse InterviewQuestionList: {err or 'LLM output was truncated or unparseable'}")
             questions = parsed_res.questions
             from app.agent.utils import extract_cost_and_tokens
-            cost, token_info = extract_cost_and_tokens(result, model_name="google/gemini-2.5-flash-lite")
+            cost, token_info = extract_cost_and_tokens(result, model_name=MODELS.get("fast", "google/gemini-3.1-flash-lite"))
             total_cost += cost
             stage_tokens["input_tokens"] += token_info.get("input_tokens", 0)
             stage_tokens["output_tokens"] += token_info.get("output_tokens", 0)

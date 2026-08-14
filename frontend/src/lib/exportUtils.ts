@@ -109,9 +109,9 @@ export function generateCampaignMarkdownReport(campaign: Campaign, candidates: C
     ).length;
     const claimOnlyCoverage = mustHaveItems.length > 0 ? claimOnlyCount / mustHaveItems.length : 0;
     const hasStufferAlert = Boolean(
-      breakdown?.flags?.includes("STUFFER_ALERT") ||
-      penalties.some((p) => p.reason?.includes("STUFFER_ALERT")) ||
-      (mustHaveItems.length > 0 && claimOnlyCoverage >= 0.5)
+      breakdown?.flags
+        ? breakdown.flags.includes("STUFFER_ALERT")
+        : (penalties.some((p) => p.reason?.includes("STUFFER_ALERT")) || (mustHaveItems.length > 0 && claimOnlyCoverage >= 0.5))
     );
 
     if (hasStufferAlert) {

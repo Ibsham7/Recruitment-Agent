@@ -105,8 +105,9 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
 
     if not has_jd_embedding or not jd_distilled:
         # Compute JD distillation and embedding on the fly if missing
-        jd_distilled = await _distill_jd_async(jd)
-        jd_vector = await get_embedding_async(jd_distilled)
+        from app.agent.embeddings import _distill_jd_with_cost_async, get_embedding_with_cost_async
+        jd_distilled, distill_cost, distill_tokens = await _distill_jd_with_cost_async(jd)
+        jd_vector, embed_cost, embed_tokens = await get_embedding_with_cost_async(jd_distilled)
         
         # Self-heal: save it back to the campaign for the next candidates
         if campaign_id:
@@ -115,6 +116,38 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
                 SET "distilledJd" = $1, "jdEmbedding" = $2::vector
                 WHERE id = $3
             ''', jd_distilled, str(jd_vector), campaign_id)
+
+            try:
+                existing_camp = await prisma.campaign.find_unique(where={"id": campaign_id})
+                if existing_camp:
+                    cb = existing_camp.costBreakdown or {}
+                    if isinstance(cb, str):
+                        cb = json.loads(cb)
+                    if not isinstance(cb, dict):
+                        cb = {}
+
+                    cb["jd_extraction"] = {
+                        "cost": round(distill_cost, 6),
+                        "tokens": distill_tokens,
+                        "model": "google/gemini-3.1-flash-lite"
+                    }
+                    cb["jd_embedding"] = {
+                        "cost": round(embed_cost, 6),
+                        "tokens": embed_tokens,
+                        "model": "text-embedding-3-small"
+                    }
+                    new_api_cost = round((existing_camp.apiCost or 0.0) + distill_cost + embed_cost, 6)
+                    from prisma import Json
+                    await prisma.campaign.update(
+                        where={"id": campaign_id},
+                        data={
+                            "apiCost": new_api_cost,
+                            "costBreakdown": Json(cb)
+                        }
+                    )
+            except Exception as e:
+                logger.warning(f"[JD Embedding] Failed to record self-heal campaign cost: {e}")
+
             from app.dev_logger import log_event
             log_event(campaign_id, "JD_EMBEDDING", f"JD embedded successfully for Campaign {campaign_id}")
             logger.info(f"[JD Embedding] Distilled and embedded JD for Campaign {campaign_id}")

@@ -4,11 +4,13 @@ import { Candidate, Theme } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 
 const STAGE_META: Record<string, { title: string; defaultModel: string; icon: string; color: string }> = {
-  cv_parser: { title: "CV Parser & Extraction", defaultModel: "google/gemini-2.5-flash-lite", icon: "📄", color: "#3B82F6" },
-  jd_matcher: { title: "JD Screening & Scoring", defaultModel: "google/gemini-2.5-flash-lite", icon: "🎯", color: "#10B981" },
-  question_generator: { title: "Question Generator", defaultModel: "google/gemini-2.5-flash-lite", icon: "❓", color: "#8B5CF6" },
-  interviewer_probe: { title: "Adaptive Interview Probe", defaultModel: "google/gemini-2.5-flash-lite", icon: "💬", color: "#F59E0B" },
-  evaluator: { title: "Evaluation Engine", defaultModel: "google/gemini-2.5-flash", icon: "📊", color: "#EC4899" },
+  jd_extraction: { title: "JD Extraction & Spec Distillation", defaultModel: "google/gemini-3.1-flash-lite", icon: "📑", color: "#6366F1" },
+  jd_embedding: { title: "JD Vector Embedding", defaultModel: "text-embedding-3-small", icon: "⚡", color: "#059669" },
+  cv_parser: { title: "CV Parser & Extraction", defaultModel: "google/gemini-3.1-flash-lite", icon: "📄", color: "#3B82F6" },
+  jd_matcher: { title: "JD Screening & Scoring", defaultModel: "google/gemini-3.1-flash-lite", icon: "🎯", color: "#10B981" },
+  question_generator: { title: "Question Generator", defaultModel: "google/gemini-3.1-flash-lite", icon: "❓", color: "#8B5CF6" },
+  interviewer_probe: { title: "Adaptive Interview Probe", defaultModel: "google/gemini-3.1-flash-lite", icon: "💬", color: "#F59E0B" },
+  evaluator: { title: "Evaluation Engine", defaultModel: "google/gemini-3.1-flash-lite", icon: "📊", color: "#EC4899" },
   embedding_matcher: { title: "PGVector Embedding", defaultModel: "text-embedding-3-small", icon: "🔍", color: "#06B6D4" },
 };
 

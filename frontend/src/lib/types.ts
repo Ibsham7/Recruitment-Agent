@@ -18,8 +18,9 @@ export interface Campaign {
   total?: number;
   processed?: number;
   shortlisted?: number;
-  created?: string;
   totalCost?: number; // COST_TRACKING
+  apiCost?: number;
+  costBreakdown?: Record<string, any>;
 }
 
 export interface RequirementItemBreakdown {

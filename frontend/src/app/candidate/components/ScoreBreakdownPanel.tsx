@@ -107,9 +107,9 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
   ).length;
   const claimOnlyCoverage = mustHaveItems.length > 0 ? claimOnlyCount / mustHaveItems.length : 0;
   const hasStufferAlert = Boolean(
-    breakdown?.flags?.includes("STUFFER_ALERT") ||
-    penalties.some((p) => p.reason?.includes("STUFFER_ALERT")) ||
-    (mustHaveItems.length > 0 && claimOnlyCoverage >= 0.5)
+    breakdown?.flags
+      ? breakdown.flags.includes("STUFFER_ALERT")
+      : (penalties.some((p) => p.reason?.includes("STUFFER_ALERT")) || (mustHaveItems.length > 0 && claimOnlyCoverage >= 0.5))
   );
 
   const toggleSection = (id: string) => {
@@ -292,11 +292,13 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
                       ) : (
                         mustHaveItems.map((req, idx) => {
                           const isFull = req.match === "full";
-                          const isPartial = req.match === "partial";
-                          const isClaimOnly = Boolean(
+                          const isPartial = req.match === "partial" || req.match === "quarter";
+                          const isMissing = req.match === "none";
+                          const isClaimOnly = !isMissing && Boolean(
                             req.declared_in_skills ||
                             req.evidence?.includes("Declared in skills") ||
-                            req.deduction_reason?.includes("Claim-only")
+                            req.deduction_reason?.includes("Claim-only") ||
+                            req.warning_flag === "CLAIM_ONLY"
                           );
                           const badgeColor = isClaimOnly ? "#f59e0b" : isFull ? t.numPos : isPartial ? "#f59e0b" : t.numNeg;
                           const IconComp = isFull ? CheckCircle2 : isPartial ? AlertTriangle : XCircle;
@@ -353,7 +355,7 @@ export function ScoreBreakdownPanel({ candidate, theme: t }: ScoreBreakdownPanel
                                   }}
                                 >
                                   <span>⚠️</span>
-                                  <span>Declared in skills section; no trace in experience or projects. Scored at partial credit. Human verification recommended.</span>
+                                  <span>{req.ui_warning || `Declared in skills section; no trace in experience or projects. Scored at ${req.percentage}% credit. Human verification recommended.`}</span>
                                 </div>
                               )}
 

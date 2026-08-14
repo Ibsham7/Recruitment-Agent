@@ -63,18 +63,22 @@ def cosine_similarity(v1: list[float], v2: list[float]) -> float:
         return 0.0
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
-async def _distill_jd_async(jd_text: str) -> str:
-    """Distill the JD to its core requirements to avoid diluting embeddings."""
+async def _distill_jd_with_cost_async(jd_text: str) -> tuple[str, float, dict]:
+    """Distill the JD to its core requirements and compute token costs."""
     try:
+        from app.agent.utils import extract_cost_and_tokens
         model = get_model("fast")
         response = await model.ainvoke([
             SystemMessage(content=JD_DISTILLER_SYSTEM),
             HumanMessage(content=jd_text)
         ])
-        # We could extract cost here: from app.agent.utils import extract_cost; cost = extract_cost(response)
-        # However, distillation runs once per Campaign, not per Candidate, so Candidate level tracking doesn't perfectly fit.
-        # It's very cheap, so we'll skip tracking it to keep the code simpler.
-        return response.content
+        cost, token_info = extract_cost_and_tokens(response, model_name="google/gemini-3.1-flash-lite")
+        return response.content, cost, token_info
     except Exception as e:
         print(f"  [JD Distiller] LLM distillation failed (rate limit/error): {e}. Falling back to raw JD.")
-        return jd_text
+        return jd_text, 0.0, {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "cost": 0.0}
+
+async def _distill_jd_async(jd_text: str) -> str:
+    """Distill the JD to its core requirements to avoid diluting embeddings."""
+    distilled_text, _, _ = await _distill_jd_with_cost_async(jd_text)
+    return distilled_text

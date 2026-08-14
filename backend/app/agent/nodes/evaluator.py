@@ -1,6 +1,6 @@
 import json
 from typing import Any
-from app.agent.config import get_model
+from app.agent.config import get_model, MODELS
 from app.agent.schemas import EvaluationReport
 from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -210,7 +210,7 @@ Ensure your output populates:
                 raise ValueError(f"Failed to parse EvaluationReport: {err or 'LLM output was truncated or unparseable'}")
             report = parsed_res
             from app.agent.utils import extract_cost_and_tokens
-            cost, token_info = extract_cost_and_tokens(result, model_name="google/gemini-2.5-flash")
+            cost, token_info = extract_cost_and_tokens(result, model_name=MODELS.get("smart", "google/gemini-3.1-flash-lite"))
             total_cost += cost
             stage_tokens["input_tokens"] += token_info.get("input_tokens", 0)
             stage_tokens["output_tokens"] += token_info.get("output_tokens", 0)

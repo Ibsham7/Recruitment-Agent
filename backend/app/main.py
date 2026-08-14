@@ -107,11 +107,21 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
     )
     
     # Synchronously generate canonical JD spec, distilled JD, and embedding before queuing any candidates
+    jd_extraction_cost = 0.0
+    jd_extraction_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    jd_embedding_cost = 0.0
+    jd_embedding_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
     try:
-        from app.agent.nodes.jd_matcher import distill_jd_requirements
-        canonical_spec = await distill_jd_requirements(campaign.jobDescription)
+        from app.agent.nodes.jd_matcher import distill_jd_requirements_with_cost
+        canonical_spec, spec_cost, spec_tokens = await distill_jd_requirements_with_cost(campaign.jobDescription)
         spec_dict = canonical_spec.model_dump() if hasattr(canonical_spec, "model_dump") else canonical_spec.dict()
         
+        jd_extraction_cost += spec_cost
+        jd_extraction_tokens["input_tokens"] += spec_tokens.get("input_tokens", 0)
+        jd_extraction_tokens["output_tokens"] += spec_tokens.get("output_tokens", 0)
+        jd_extraction_tokens["total_tokens"] += spec_tokens.get("total_tokens", 0)
+
         await prisma.campaign.update(
             where={"id": new_campaign.id},
             data={"canonicalJdSpec": Json(spec_dict)}
@@ -121,14 +131,50 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
         logger.warning(f"Failed to generate canonical JD spec during campaign creation: {e}")
 
     try:
-        distilled_jd = await _distill_jd_async(campaign.jobDescription)
-        jd_embedding = await get_embedding_async(distilled_jd)
+        from app.agent.embeddings import _distill_jd_with_cost_async, get_embedding_with_cost_async
+        distilled_jd, distill_cost, distill_tokens = await _distill_jd_with_cost_async(campaign.jobDescription)
+        jd_embedding, embed_cost, embed_tokens = await get_embedding_with_cost_async(distilled_jd)
         
+        jd_extraction_cost += distill_cost
+        jd_extraction_tokens["input_tokens"] += distill_tokens.get("input_tokens", 0)
+        jd_extraction_tokens["output_tokens"] += distill_tokens.get("output_tokens", 0)
+        jd_extraction_tokens["total_tokens"] += distill_tokens.get("total_tokens", 0)
+
+        jd_embedding_cost += embed_cost
+        jd_embedding_tokens["input_tokens"] += embed_tokens.get("input_tokens", 0)
+        jd_embedding_tokens["output_tokens"] += embed_tokens.get("output_tokens", 0)
+        jd_embedding_tokens["total_tokens"] += embed_tokens.get("total_tokens", 0)
+
         await prisma.execute_raw('''
             UPDATE "Campaign"
             SET "distilledJd" = $1, "jdEmbedding" = $2::vector
             WHERE id = $3
         ''', distilled_jd, str(jd_embedding), new_campaign.id)
+
+        campaign_cost_breakdown = {}
+        if jd_extraction_cost > 0 or jd_extraction_tokens["total_tokens"] > 0:
+            campaign_cost_breakdown["jd_extraction"] = {
+                "cost": round(jd_extraction_cost, 6),
+                "tokens": jd_extraction_tokens,
+                "model": "google/gemini-3.1-flash-lite"
+            }
+        if jd_embedding_cost > 0 or jd_embedding_tokens["total_tokens"] > 0:
+            campaign_cost_breakdown["jd_embedding"] = {
+                "cost": round(jd_embedding_cost, 6),
+                "tokens": jd_embedding_tokens,
+                "model": "text-embedding-3-small"
+            }
+
+        total_setup_cost = round(jd_extraction_cost + jd_embedding_cost, 6)
+        if total_setup_cost > 0 or campaign_cost_breakdown:
+            await prisma.campaign.update(
+                where={"id": new_campaign.id},
+                data={
+                    "apiCost": total_setup_cost,
+                    "costBreakdown": Json(campaign_cost_breakdown)
+                }
+            )
+
         from app.dev_logger import log_event
         log_event(new_campaign.id, "JD_EMBEDDING", f"JD embedded successfully for Campaign '{new_campaign.title}' ({new_campaign.id})")
         logger.info(f"[JD Embedding] Distilled and embedded JD for Campaign '{new_campaign.title}' ({new_campaign.id})")
@@ -326,6 +372,29 @@ def _format_candidate_dict(cand_dict: dict) -> dict:
     return cand_dict
 
 
+def _format_campaign_dict(c_dict: dict) -> dict:
+    import json
+    setup_cost = c_dict.get("apiCost", 0.0) or 0.0
+    total_cost = float(setup_cost)
+
+    for cand in c_dict.get("candidates", []):
+        total_cost += float(cand.get("apiCost", 0.0) or 0.0)
+        _format_candidate_dict(cand)
+
+    c_dict["totalCost"] = round(total_cost, 6)
+
+    cb = c_dict.get("costBreakdown")
+    if isinstance(cb, str):
+        try:
+            cb = json.loads(cb)
+        except Exception:
+            cb = None
+    c_dict["costBreakdown"] = cb
+    c_dict["cost_breakdown"] = cb
+    c_dict["api_cost"] = setup_cost
+    return c_dict
+
+
 @app.get("/api/campaigns")
 async def get_campaigns(user: dict = Depends(verify_jwt)):
     """Get all job campaigns."""
@@ -346,83 +415,10 @@ async def get_campaigns(user: dict = Depends(verify_jwt)):
     result = []
     for c in campaigns:
         c_dict = c.model_dump() if hasattr(c, "model_dump") else c.dict()
-        for cand in c_dict.get("candidates", []):
-            _format_candidate_dict(cand)
+        _format_campaign_dict(c_dict)
         result.append(c_dict)
     return result
 
-class InterviewAnswer(BaseModel):
-    answer: str
-    telemetry: Optional[dict] = None
-    anti_cheat_telemetry: Optional[dict] = None
-    antiCheatTelemetry: Optional[dict] = None
-
-@app.post("/api/candidates/{id}/interview/answer")
-async def submit_interview_answer(id: str, answer_data: InterviewAnswer):
-    raw_telemetry = answer_data.anti_cheat_telemetry or answer_data.antiCheatTelemetry or answer_data.telemetry
-    telemetry_dict = normalize_telemetry(raw_telemetry) if raw_telemetry is not None else None
-    await process_interview_answer(id, answer_data.answer, telemetry=telemetry_dict)
-    updated_cand = await get_candidate(id)
-    return updated_cand
-
-class HumanReview(BaseModel):
-    decision: str # approve, reject, hold
-
-@app.post("/api/candidates/{id}/review")
-async def submit_human_review(id: str, review_data: HumanReview, request: Request, user: dict = Depends(verify_jwt)):
-    try:
-        cand = await prisma.candidate.find_unique(where={"id": id})
-        if not cand:
-            raise HTTPException(status_code=404, detail="Candidate not found")
-
-        decision = review_data.decision.lower()
-        
-        # Screening Hold stage (pre-interview resume hold)
-        if cand.status in ["screening_hold", "pending", "screening"]:
-            if decision in ["approve", "override"]:
-                status_update = "shortlisted"
-                resume_val = "override"
-            elif decision == "reject":
-                status_update = "rejected"
-                resume_val = "reject"
-            else: # hold
-                status_update = "screening_hold"
-                resume_val = "hold"
-                
-            updated_cand = await prisma.candidate.update(
-                where={"id": id},
-                data={
-                    "status": status_update,
-                    "decision": decision,
-                    "rejectionReason": "Rejected during initial resume screening review" if decision == "reject" else cand.rejectionReason
-                }
-            )
-            # Only resume paused LangGraph thread if decision is approve or reject
-            if decision in ["approve", "override", "reject"]:
-                await request.app.state.redis.enqueue_job('resume_pipeline_task', id, resume_val)
-        else:
-            # Post-interview review or final decision stage (interview_completed / review)
-            if decision in ["approve", "override"]:
-                status_update = "finalized"
-            elif decision == "reject":
-                status_update = "rejected"
-            else:
-                status_update = "screening_hold"
-                
-            updated_cand = await prisma.candidate.update(
-                where={"id": id},
-                data={
-                    "status": status_update,
-                    "decision": decision,
-                    "rejectionReason": "Rejected post-interview review" if decision == "reject" else cand.rejectionReason
-                }
-            )
-            
-        return {"status": "success", "message": f"Review submitted for candidate ({decision})", "candidate": updated_cand}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/campaigns/{id}")
 async def get_campaign(id: str, user: dict = Depends(verify_jwt)):
@@ -441,14 +437,7 @@ async def get_campaign(id: str, user: dict = Depends(verify_jwt)):
         raise HTTPException(status_code=404, detail="Campaign not found")
     
     c_dict = campaign.model_dump() if hasattr(campaign, "model_dump") else campaign.dict()
-    total_cost = 0.0
-    for cand in c_dict.get("candidates", []):
-        total_cost += cand.get("apiCost", 0.0)
-        _format_candidate_dict(cand)
-    
-    # COST_TRACKING: Remove after testing
-    c_dict["totalCost"] = total_cost
-    return c_dict
+    return _format_campaign_dict(c_dict)
 
 @app.get("/api/candidates/{id}")
 async def get_candidate(id: str):

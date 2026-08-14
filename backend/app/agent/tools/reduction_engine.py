@@ -106,7 +106,7 @@ SKILL_ALIASES: dict[str, list[str]] = {
 def classify_bullet_source(bullet_id: str) -> str:
     """Classify bullet's source type based on its ID prefix."""
     bid = (bullet_id or "").upper().strip()
-    if bid.startswith("E"):
+    if bid.startswith("E") or bid.startswith("A"):
         return "employment"
     elif bid.startswith("P"):
         return "project_work"
@@ -155,30 +155,88 @@ def build_bullet_index(candidate_profile: Any) -> dict[str, dict]:
     """Build a lookup index of all bullets by ID from candidate_profile."""
     index = {}
 
-    roles = getattr(candidate_profile, "previous_roles", []) or []
+    if isinstance(candidate_profile, dict):
+        roles = candidate_profile.get("previous_roles", []) or []
+        projects = candidate_profile.get("projects", []) or []
+    else:
+        roles = getattr(candidate_profile, "previous_roles", []) or []
+        projects = getattr(candidate_profile, "projects", []) or []
+
+    role_idx = 1
     for role in roles:
-        bullets = getattr(role, "bullets", []) or []
+        if isinstance(role, dict):
+            r_id = role.get("id") or f"E{role_idx}"
+            bullets = role.get("bullets", []) or []
+            desc = role.get("description", "")
+        else:
+            r_id = getattr(role, "id", None) or f"E{role_idx}"
+            bullets = getattr(role, "bullets", []) or []
+            desc = getattr(role, "description", "")
+        role_idx += 1
+
+        b_idx = 1
         for bullet in bullets:
-            b_id = getattr(bullet, "id", None) or getattr(bullet, "bullet_id", None)
-            b_text = getattr(bullet, "text", "")
+            if isinstance(bullet, dict):
+                b_id = bullet.get("id") or bullet.get("bullet_id") or f"{r_id}.{b_idx}"
+                b_text = bullet.get("text", "")
+            else:
+                b_id = getattr(bullet, "id", None) or getattr(bullet, "bullet_id", None) or f"{r_id}.{b_idx}"
+                b_text = getattr(bullet, "text", "")
+            b_idx += 1
             if b_id and b_text:
                 index[b_id] = {"id": b_id, "text": b_text, "source": classify_bullet_source(b_id)}
 
-    projects = getattr(candidate_profile, "projects", []) or []
+        # Also index description lines if bullets list is empty
+        if not bullets and desc:
+            lines = [line.strip(" •-*") for line in str(desc).splitlines() if line.strip(" •-*")]
+            for l_i, line in enumerate(lines, 1):
+                fallback_id = f"{r_id}.{l_i}"
+                if fallback_id not in index:
+                    index[fallback_id] = {"id": fallback_id, "text": line, "source": classify_bullet_source(fallback_id)}
+
+    proj_idx = 1
     for proj in projects:
         if isinstance(proj, dict):
-            bullets = proj.get("bullets", [])
+            p_id = proj.get("id") or f"P{proj_idx}"
+            bullets = proj.get("bullets", []) or []
+            desc = proj.get("description", "")
         else:
+            p_id = getattr(proj, "id", None) or f"P{proj_idx}"
             bullets = getattr(proj, "bullets", []) or []
+            desc = getattr(proj, "description", "")
+        proj_idx += 1
+
+        b_idx = 1
         for bullet in bullets:
             if isinstance(bullet, dict):
-                b_id = bullet.get("id")
+                b_id = bullet.get("id") or bullet.get("bullet_id") or f"{p_id}.{b_idx}"
                 b_text = bullet.get("text", "")
             else:
-                b_id = getattr(bullet, "id", None)
+                b_id = getattr(bullet, "id", None) or getattr(bullet, "bullet_id", None) or f"{p_id}.{b_idx}"
                 b_text = getattr(bullet, "text", "")
+            b_idx += 1
             if b_id and b_text:
                 index[b_id] = {"id": b_id, "text": b_text, "source": classify_bullet_source(b_id)}
+
+        if not bullets and desc:
+            lines = [line.strip(" •-*") for line in str(desc).splitlines() if line.strip(" •-*")]
+            for l_i, line in enumerate(lines, 1):
+                fallback_id = f"{p_id}.{l_i}"
+                if fallback_id not in index:
+                    index[fallback_id] = {"id": fallback_id, "text": line, "source": classify_bullet_source(fallback_id)}
+
+    # Index key achievements as employment bullets
+    achievements = []
+    if isinstance(candidate_profile, dict):
+        achievements = candidate_profile.get("key_achievements", []) or []
+    else:
+        achievements = getattr(candidate_profile, "key_achievements", []) or []
+
+    for a_idx, ach in enumerate(achievements, 1):
+        a_text = str(ach).strip() if ach else ""
+        if a_text:
+            a_id = f"A{a_idx}"
+            index[a_id] = {"id": a_id, "text": a_text, "source": "employment"}
 
     return index
 
@@ -190,6 +248,7 @@ def reduce_match(
     depth: Optional[str],
     declared_in_skills: bool,
     candidate_profile: Any,
+    evidence_quote: Optional[str] = None,
 ) -> tuple[str, Optional[str]]:
     """
     Deterministic 3-Branch Reduction Engine.
@@ -199,18 +258,83 @@ def reduce_match(
     bullet_index = build_bullet_index(candidate_profile)
     valid_bullet_ids = [bid for bid in (evidence_bullet_ids or []) if bid in bullet_index]
 
-    # Branch A: Proven — evidence bullets exist
-    if valid_bullet_ids:
-        bullets = [bullet_index[bid] for bid in valid_bullet_ids]
-        best_bullet = max(bullets, key=lambda b: SOURCE_RANK.get(b["source"], 0))
-        best_source = best_bullet["source"]
+    # Deterministic bullet recovery: if LLM omitted bullet IDs, search profile bullets for requirement tokens
+    if not valid_bullet_ids and requirement_name:
+        from app.agent.tools.verification import extract_dynamic_requirement_tokens, check_dynamic_token_presence
+        req_tokens = extract_dynamic_requirement_tokens(requirement_name)
+        if req_tokens:
+            for b_id, b_info in bullet_index.items():
+                b_text = b_info.get("text", "")
+                if check_dynamic_token_presence(req_tokens, b_text):
+                    valid_bullet_ids.append(b_id)
+
+    # Grounding check: Check if evidence_quote is present in work/project history
+    ev_quote_clean = (evidence_quote or "").strip().lower()
+    has_substantive_quote = bool(
+        ev_quote_clean and 
+        len(ev_quote_clean) >= 10 and 
+        "declared in skills" not in ev_quote_clean and 
+        "no evidence" not in ev_quote_clean and
+        "skills section" not in ev_quote_clean
+    )
+
+    # Gather experience & project text corpus from candidate_profile
+    if isinstance(candidate_profile, dict):
+        roles = candidate_profile.get("previous_roles", []) or []
+        projects = candidate_profile.get("projects", []) or []
+        raw_cv = str(candidate_profile.get("raw_cv_text", "") or "").lower()
+    else:
+        roles = getattr(candidate_profile, "previous_roles", []) or []
+        projects = getattr(candidate_profile, "projects", []) or []
+        raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "").lower()
+
+    exp_text_parts = []
+    for r in roles:
+        if isinstance(r, dict):
+            exp_text_parts.append(str(r.get("title", "")) + " " + str(r.get("description", "")) + " " + " ".join([str(s) for s in (r.get("skills_used", []) or [])]))
+            for b in (r.get("bullets", []) or []):
+                b_txt = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
+                exp_text_parts.append(b_txt)
+        else:
+            exp_text_parts.append(str(getattr(r, "title", "")) + " " + str(getattr(r, "description", "")) + " " + " ".join([str(s) for s in (getattr(r, "skills_used", []) or [])]))
+            for b in (getattr(r, "bullets", []) or []):
+                b_txt = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
+                exp_text_parts.append(b_txt)
+
+    for p in projects:
+        if isinstance(p, dict):
+            exp_text_parts.append(str(p.get("title", "")) + " " + str(p.get("description", "")))
+        else:
+            exp_text_parts.append(str(getattr(p, "title", "")) + " " + str(getattr(p, "description", "")))
+
+    exp_corpus = (" ".join(exp_text_parts) + " " + raw_cv).lower()
+
+    # Check if quote or requirement tokens exist in work/project history
+    quote_in_exp = False
+    if has_substantive_quote:
+        snippet = ev_quote_clean[:30].strip()
+        if snippet and snippet in exp_corpus:
+            quote_in_exp = True
+        else:
+            quote_words = [w for w in re.findall(r'\w+', ev_quote_clean) if len(w) >= 4]
+            if quote_words and sum(1 for w in quote_words if w in exp_corpus) / len(quote_words) >= 0.5:
+                quote_in_exp = True
+
+    # Branch A: Proven — evidence bullets exist OR evidence quote is grounded in work/project history
+    if valid_bullet_ids or quote_in_exp:
+        if valid_bullet_ids:
+            bullets = [bullet_index[bid] for bid in valid_bullet_ids]
+            best_bullet = max(bullets, key=lambda b: SOURCE_RANK.get(b["source"], 0))
+            best_source = best_bullet["source"]
+            combined_bullet_text = " ".join(b["text"] for b in bullets).lower()
+        else:
+            best_source = "employment"
+            combined_bullet_text = ev_quote_clean
 
         eff_depth = depth or "used"
         if eff_depth not in ORD_DEPTH:
             eff_depth = "used"
 
-        # Apply hedge downgrade if hedging language is in the cited bullet text
-        combined_bullet_text = " ".join(b["text"] for b in bullets).lower()
         if HEDGE_RE.search(combined_bullet_text) and ORD_DEPTH.get(eff_depth, 0) > ORD_DEPTH["assisted"]:
             eff_depth = "assisted"
             logger.info(f"Hedge downgrade applied for {requirement_name}: {depth} → assisted")
@@ -227,10 +351,16 @@ def reduce_match(
         verdict = REDUCTION[reduction_key][scope_idx]
         return verdict, None
 
-    # Branch B: Claim-Only — no bullets, but skill is declared in skills section
-    skills_declared = getattr(candidate_profile, "skills_declared", []) or getattr(candidate_profile, "skills", []) or []
+    # Branch B: Claim-Only — no evidence in work/projects, but skill is declared in skills section
+    skills_declared = []
+    if isinstance(candidate_profile, dict):
+        skills_declared = candidate_profile.get("skills_declared", []) or candidate_profile.get("skills", []) or []
+    else:
+        skills_declared = getattr(candidate_profile, "skills_declared", []) or getattr(candidate_profile, "skills", []) or []
+
     if declared_in_skills or alias_hit(requirement_name, skills_declared):
         return "partial", "claim_only"
 
     # Branch C: Absent — no bullet evidence, not declared in skills
     return "none", "absent"
+

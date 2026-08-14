@@ -102,7 +102,7 @@ flowchart TB
     subgraph Tier5 ["🧠 OpenRouter Multi-Tier AI Gateway"]
         OpenRouter["OpenRouter Gateway"]:::aiStyle
         Gemini["Google Gemini 3.1 Flash Lite<br/><i>Fast Tier: CV Parsing, Distillation & Screening</i>"]:::aiStyle
-        GeminiVision["Google Gemini 2.5 Flash Lite<br/><i>Vision Tier: PyMuPDF OCR Fallback</i>"]:::aiStyle
+        GeminiVision["Google Gemini 3.1 Flash Lite<br/><i>Vision Tier: PyMuPDF OCR Fallback</i>"]:::aiStyle
         Sonnet["Anthropic Claude Sonnet 4.6 / 3.7<br/><i>Frontier Tier: Transcript Review & Evaluation</i>"]:::aiStyle
         Embeddings["OpenAI text-embedding-3-small<br/><i>1536-Dimensional Dense Vectors</i>"]:::aiStyle
     end
@@ -245,7 +245,7 @@ flowchart TD
 - **Database & ORM**: PostgreSQL, `pgvector` extension (1536-dim vector distance `<=>`), Prisma ORM (`prisma-client-py`), `psycopg` connection pool
 - **AI Gateway & LLM Models**: OpenRouter API Gateway (`httpx` async client)
   - Fast Tier: `google/gemini-3.1-flash-lite`
-  - Vision Tier: `google/gemini-2.5-flash-lite`
+  - Vision Tier: `google/gemini-3.1-flash-lite`
   - Frontier Tier: `anthropic/claude-sonnet-4-6` / `claude-3.7-sonnet`
   - Embedding Tier: OpenAI `text-embedding-3-small` (1536 dimensions)
 - **Document Parsing & Vision**: PyPDF (`pypdf`), PyMuPDF (`fitz`), `python-docx`, `zipfile`, ASCII OLE stream filter

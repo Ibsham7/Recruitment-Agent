@@ -266,9 +266,22 @@ def extract_domain_tokens(keywords: List[str]) -> set[str]:
                 tokens.add(word_clean)
     return tokens
 
+NON_HANDS_ON_COORDINATION_TITLES = [
+    r"\bcoordinator\b", r"\bcoordination\b", r"\bproject\s+manager\b", r"\bprogram\s+manager\b",
+    r"\bscrum\s+master\b", r"\bagile\s+coach\b", r"\bproduct\s+manager\b", r"\bproduct\s+owner\b",
+    r"\bqa\s+analyst\b", r"\bqa\s+technician\b", r"\bmanual\s+tester\b", r"\btest\s+analyst\b",
+    r"\brecruiter\b", r"\bhr\b", r"\baccountant\b", r"\bbusiness\s+analyst\b"
+]
+
+HANDS_ON_ENG_TITLES = [
+    r"\bdeveloper\b", r"\bengineer\b", r"\bprogrammer\b", r"\barchitect\b", r"\bcoder\b",
+    r"\bfullstack\b", r"\bfull-stack\b", r"\bbackend\b", r"\bfrontend\b", r"\bsoftware\b"
+]
+
 def calculate_experience_for_domain(roles: List[Any], keywords: List[str], reference_date: Optional[datetime] = None) -> float:
     """
-    Filters roles matching any domain/skill keywords and computes exact non-overlapping years.
+    Filters roles matching target domain/skill keywords and computes exact non-overlapping years.
+    Prevents non-hands-on coordination/QA roles from inflating engineering tenure via passive prose mentions.
     """
     if not roles or not keywords:
         return 0.0
@@ -276,6 +289,10 @@ def calculate_experience_for_domain(roles: List[Any], keywords: List[str], refer
     domain_tokens = extract_domain_tokens(keywords)
     if not domain_tokens:
         return 0.0
+
+    # Determine if target domain is hands-on software/tech engineering
+    target_kw_str = " ".join([str(k).lower() for k in keywords])
+    is_tech_eng_domain = any(re.search(pat, target_kw_str) for pat in HANDS_ON_ENG_TITLES) or any(t in domain_tokens for t in ("python", "java", "backend", "frontend", "fullstack", "django", "fastapi", "react", "c++", "c#", "node", "sql", "api"))
 
     matching_roles = []
     for role in roles:
@@ -287,11 +304,23 @@ def calculate_experience_for_domain(roles: List[Any], keywords: List[str], refer
         skills = parsed.get("skills_used") or []
         skills_str = " ".join([str(s).lower() for s in skills])
         desc = (parsed.get("description") or "").lower()
-        combined_text = f"{title} {skills_str} {desc}"
 
-        role_tokens = set(re.findall(r'[a-zA-Z0-9+#/\-]+', combined_text))
+        # Extract tokens separately for title, declared skills, and prose description
+        title_tokens = set(re.findall(r'[a-zA-Z0-9+#/\-]+', title))
+        skills_tokens = set(re.findall(r'[a-zA-Z0-9+#/\-]+', skills_str))
+        desc_tokens = set(re.findall(r'[a-zA-Z0-9+#/\-]+', desc))
 
-        if domain_tokens & role_tokens:
-            matching_roles.append(role)
+        is_non_eng_title = any(re.search(pat, title) for pat in NON_HANDS_ON_COORDINATION_TITLES) and not any(re.search(pat, title) for pat in HANDS_ON_ENG_TITLES)
+
+        if is_tech_eng_domain and is_non_eng_title:
+            # For tech engineering target roles, non-engineering titles (e.g. Coordinator, QA Analyst)
+            # must match domain tokens in title or declared skills_used to count — prose-only mentions do not count.
+            if (domain_tokens & title_tokens) or (domain_tokens & skills_tokens):
+                matching_roles.append(role)
+        else:
+            combined_tokens = title_tokens | skills_tokens | desc_tokens
+            if domain_tokens & combined_tokens:
+                matching_roles.append(role)
 
     return calculate_total_experience_years(matching_roles, reference_date=reference_date)
+

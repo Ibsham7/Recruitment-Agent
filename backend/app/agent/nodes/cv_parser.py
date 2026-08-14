@@ -5,7 +5,7 @@ import urllib.request
 import hashlib
 import base64
 from pypdf import PdfReader
-from app.agent.config import get_model
+from app.agent.config import get_model, MODELS
 from app.agent.schemas import CandidateProfile, CandidateProfileOutput
 from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -58,6 +58,85 @@ def looks_like_skill_list(text: str) -> bool:
         return False
 
     return True
+
+
+def reconstruct_raw_text_from_profile(profile_data: dict) -> str:
+    """Reconstruct a clean, human-readable plain text CV string from a structured profile dictionary.
+    Used when OCR Vision fallback parses an image PDF directly into structured JSON.
+    """
+    if not profile_data or not isinstance(profile_data, dict):
+        return ""
+
+    lines = []
+
+    name = profile_data.get("name")
+    if name and name not in ("Unknown Candidate", "Processing Candidate..."):
+        lines.append(name)
+
+    title = profile_data.get("current_role_resolved") or profile_data.get("headline")
+    if title:
+        lines.append(title)
+
+    summary = profile_data.get("summary")
+    if summary:
+        lines.append("\nSUMMARY")
+        lines.append(summary)
+
+    roles = profile_data.get("previous_roles", [])
+    if roles:
+        lines.append("\nEXPERIENCE")
+        for r in roles:
+            if isinstance(r, dict):
+                comp = r.get("company", "")
+                rtitle = r.get("title", "")
+                dates = r.get("dates", "") or f"{r.get('start_date', '')} - {r.get('end_date', '')}".strip(" -")
+                role_hdr = f"{rtitle} - {comp}".strip(" -")
+                if dates:
+                    role_hdr += f" ({dates})"
+                if role_hdr:
+                    lines.append(role_hdr)
+
+                description = r.get("description")
+                if description:
+                    lines.append(f"- {description}")
+
+                bullets = r.get("bullets", [])
+                for b in bullets:
+                    b_text = b.get("text", "") if isinstance(b, dict) else str(b)
+                    if b_text:
+                        lines.append(f"- {b_text}")
+
+    projects = profile_data.get("projects", [])
+    if projects:
+        lines.append("\nPROJECTS")
+        for p in projects:
+            if isinstance(p, dict):
+                p_name = p.get("title") or p.get("name") or ""
+                p_desc = p.get("description", "")
+                if p_name or p_desc:
+                    lines.append(f"- {p_name}: {p_desc}".strip(" :"))
+
+    education = profile_data.get("education", [])
+    if education:
+        lines.append("\nEDUCATION")
+        for ed in education:
+            if isinstance(ed, dict):
+                degree = ed.get("degree", "")
+                inst = ed.get("institution", "") or ed.get("school", "")
+                yr = ed.get("year", "") or ed.get("graduation_year", "")
+                edu_line = ", ".join([str(p) for p in (degree, inst, yr if yr else "") if p])
+                if edu_line:
+                    lines.append(f"- {edu_line}")
+            elif ed:
+                lines.append(f"- {ed}")
+
+    skills = profile_data.get("skills", [])
+    if skills:
+        lines.append("\nSKILLS")
+        lines.append(", ".join([str(s) for s in skills if s]))
+
+    return "\n".join(lines).strip()
+
 
 def parse_file_by_format(local_path: str) -> str:
     """Synchronous helper to parse PDF, DOCX, DOC, or TXT file into raw text."""
@@ -178,7 +257,7 @@ async def extract_pdf_text(filepath: str) -> Tuple[str, Optional[Dict], float, D
         if len(text.strip()) < 50 and is_pdf:
             logger.info("[CV Parser] Standard text extraction failed or returned too little text on PDF. Falling back to OCR.")
             profile_data, cost, tokens = await ocr_pdf_fallback(local_path)
-            raw_text = clean_surrogates(json.dumps(profile_data, sort_keys=True)) if profile_data else text
+            raw_text = clean_surrogates(reconstruct_raw_text_from_profile(profile_data)) if profile_data else text
             return raw_text, profile_data, cost, tokens or {}
             
         return text, None, 0.0, {}
@@ -227,7 +306,7 @@ async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float, Dict]:
         structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
         result = await structured_model.ainvoke([HumanMessage(content=content_parts)])
         logger.info("[OCR Fallback] Successfully parsed JSON via Vision OCR.")
-        cost, token_info = extract_cost_and_tokens(result, model_name="google/gemini-2.5-flash-lite")
+        cost, token_info = extract_cost_and_tokens(result, model_name=MODELS.get("ocr", "google/gemini-3.1-flash-lite"))
         profile_data = result["parsed"].model_dump()
         return profile_data, cost, token_info
 
@@ -238,12 +317,14 @@ async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float, Dict]:
 
 #todo : can save token by adding raw cv text manually instead of sending to LLM
 
+DISABLE_SHA256_CACHE = os.getenv("DISABLE_SHA256_CACHE", "true").lower() == "true"
+
 async def cv_parser_node(state: RecruitmentState) -> dict:
     """Parse a CV PDF into a structured CandidateProfile."""
     logger.info(f"[CV Parser] Processing: {state['cv_filepath']}")
 
     # If profile is already in state (cached), skip parsing
-    if state.get("candidate_profile"):
+    if state.get("candidate_profile") and not DISABLE_SHA256_CACHE:
         logger.info("[CV Parser] Using cached profile.")
         return {
             "pipeline_status": "running",
@@ -256,7 +337,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     
     # Check global Resume cache by hash if DB is connected
     resume = None
-    if prisma.is_connected():
+    if prisma.is_connected() and not DISABLE_SHA256_CACHE:
         try:
             resume = await prisma.resume.find_unique(where={"fileHash": file_hash})
         except Exception:
@@ -266,6 +347,9 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         logger.info("[CV Parser] Found global resume cache via hash.")
         profile_data = json.loads(resume.structuredProfile) if isinstance(resume.structuredProfile, str) else resume.structuredProfile
         
+        if not profile_data.get("raw_cv_text") or (str(profile_data.get("raw_cv_text")).strip().startswith("{") and "previous_roles" in str(profile_data.get("raw_cv_text"))):
+            profile_data["raw_cv_text"] = reconstruct_raw_text_from_profile(profile_data)
+
         # Dynamically recalculate tenure & calculation summary against live current date
         from app.agent.tools.timeline import calculate_total_experience_years, generate_experience_calculation_summary
         llm_exp = profile_data.get("total_experience_years", 0.0)
@@ -321,7 +405,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
         ]
         profile_data = None
         for attempt, (tier, token_limit) in enumerate(model_escalation):
-            model_name = "google/gemini-2.5-flash-lite" if tier == "fast" else "google/gemini-2.5-flash"
+            model_name = MODELS.get(tier, "google/gemini-3.1-flash-lite")
             model = get_model(tier, max_tokens=token_limit)
             structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
             try:
@@ -370,7 +454,10 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     if not profile_data.get("name"):
         profile_data["name"] = "Unknown Candidate"
         
-    profile_data["raw_cv_text"] = raw_text
+    if not raw_text or (str(raw_text).strip().startswith("{") and "previous_roles" in str(raw_text)):
+        profile_data["raw_cv_text"] = reconstruct_raw_text_from_profile(profile_data)
+    else:
+        profile_data["raw_cv_text"] = raw_text
     
     # Ensure required fields have defaults
     if "skills" not in profile_data:
@@ -425,16 +512,36 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     candidate_profile.skills_declared = list(set(skills_declared))
     candidate_profile.parse_flags = parse_flags
 
-    # Create new global Resume record if DB is connected
+    # Create or update global Resume record if DB is connected
     if prisma.is_connected():
         try:
-            new_resume = await prisma.resume.create(
-                data={
-                    "fileHash": file_hash,
-                    "rawCvText": raw_text,
-                    "structuredProfile": json.dumps(profile_data, sort_keys=True)
-                }
-            )
+            if DISABLE_SHA256_CACHE:
+                new_resume = await prisma.resume.upsert(
+                    where={"fileHash": file_hash},
+                    data={
+                        "create": {
+                            "fileHash": file_hash,
+                            "rawCvText": raw_text,
+                            "structuredProfile": json.dumps(profile_data, sort_keys=True)
+                        },
+                        "update": {
+                            "rawCvText": raw_text,
+                            "structuredProfile": json.dumps(profile_data, sort_keys=True)
+                        }
+                    }
+                )
+                try:
+                    await prisma.execute_raw('UPDATE "Resume" SET embedding = NULL WHERE id = $1', new_resume.id)
+                except Exception:
+                    pass
+            else:
+                new_resume = await prisma.resume.create(
+                    data={
+                        "fileHash": file_hash,
+                        "rawCvText": raw_text,
+                        "structuredProfile": json.dumps(profile_data, sort_keys=True)
+                    }
+                )
             
             # Link candidate & update extracted name
             if "candidate_id" in state and not state["candidate_id"].startswith("candidate_"):

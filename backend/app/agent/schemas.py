@@ -116,7 +116,7 @@ class RequirementItemBreakdown(BaseModel):
     requirement: str = Field(
         validation_alias=AliasChoices("requirement", "item", "criterion", "name")
     )
-    match: Literal["full", "partial", "none"]
+    match: Literal["full", "partial", "quarter", "none"]
     points_earned: float = 0.0
     max_points: float = 0.0
     percentage: float = 0.0
@@ -133,7 +133,7 @@ class RequirementMatch(BaseModel):
         validation_alias=AliasChoices("requirement", "item", "criterion", "name", "skill"),
         description="The requirement description from the job description"
     )
-    match: Literal["full", "partial", "none"]
+    match: Literal["full", "partial", "quarter", "none"]
     evidence: str = Field(default="", description="Detailed evidence from CV supporting this match rating")
     evidence_bullet_ids: list[str] = Field(
         default_factory=list,

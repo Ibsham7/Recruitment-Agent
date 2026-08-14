@@ -84,7 +84,7 @@ export function AntiCheatInspectionCard({ candidate, theme: t }: AntiCheatInspec
       flag: f === "STUFFER_ALERT" ? "🚩 KEYWORD STUFFER ALERT" : f,
       severity: f === "STUFFER_ALERT" ? "high" : "medium",
       description: f === "STUFFER_ALERT"
-        ? `Candidate declared mandatory skills in Skills section without bullet evidence in work history (${evalObj.scoreBreakdown?.claim_only_coverage ? Math.round(evalObj.scoreBreakdown.claim_only_coverage * 100) : 80}% Claim-Only Coverage).`
+        ? `Candidate declared mandatory skills in Skills section without bullet evidence in work history (${typeof evalObj.scoreBreakdown?.claim_only_coverage === "number" ? Math.round(evalObj.scoreBreakdown.claim_only_coverage * 100) : 0}% Claim-Only Coverage).`
         : "Unproven skill claims detected in candidate profile."
     }))
   ];

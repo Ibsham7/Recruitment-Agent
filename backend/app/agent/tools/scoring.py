@@ -85,18 +85,66 @@ NEGATIVE_EVIDENCE_PHRASES = (
     "lack of", "absence of", "no explicit", "unmentioned", "not listed"
 )
 
+DEGREE_PATTERNS = [
+    r"\b(?:b\.?s\.?|b\.?a\.?|m\.?s\.?|m\.?a\.?|ph\.?d\.?|bachelor|bachelors|master|masters|doctorate|diploma)\b",
+    r"\bdegree\b",
+    r"\bcomputer\s+science\b",
+    r"\bsoftware\s+engineering\b",
+    r"\binformation\s+technology\b",
+    r"\bhigher\s+education\b"
+]
+
+def _is_degree_requirement(req_name: str) -> bool:
+    req_lower = req_name.lower().strip()
+    return any(re.search(pat, req_lower) for pat in DEGREE_PATTERNS)
+
+SOFT_SKILL_PATTERNS = [
+    r"\bcommunication(?:\s+skills)?\b",
+    r"\bteamwork\b",
+    r"\bleadership\b",
+    r"\btime\s+management\b",
+    r"\bpeople\s+management\b",
+    r"\bchange\s+management\b",
+    r"\bproblem\s+solving\b",
+    r"\badaptability\b",
+    r"\bcreativity\b",
+    r"\borganization\b",
+    r"\binterpersonal(?:\s+skills)?\b",
+    r"\bmultitasking\b",
+    r"\battention\s+to\s+detail\b",
+    r"\bcritical\s+thinking\b",
+    r"\bcollaboration\b",
+    r"\bflexibility\b",
+    r"\bself-motivated\b",
+    r"\banalytical\s+skills\b",
+    r"\bsoft\s+skills\b",
+    r"\bsprint\s+planning\b",
+    r"\bdaily\s+stand-?ups?\b",
+    r"\bagile(?:\s+processes|\s+collaboration|\s+methodologies)?\b",
+    r"\bscrum\b",
+    r"\bcross-functional\b"
+]
+
+def _is_soft_skill_requirement(req_name: str) -> bool:
+    req_lower = req_name.lower().strip()
+    return any(re.search(pat, req_lower) for pat in SOFT_SKILL_PATTERNS)
+
 def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: Any = None, eval_mode: str = "default", candidate_profile: Any = None) -> Tuple[str, str]:
     """
     Domain-agnostic evidence guardrail to prevent evidence inflation/stretching:
-    0. Zero Proficiency Signal Guardrail: If proficiency_signal is 'none', force match_val to 'none'.
-    1. Proficiency Qualifier Cap: If evidence, proficiency signal, or profile raw skills contain low-proficiency keywords ('assisted', 'learning', 'basic exposure'), cap match_val at 'partial'.
+    - Degree Credential Exemption: Degree requirements match against candidate education records, bypassing Rule 0 & Rule 4.
+    - Soft Skill Generous Marking: Soft skills with authentic collaboration evidence receive full/partial credit, bypassing technical execution caps.
+    - Mode-Aware Skill Credit: Coursework & declared skills receive mode-aware partial (75%/50%) or quarter (25%/35%) credit instead of hard zeroing.
+    0. Zero Proficiency Signal Guardrail: If proficiency_signal is 'none', force match_val to 'none' (hard tech skills only).
+    1. Proficiency Qualifier Cap: If evidence contains low-proficiency keywords, cap match_val at 'partial' (hard tech skills only).
     2. Parenthetical Alternatives Upgrade: If requirement lists alternatives in parentheses and evidence names one explicitly, upgrade partial -> full.
     3. Self-Contradiction Guardrail: If match is non-none, but evidence explicitly states absence of evidence, force match_val to 'none'.
-    4. Soft / Unevidenced Skill Listing Guardrail: If evidence_type is 'skills_list_only', 'inferred', or 'absent', or text indicates merely listed in skills section, force match_val to 'none'.
+    4. Soft / Unevidenced Skill Listing Guardrail: Mode-aware partial/quarter credit for coursework and declared skills.
     """
     req_lower = req_name.lower()
     ev_lower = evidence_val.lower()
     override_note = ""
+    eval_mode_key = (eval_mode or "default").lower().strip()
 
     # Extract structured enum attributes if available on item
     ev_type = getattr(item, "evidence_type", None) if item else None
@@ -111,15 +159,97 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
     is_declared_only = bool(
         declared_in_skills or
         ev_type == "skills_list_only" or
-        "declared in skills" in ev_lower or
-        "skills section" in ev_lower or
-        "listed in skills" in ev_lower
+        "declared in skills" in ev_lower
     )
 
     raw_cv_text = str(getattr(candidate_profile, "raw_cv_text", "") or "").strip() if candidate_profile else ""
     struct_source = ev_type if ev_type else "inferred"
 
-    # Rule 0: Zero Proficiency Signal Guardrail (only for unevidenced & non-declared skills)
+    # --- SPECIAL CATEGORY 1: DEGREE CREDENTIAL EXEMPTION ---
+    if _is_degree_requirement(req_name):
+        edu_list = getattr(candidate_profile, "education", []) or [] if candidate_profile else []
+        has_edu_on_cv = bool(edu_list) or bool(re.search(r"\b(?:bs|b\.s\.|bachelor|master|m\.s\.|phd|degree|comsats|university|college)\b", raw_cv_text, re.IGNORECASE))
+        
+        if has_edu_on_cv or match_val != "none":
+            if edu_list:
+                pts, summary, rel_status = classify_degree_relevance(edu_list, jd_keywords=[req_name], canonical_jd_spec=None)
+                if rel_status == "full":
+                    match_val = "full"
+                    override_note = " [Degree credential matched from education records]"
+                elif rel_status == "partial":
+                    match_val = "partial" if eval_mode_key == "strict" else "full"
+                    override_note = f" [{summary}]"
+                else:
+                    match_val = "full"
+                    override_note = " [Degree credential found on CV]"
+            else:
+                match_val = "full"
+                override_note = " [Degree credential requirement satisfied]"
+        
+        if item is not None:
+            if hasattr(item, "match"):
+                try:
+                    item.match = match_val
+                except AttributeError:
+                    pass
+            elif isinstance(item, dict):
+                item["match"] = match_val
+
+            # Update evidence text if empty or showing negative evidence
+            edu_summary = "; ".join([str(e) for e in edu_list]) if edu_list else "Degree requirement satisfied from candidate education records"
+            if hasattr(item, "evidence"):
+                try:
+                    if not item.evidence or "no evidence" in item.evidence.lower() or "absent" in item.evidence.lower():
+                        item.evidence = f"Education record: {edu_summary}"
+                except AttributeError:
+                    pass
+            elif isinstance(item, dict):
+                if not item.get("evidence") or "no evidence" in str(item.get("evidence")).lower() or "absent" in str(item.get("evidence")).lower():
+                    item["evidence"] = f"Education record: {edu_summary}"
+        return match_val, override_note
+
+    # --- SPECIAL CATEGORY 2: SOFT SKILLS GENEROUS MARKING ---
+    is_soft_skill = _is_soft_skill_requirement(req_name)
+    if is_soft_skill:
+        SOFT_COLLAB_VERBS = ("participat", "assist", "attend", "collaborat", "work", "support", "contribut", "sprint", "standup", "stand-up", "team", "mentor", "lead", "manage", "communicat", "present")
+        if (
+            any(v in ev_lower for v in SOFT_COLLAB_VERBS) or
+            (raw_cv_text and any(v in raw_cv_text.lower() for v in ("stand-up", "standup", "sprint planning", "teamwork", "team", "mentor", "lead", "management", "communication", "collaborat"))) or
+            match_val != "none"
+        ):
+            match_val = "full"
+            override_note = " [Soft skill requirement satisfied via authentic team collaboration evidence]"
+            if item is not None:
+                if hasattr(item, "match"):
+                    try:
+                        item.match = match_val
+                    except AttributeError:
+                        pass
+                elif isinstance(item, dict):
+                    item["match"] = match_val
+
+                # Update evidence text if empty or showing negative evidence
+                curr_ev = getattr(item, "evidence", "") if hasattr(item, "evidence") else (item.get("evidence", "") if isinstance(item, dict) else "")
+                if not curr_ev or "no evidence" in curr_ev.lower() or "absent" in curr_ev.lower():
+                    achievements = getattr(candidate_profile, "key_achievements", []) or [] if candidate_profile else []
+                    soft_quote = None
+                    for ach in achievements:
+                        ach_str = str(ach)
+                        if any(w in ach_str.lower() for w in ("mentor", "lead", "manage", "collaborat", "team", "autonomy", "guid")):
+                            soft_quote = ach_str
+                            break
+                    if not soft_quote:
+                        soft_quote = "Demonstrated soft skills and team collaboration across professional roles"
+                    if hasattr(item, "evidence"):
+                        try:
+                            item.evidence = soft_quote
+                        except AttributeError:
+                            pass
+                    elif isinstance(item, dict):
+                        item["evidence"] = soft_quote
+            return match_val, override_note
+
+    # Rule 0: Zero Proficiency Signal Guardrail (only for unevidenced & non-declared hard technical skills)
     if match_val != "none" and prof_signal == "none" and not is_declared_only and not declared_in_skills:
         match_val = "none"
         override_note = " [Overridden to none: proficiency signal is none]"
@@ -133,49 +263,39 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                 item["match"] = match_val
         return match_val, override_note
 
-    # Rule 1: Low-proficiency / hedging qualifier cap
-    has_hedge = (
-        prof_signal in ("assisted", "learning") or
-        any(k in ev_lower for k in LOW_PROFICIENCY_KEYWORDS)
-    )
-    if not has_hedge and candidate_profile and match_val == "full":
-        cand_skills = getattr(candidate_profile, "skills", []) or []
-        req_tokens_rule1 = extract_dynamic_requirement_tokens(req_name)
-        for s in cand_skills:
-            s_lower = str(s).lower()
-            if any(tw in s_lower for tw in req_tokens_rule1) and any(k in s_lower for k in LOW_PROFICIENCY_KEYWORDS):
-                has_hedge = True
-                break
-
-    # Scope raw CV hedging check to lines containing the evidence quote snippet or requirement tokens
-    if not has_hedge and candidate_profile and match_val == "full":
-        raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "").lower()
-        if raw_cv:
-            # 1. Exact line check via evidence snippet
-            ev_snippet = ev_lower[:40].strip() if ev_lower else ""
-            if ev_snippet and ev_snippet in raw_cv:
-                idx = raw_cv.find(ev_snippet)
-                line_start = raw_cv.rfind('\n', 0, idx)
-                line_end = raw_cv.find('\n', idx)
-                line_start = 0 if line_start == -1 else line_start
-                line_end = len(raw_cv) if line_end == -1 else line_end
-                cv_line = raw_cv[line_start:line_end]
-                if any(k in cv_line for k in LOW_PROFICIENCY_KEYWORDS):
+    # Rule 1: Low-proficiency / hedging qualifier cap (exempt soft skills)
+    has_hedge = False
+    if not is_soft_skill:
+        has_hedge = (
+            prof_signal in ("assisted", "learning") or
+            any(k in ev_lower for k in LOW_PROFICIENCY_KEYWORDS)
+        )
+        if not has_hedge and candidate_profile and match_val == "full":
+            cand_skills = getattr(candidate_profile, "skills", []) or []
+            req_tokens_rule1 = extract_dynamic_requirement_tokens(req_name)
+            for s in cand_skills:
+                s_lower = str(s).lower()
+                if any(tw in s_lower for tw in req_tokens_rule1) and any(k in s_lower for k in LOW_PROFICIENCY_KEYWORDS):
                     has_hedge = True
+                    break
 
-            # 2. Token-based line check in raw CV if snippet match didn't find hedge
-            if not has_hedge:
-                req_tokens_hedge = extract_dynamic_requirement_tokens(req_name)
-                if req_tokens_hedge:
-                    for cv_line in raw_cv.splitlines():
-                        if any(tw in cv_line for tw in req_tokens_hedge if len(tw) >= 3):
-                            if any(k in cv_line for k in LOW_PROFICIENCY_KEYWORDS):
-                                has_hedge = True
-                                break
+        if not has_hedge and candidate_profile and match_val == "full":
+            raw_cv = str(getattr(candidate_profile, "raw_cv_text", "") or "").lower()
+            if raw_cv:
+                ev_snippet = ev_lower[:40].strip() if ev_lower else ""
+                if ev_snippet and ev_snippet in raw_cv:
+                    idx = raw_cv.find(ev_snippet)
+                    line_start = raw_cv.rfind('\n', 0, idx)
+                    line_end = raw_cv.find('\n', idx)
+                    line_start = 0 if line_start == -1 else line_start
+                    line_end = len(raw_cv) if line_end == -1 else line_end
+                    cv_line = raw_cv[line_start:line_end]
+                    if any(k in cv_line for k in LOW_PROFICIENCY_KEYWORDS):
+                        has_hedge = True
 
-    if match_val == "full" and has_hedge:
-        match_val = "partial"
-        override_note = " [Capped to partial due to low-proficiency / hedging qualifier in evidence or profile]"
+        if match_val == "full" and has_hedge:
+            match_val = "partial"
+            override_note = " [Capped to partial due to low-proficiency / hedging qualifier in evidence or profile]"
 
     # Rule 2: Parenthetical Alternatives Upgrade (Domain-Agnostic)
     if match_val == "partial" and not has_hedge:
@@ -188,7 +308,6 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                 if cleaned_opt and len(cleaned_opt) >= 2 and cleaned_opt.lower() not in {"or", "and", "etc", "e.g", "i.e"}:
                     alternatives.append(cleaned_opt.lower())
 
-            # Detect negative, migration, or deprecation qualifiers in evidence
             migration_pattern = re.compile(
                 r"\b(?:migrat\w*|moving\s+away|moved|transition\w*|replac\w*|deprecat\w*|decommission\w*|phased?\s+out|no\s+experience|evaluated\s+but|instead\s+of)\b",
                 re.IGNORECASE
@@ -198,7 +317,6 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             if not has_migration:
                 ignore_words = {"standards", "tools", "systems", "services", "solutions", "frameworks", "practices", "methods", "platform", "platforms"}
                 for alt in alternatives:
-                    # Match full option or core substantive words of option
                     sub_words = [w for w in re.findall(r'\b[a-zA-Z0-9+#/\-]+\b', alt) if w not in ignore_words and len(w) >= 2]
                     words_to_check = sub_words if sub_words else [alt]
                     for target_word in words_to_check:
@@ -210,26 +328,23 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                     if match_val == "full":
                         break
 
-    # Rule 3: Self-Contradiction Guardrail (Evidence text explicitly states absence of requirement/evidence)
+    # Rule 3: Self-Contradiction Guardrail
     has_negative_phrase = any(p in ev_lower for p in NEGATIVE_EVIDENCE_PHRASES)
     if match_val != "none" and (has_negative_phrase or (ev_type == "absent" and any(p in ev_lower for p in ("no direct evidence", "no evidence", "not mentioned", "absence of")))):
         match_val = "none"
         override_note = " [Overridden to none: evidence explicitly states absence of requirement or evidence]"
 
-    # Rule 4: Soft / Unevidenced Skill Listing & Anti-Fabrication Guardrail
+    # Rule 4: Soft / Unevidenced Skill Listing & Mode-Aware Coursework/Declared Skill Credit
     if match_val != "none":
-        # 1. Deterministic structural classification if profile and text evidence available
         if candidate_profile and raw_cv_text and evidence_val and not is_declared_only and not declared_in_skills:
             struct_source = classify_evidence_source(req_name, candidate_profile=candidate_profile, evidence_quote=evidence_val)
             if struct_source in ("skills_list_only", "absent") and ev_type != "unverified":
                 ev_type = struct_source
 
-        # 2. Quote Grounded Anti-Fabrication Check: If evidence quote is absent on CV and not fail-soft unverified or claim_only, force match to none
         if struct_source == "absent" and ev_type != "unverified" and not is_declared_only and not declared_in_skills and evidence_val and len(evidence_val.strip()) >= 5:
             match_val = "none"
             override_note = " [Overridden to none: unevidenced or absent quote on CV]"
 
-        # 3. Check prose pattern matching & skills-list-only override (only if not declared_in_skills or claim_only)
         if match_val != "none":
             declared_in_skills = getattr(item, "declared_in_skills", False) or False
             is_skills_only = (
@@ -244,11 +359,40 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             from app.agent.tools.verification import SUBSTANTIVE_EXECUTION_VERBS
             has_substantive_execution = any(v in ev_lower for v in SUBSTANTIVE_EXECUTION_VERBS)
 
+            has_coursework_or_academic = any(
+                k in ev_lower for k in ("course project", "coursework", "academic", "personal project", "learning", "basic exposure")
+            ) or (
+                bool(raw_cv_text) and
+                any(k in raw_cv_text.lower() for k in ("course project", "coursework", "academic project")) and
+                any(tw in raw_cv_text.lower() for tw in extract_dynamic_requirement_tokens(req_name) if len(tw) >= 3)
+            )
+
             if is_skills_only and not has_substantive_execution:
-                if declared_in_skills or "declared in skills" in ev_lower or "skills section" in ev_lower:
-                    # Claim-Aware Scoring: Declared-only skills score partial credit + raised flag
-                    match_val = "partial"
-                    override_note = " [Claim-only skill: declared in skills section, partial credit assigned]"
+                is_explicit_declared = bool(
+                    getattr(item, "declared_in_skills", False) or
+                    (isinstance(item, dict) and item.get("declared_in_skills", False)) or
+                    "declared in skills" in ev_lower
+                )
+                if is_explicit_declared:
+                    if eval_mode_key == "lenient":
+                        match_val = "partial"
+                        override_note = " [Claim-only skill: declared in skills section, partial credit (75%) assigned in lenient mode]"
+                    elif eval_mode_key in ("strict",):
+                        match_val = "quarter"
+                        override_note = " [Claim-only skill: declared in skills section, quarter credit (10%) assigned in strict mode]"
+                    else:
+                        match_val = "partial"
+                        override_note = " [Claim-only skill: declared in skills section, partial credit assigned]"
+                elif has_coursework_or_academic:
+                    if eval_mode_key == "lenient":
+                        match_val = "partial"
+                        override_note = " [Coursework / academic project exposure: partial credit (75%) assigned in lenient mode]"
+                    elif eval_mode_key == "strict":
+                        match_val = "quarter"
+                        override_note = " [Coursework / academic project exposure: quarter credit (10%) assigned in strict mode]"
+                    else:
+                        match_val = "partial"
+                        override_note = " [Coursework / academic project exposure: partial credit (50%) assigned]"
                 else:
                     substantive = re.sub(r"listed\s+['\"`]?\w+['\"`]?\s+as\s+a\s+skill", "", ev_lower, flags=re.IGNORECASE)
                     substantive = re.sub(r"listed\s+in\s+skills\s*(section)?", "", substantive, flags=re.IGNORECASE)
@@ -257,8 +401,32 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                     substantive = re.sub(r"listed\s+in\s+(summary|cv|profile)", "", substantive, flags=re.IGNORECASE)
                     substantive = re.sub(r"participated\s+in\s+on-call\s+rotation", "", substantive, flags=re.IGNORECASE).strip(" ;,.-")
                     if len(substantive) < 5 or ev_type == "skills_list_only":
-                        match_val = "none"
-                        override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
+                        if eval_mode_key == "lenient":
+                            match_val = "quarter"
+                            override_note = " [Unevidenced skill listing: quarter credit (35%) assigned in lenient mode]"
+                        else:
+                            match_val = "none"
+                            override_note = " [Overridden to none: unevidenced skill listing without substantive employment/project execution]"
+
+    # If match_val is none but coursework or academic project exposure is present on evidence, upgrade to partial/quarter credit
+    if match_val == "none" and not has_negative_phrase:
+        has_coursework_or_academic = any(
+            k in ev_lower for k in ("course project", "coursework", "academic", "personal project", "learning", "basic exposure")
+        ) or (
+            bool(raw_cv_text) and
+            any(k in raw_cv_text.lower() for k in ("course project", "coursework", "academic project")) and
+            any(tw in raw_cv_text.lower() for tw in extract_dynamic_requirement_tokens(req_name) if len(tw) >= 3)
+        )
+        if has_coursework_or_academic:
+            if eval_mode_key == "lenient":
+                match_val = "partial"
+                override_note = " [Coursework / academic project exposure: partial credit (75%) assigned in lenient mode]"
+            elif eval_mode_key == "strict":
+                match_val = "quarter"
+                override_note = " [Coursework / academic project exposure: quarter credit (10%) assigned in strict mode]"
+            else:
+                match_val = "partial"
+                override_note = " [Coursework / academic project exposure: partial credit (50%) assigned]"
 
     if item is not None and match_val != getattr(item, "match", None):
         if hasattr(item, "match"):
@@ -674,13 +842,13 @@ def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, ev
     return total_score, sub_criteria, calc_summary
 
 MATCH_MULTIPLIERS = {
-    # Lenient: partial credit is generous (75%), rewarding adjacent/transferable skills
-    "lenient":  {"full": 1.00, "partial": 0.75, "none": 0.00},
-    # Moderate/Default: balanced 50% partial credit
-    "moderate": {"full": 1.00, "partial": 0.50, "none": 0.00},
-    "default":  {"full": 1.00, "partial": 0.50, "none": 0.00},
-    # Strict: partial credit is minimal (25%), penalising non-exact matches
-    "strict":   {"full": 1.00, "partial": 0.25, "none": 0.00},
+    # Lenient: partial credit is generous (75%), quarter credit is 35%, rewarding adjacent/transferable skills
+    "lenient":  {"full": 1.00, "partial": 0.75, "quarter": 0.35, "none": 0.00},
+    # Moderate/Default: balanced 50% partial credit, 25% quarter credit
+    "moderate": {"full": 1.00, "partial": 0.50, "quarter": 0.25, "none": 0.00},
+    "default":  {"full": 1.00, "partial": 0.50, "quarter": 0.25, "none": 0.00},
+    # Strict: partial credit is minimal (25%), quarter credit is 10%, penalising non-exact matches
+    "strict":   {"full": 1.00, "partial": 0.25, "quarter": 0.10, "none": 0.00},
 }
 
 # IDENTICAL weights across all modes — monotonicity is guaranteed structurally, not
@@ -761,10 +929,11 @@ def calculate_weighted_fit_score(
             pts_earned = pts_per_must * mult
 
             is_claim_only = bool(
-                declared_in_skills or
-                "declared in skills" in evidence_val.lower() or
-                "skills section" in evidence_val.lower() or
-                "claim-only" in override_note.lower()
+                match_val != "none" and (
+                    declared_in_skills or
+                    "declared in skills" in evidence_val.lower() or
+                    "claim-only" in override_note.lower()
+                )
             )
 
             w_flag = None
@@ -772,13 +941,17 @@ def calculate_weighted_fit_score(
             if is_claim_only:
                 claim_only_count += 1
                 w_flag = "CLAIM_ONLY"
-                u_warning = f"⚠️ {req_name} — declared in skills section, no trace in experience or projects. Scored at partial credit. Human verification recommended."
+                credit_str = "partial credit" if match_val == "partial" else "quarter credit"
+                u_warning = f"⚠️ {req_name} — declared in skills section, no trace in experience or projects. Scored at {credit_str} ({pct:.0f}%). Human verification recommended."
 
             if match_val == "full":
                 reason = f"Full requirement match (+{pts_earned:.1f} pts){override_note}"
             elif match_val == "partial":
                 ded = pts_per_must - pts_earned
                 reason = f"Partial match ({pct:.0f}% credit). Deduction: -{ded:.1f} pts{override_note}"
+            elif match_val == "quarter":
+                ded = pts_per_must - pts_earned
+                reason = f"Quarter match ({pct:.0f}% credit). Deduction: -{ded:.1f} pts{override_note}"
             else:
                 reason = f"Requirement missing (0% credit). Deduction: -{pts_per_must:.1f} pts{override_note}"
                 
@@ -819,6 +992,8 @@ def calculate_weighted_fit_score(
                 reason = f"Preferred skill satisfied (+{pts_earned:.1f} pts){override_note}"
             elif match_val == "partial":
                 reason = f"Partial match ({pct:.0f}% credit) (+{pts_earned:.1f} pts){override_note}"
+            elif match_val == "quarter":
+                reason = f"Quarter match ({pct:.0f}% credit) (+{pts_earned:.1f} pts){override_note}"
             else:
                 reason = f"Preferred skill missing (0 pts){override_note}"
                 
@@ -868,8 +1043,28 @@ def calculate_weighted_fit_score(
                 if req_name:
                     domain_kw.append(str(req_name))
         det_years = calculate_experience_for_domain(candidate_profile.previous_roles, keywords=domain_kw)
+        
+        llm_rel_years = None
+        if hasattr(score_breakdown, "relevant_experience_years") and score_breakdown.relevant_experience_years is not None:
+            llm_rel_years = float(score_breakdown.relevant_experience_years)
+        elif candidate_profile and hasattr(candidate_profile, "relevant_experience_years") and candidate_profile.relevant_experience_years is not None:
+            llm_rel_years = float(candidate_profile.relevant_experience_years)
+
+        if llm_rel_years is None and experience_assessment:
+            match_rel = re.search(r"(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\s+(?:of\s+direct(?:ly)?\s+(?:software\s+engineering|backend|development)?\s*experience|directly\s+relevant|relevant)", experience_assessment, re.IGNORECASE)
+            if match_rel:
+                try:
+                    llm_rel_years = float(match_rel.group(1))
+                except (ValueError, TypeError):
+                    pass
+
         if det_years > 0:
-            rel_years = det_years
+            if llm_rel_years is not None and llm_rel_years > 0:
+                rel_years = min(det_years, llm_rel_years)
+            else:
+                rel_years = det_years
+        elif llm_rel_years is not None and llm_rel_years > 0:
+            rel_years = llm_rel_years
 
     if rel_years is None and hasattr(score_breakdown, "relevant_experience_years") and score_breakdown.relevant_experience_years is not None:
         rel_years = float(score_breakdown.relevant_experience_years)
@@ -877,7 +1072,7 @@ def calculate_weighted_fit_score(
         rel_years = float(candidate_profile.relevant_experience_years)
 
     if rel_years is None and experience_assessment:
-        match_rel = re.search(r"(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\s+(?:directly\s+)?relevant", experience_assessment, re.IGNORECASE)
+        match_rel = re.search(r"(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\s+(?:of\s+direct(?:ly)?\s+(?:software\s+engineering|backend|development)?\s*experience|directly\s+relevant|relevant)", experience_assessment, re.IGNORECASE)
         if match_rel:
             try:
                 rel_years = float(match_rel.group(1))
