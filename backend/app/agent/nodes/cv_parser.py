@@ -302,11 +302,11 @@ async def ocr_pdf_fallback(pdf_path: str) -> Tuple[Optional[Dict], float, Dict]:
                 "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
             })
             
-        model = get_model("ocr", max_tokens=8192)
+        model = get_model("cv_parser_ocr", max_tokens=8192)
         structured_model = model.with_structured_output(CandidateProfileOutput, method="json_schema", include_raw=True)
         result = await structured_model.ainvoke([HumanMessage(content=content_parts)])
         logger.info("[OCR Fallback] Successfully parsed JSON via Vision OCR.")
-        cost, token_info = extract_cost_and_tokens(result, model_name=MODELS.get("ocr", "google/gemini-3.1-flash-lite"))
+        cost, token_info = extract_cost_and_tokens(result, model_name=MODELS.get("cv_parser_ocr", "google/gemini-3.1-flash-lite"))
         profile_data = result["parsed"].model_dump()
         return profile_data, cost, token_info
 
@@ -398,9 +398,9 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             stage_tokens["output_tokens"] += ocr_tokens.get("output_tokens", 0)
             stage_tokens["total_tokens"] += ocr_tokens.get("total_tokens", 0)
     else:
-        # Tiered escalation: Attempt 1 uses fast tier with full 8K token budget; Attempt 2 escalates to smart tier safety net
+        # Tiered escalation: Attempt 1 uses cv_parser tier with full 8K token budget; Attempt 2 escalates to smart tier safety net
         model_escalation = [
-            ("fast", 8192),
+            ("cv_parser", 8192),
             ("smart", 8192),
         ]
         profile_data = None

@@ -570,8 +570,8 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     if canonical_spec.role_title:
         domain_keywords.append(canonical_spec.role_title)
     det_rel_years = calculate_experience_for_domain(profile.previous_roles, keywords=domain_keywords)
-    if det_rel_years > 0:
-        if compact_output.relevant_experience_years is not None and compact_output.relevant_experience_years > 0:
+    if det_rel_years is not None:
+        if compact_output.relevant_experience_years is not None:
             compact_output.relevant_experience_years = min(det_rel_years, compact_output.relevant_experience_years)
         else:
             compact_output.relevant_experience_years = det_rel_years

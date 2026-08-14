@@ -1058,12 +1058,12 @@ def calculate_weighted_fit_score(
                 except (ValueError, TypeError):
                     pass
 
-        if det_years > 0:
-            if llm_rel_years is not None and llm_rel_years > 0:
+        if det_years is not None:
+            if llm_rel_years is not None:
                 rel_years = min(det_years, llm_rel_years)
             else:
                 rel_years = det_years
-        elif llm_rel_years is not None and llm_rel_years > 0:
+        elif llm_rel_years is not None:
             rel_years = llm_rel_years
 
     if rel_years is None and hasattr(score_breakdown, "relevant_experience_years") and score_breakdown.relevant_experience_years is not None:
