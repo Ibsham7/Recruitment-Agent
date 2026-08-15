@@ -339,9 +339,6 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
         if final_state.get("stage_costs"):
             update_data["costBreakdown"] = Json(final_state["stage_costs"])
             
-        await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
-
-        
         # Save evaluation report if available
         evaluation_report = final_state.get("evaluation_report")
         
@@ -360,30 +357,32 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                 recommendation="reject",
                 summary=final_state["rejection_reason"]
             )
-            
-        if evaluation_report:
-            existing_eval = await prisma.evaluation.find_unique(where={"candidateId": candidate_id})
-            eval_data = {
-                "overallScore": evaluation_report.overall_score,
-                "technicalScore": evaluation_report.technical_score,
-                "communicationScore": evaluation_report.communication_score,
-                "culturalFitScore": evaluation_report.cultural_fit_score,
-                "recommendation": evaluation_report.recommendation,
-                "summary": evaluation_report.summary,
-                "strengths": evaluation_report.strengths,
-                "concerns": evaluation_report.concerns,
-                "chainOfThought": evaluation_report.chain_of_thought,
-            }
-            if evaluation_report.score_breakdown:
-                eval_data["scoreBreakdown"] = Json(evaluation_report.score_breakdown.dict())
-            if final_state.get("interview_questions"):
-                eval_data["interviewQuestions"] = Json([q.dict() for q in final_state["interview_questions"]])
-                
-            if not existing_eval:
-                eval_data["candidate"] = {"connect": {"id": candidate_id}}
-                await prisma.evaluation.create(data=eval_data)
-            else:
-                await prisma.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)
+
+        async with prisma.tx() as tx:
+            await tx.candidate.update(where={"id": candidate_id}, data=update_data)
+            if evaluation_report:
+                existing_eval = await tx.evaluation.find_unique(where={"candidateId": candidate_id})
+                eval_data = {
+                    "overallScore": evaluation_report.overall_score,
+                    "technicalScore": evaluation_report.technical_score,
+                    "communicationScore": evaluation_report.communication_score,
+                    "culturalFitScore": evaluation_report.cultural_fit_score,
+                    "recommendation": evaluation_report.recommendation,
+                    "summary": evaluation_report.summary,
+                    "strengths": evaluation_report.strengths,
+                    "concerns": evaluation_report.concerns,
+                    "chainOfThought": evaluation_report.chain_of_thought,
+                }
+                if evaluation_report.score_breakdown:
+                    eval_data["scoreBreakdown"] = Json(evaluation_report.score_breakdown.dict())
+                if final_state.get("interview_questions"):
+                    eval_data["interviewQuestions"] = Json([q.dict() for q in final_state["interview_questions"]])
+                    
+                if not existing_eval:
+                    eval_data["candidate"] = {"connect": {"id": candidate_id}}
+                    await tx.evaluation.create(data=eval_data)
+                else:
+                    await tx.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)
     elif interrupt_value:
         # Fallback if no final_state but interrupted
         fallback_status = "screening_hold" if interrupt_value == "hold_for_review" else "shortlisted"

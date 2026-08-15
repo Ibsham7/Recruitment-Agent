@@ -33,21 +33,18 @@ async def get_redis_pool():
     return _redis_pool
 
 def get_db_url() -> str:
-    raw_db_url = os.environ.get("DATABASE_URL") or os.environ.get("DIRECT_URL") or ""
-    if raw_db_url:
-        parsed = urlparse(raw_db_url)
-        # Strip query parameters for psycopg driver compatibility
-        return urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
-    return ""
+    return os.environ.get("DATABASE_URL") or os.environ.get("DIRECT_URL") or ""
 
 async def init_db_pool():
     global _pool, _checkpointer
     db_url = get_db_url()
+    max_pool_size = int(os.environ.get("DB_POOL_MAX_SIZE", "20"))
+    min_pool_size = int(os.environ.get("DB_POOL_MIN_SIZE", "2"))
     if db_url and _pool is None:
         _pool = AsyncConnectionPool(
             conninfo=db_url,
-            min_size=1,
-            max_size=5,
+            min_size=min_pool_size,
+            max_size=max_pool_size,
             open=False,
             kwargs={
                 "autocommit": True,
@@ -60,7 +57,7 @@ async def init_db_pool():
         _checkpointer = AsyncPostgresSaver(_pool)
         try:
             await _checkpointer.setup()
-        except Exception as e:
+        except Exception:
             # Handle idempotent schema setup if migration key already exists
             pass
 

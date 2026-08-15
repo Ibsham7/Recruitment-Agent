@@ -501,28 +501,29 @@ async def send_interview_invitations(req: SendInvitationsRequest, user: dict = D
         include={"campaign": True}
     )
     
-    sent_count = 0
-    now = datetime.datetime.now(datetime.timezone.utc)
-    
-    for cand in candidates:
-        if not cand.email:
-            continue
+    email_tasks = []
+    async with prisma.tx() as tx:
+        for cand in candidates:
+            if not cand.email:
+                continue
+                
+            token = generate_interview_token(cand.id, cand.email)
+            interview_url = f"{FRONTEND_URL}/interview/{cand.id}?token={token}"
             
-        token = generate_interview_token(cand.id, cand.email)
-        interview_url = f"{FRONTEND_URL}/interview/{cand.id}?token={token}"
-        
-        await prisma.candidate.update(
-            where={"id": cand.id},
-            data={
-                "invitationToken": token,
-                "invitedAt": now,
-                "status": "invited"
-            }
-        )
-        
-        campaign_title = cand.campaign.title if cand.campaign else "AI Candidate Assessment"
-        await send_interview_invitation_email(cand.name, cand.email, campaign_title, interview_url)
-        sent_count += 1
+            await tx.candidate.update(
+                where={"id": cand.id},
+                data={
+                    "invitationToken": token,
+                    "invitedAt": now,
+                    "status": "invited"
+                }
+            )
+            campaign_title = cand.campaign.title if cand.campaign else "AI Candidate Assessment"
+            email_tasks.append((cand.name, cand.email, campaign_title, interview_url))
+            sent_count += 1
+
+    for name, email, campaign_title, interview_url in email_tasks:
+        await send_interview_invitation_email(name, email, campaign_title, interview_url)
         
     return {"status": "success", "count": sent_count, "message": f"Sent {sent_count} interview invitation emails."}
 
