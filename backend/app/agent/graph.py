@@ -16,9 +16,6 @@ from app.agent.nodes.cv_parser import cv_parser_node
 from app.agent.nodes.hard_filters import hard_filters_node
 from app.agent.nodes.embedding_matcher import embedding_matcher_node
 from app.agent.nodes.jd_matcher import jd_matcher_node
-from app.agent.nodes.question_generator import question_generator_node
-from app.agent.nodes.interviewer import interviewer_node
-from app.agent.nodes.evaluator import evaluator_node
 
 async def human_override_node(state: RecruitmentState) -> dict:
     decision = interrupt("hold_for_review")
@@ -49,39 +46,25 @@ def route_after_embedding_matcher(state: RecruitmentState) -> str:
     return "jd_matcher"
 
 def route_after_screening(state: RecruitmentState) -> str:
-    """After JD matching: advance to shortlisted, hold, or reject immediately."""
-    if state["pipeline_status"] == "rejected":
+    """After JD matching: advance to shortlisted (END), hold, or reject immediately."""
+    if state.get("pipeline_status") == "rejected":
         return "rejected"
-    if state["pipeline_status"] == "awaiting_human":
+    if state.get("pipeline_status") == "awaiting_human":
         return "human_override"
     return END
-
-def route_after_interview_turn(state: RecruitmentState) -> str:
-    """After each interview question: loop back or move to evaluation."""
-    transcript = state.get("interview_transcript")
-    questions = state.get("interview_questions", [])
-
-    if transcript is None:
-        return "interviewer"   # first question not asked yet
-
-    if transcript.current_question_index >= len(questions):
-        return "evaluator"    # all questions answered
-
-    return "interviewer"      # more questions remain
-
 
 async def rejected_node(state: RecruitmentState) -> dict:
     """Terminal node for screened-out candidates."""
     return {
         "pipeline_status": "rejected",
-        "log": [f"Pipeline ended: rejected at screening"]
+        "log": ["Pipeline ended: rejected at screening"]
     }
 
 # ── Build the graph ────────────────────────────────────────────────────────
 
 def build_recruitment_graph(checkpointer=None):
     """
-    Build and compile the recruitment pipeline graph.
+    Build and compile the recruitment pipeline graph for Workflow 1 (JD Screening).
     
     use_postgres=False  → MemorySaver (dev, disappears on restart)
     use_postgres=True   → PostgresSaver (persists to Supabase, use for real runs)
@@ -93,9 +76,6 @@ def build_recruitment_graph(checkpointer=None):
     builder.add_node("hard_filters", hard_filters_node)
     builder.add_node("embedding_matcher", embedding_matcher_node)
     builder.add_node("jd_matcher", jd_matcher_node)
-    builder.add_node("question_generator", question_generator_node)
-    builder.add_node("interviewer", interviewer_node)
-    builder.add_node("evaluator", evaluator_node)
     builder.add_node("human_override", human_override_node)
     builder.add_node("rejected", rejected_node)
 
@@ -115,32 +95,21 @@ def build_recruitment_graph(checkpointer=None):
         {"jd_matcher": "jd_matcher", "rejected": "rejected", "human_override": "human_override"}
     )
 
-    # Conditional: screening result decides whether to advance or reject
+    # Conditional: screening result decides whether to advance (END), hold, or reject
     builder.add_conditional_edges(
         "jd_matcher",
         route_after_screening,
-        {"question_generator": "question_generator", "rejected": "rejected", "evaluator": "evaluator", "human_override": "human_override", END: END}
+        {"rejected": "rejected", "human_override": "human_override", END: END}
     )
     
     # Conditional: after human override
     builder.add_conditional_edges(
         "human_override",
-        lambda state: "rejected" if state["pipeline_status"] == "rejected" else END,
+        lambda state: "rejected" if state.get("pipeline_status") == "rejected" else END,
         {"rejected": "rejected", END: END}
     )
 
-    builder.add_edge("question_generator", "interviewer")
-
-    # Conditional loop: interview question by question
-    builder.add_conditional_edges(
-        "interviewer",
-        route_after_interview_turn,
-        {"interviewer": "interviewer", "evaluator": "evaluator"}
-    )
-
-    builder.add_edge("evaluator", END)
-
-    # rejected lead to END
+    # rejected leads to END
     builder.add_edge("rejected", END)
 
     # Checkpointer — required for interrupt() to work
@@ -148,4 +117,4 @@ def build_recruitment_graph(checkpointer=None):
         from langgraph.checkpoint.memory import MemorySaver
         checkpointer = MemorySaver()
 
-    return builder.compile(checkpointer=checkpointer)
+    return builder.compile(checkpointer=checkpointer)

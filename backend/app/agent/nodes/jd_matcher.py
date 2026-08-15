@@ -8,6 +8,7 @@ from app.agent.config import get_model, MODELS
 
 DISABLE_SHA256_CACHE = os.getenv("DISABLE_SHA256_CACHE", "true").lower() == "true"
 from app.agent.schemas import (
+    CandidateProfile,
     ScreeningResult,
     CompactScreeningOutput,
     CanonicalJDSpec,
@@ -15,7 +16,7 @@ from app.agent.schemas import (
     RequirementMatch,
     ScoreBreakdown
 )
-from app.agent.state import RecruitmentState
+from app.agent.state import RecruitmentState, coerce_model
 from app.agent.utils import extract_cost_and_tokens, extract_json, clean_surrogates
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import JD_MATCHER_PROMPTS, CANONICAL_JD_DISTILLER_PROMPT, PROMPT_VERSION
@@ -430,7 +431,7 @@ async def distill_jd_requirements(jd_text: str) -> CanonicalJDSpec:
 
 async def jd_matcher_node(state: RecruitmentState) -> dict:
     """Score the candidate against the job description using Flash-Lite with full deterministic XAI hydration."""
-    profile = state.get("candidate_profile")
+    profile = coerce_model(state.get("candidate_profile"), CandidateProfile)
     if profile is None:
         raise ValueError("candidate_profile is required for JD matching")
 
@@ -439,9 +440,7 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
     jd = clean_surrogates(state["job_description"])
 
     # 1. Obtain upfront canonical JD specification (distilled & frozen once per JD)
-    canonical_spec = state.get("canonical_jd_spec")
-    if isinstance(canonical_spec, dict):
-        canonical_spec = CanonicalJDSpec.model_validate(canonical_spec)
+    canonical_spec = coerce_model(state.get("canonical_jd_spec"), CanonicalJDSpec)
     if not isinstance(canonical_spec, CanonicalJDSpec):
         canonical_spec = await distill_jd_requirements(jd)
 

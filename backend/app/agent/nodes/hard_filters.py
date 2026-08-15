@@ -1,4 +1,5 @@
-from app.agent.state import RecruitmentState
+from app.agent.state import RecruitmentState, coerce_model
+from app.agent.schemas import CandidateProfile
 from app.core.logging import logger
 import re
 
@@ -12,13 +13,14 @@ def extract_min_experience_from_jd(jd_text: str) -> float:
 async def hard_filters_node(state: RecruitmentState) -> dict:
     """Zero LLM cost filter based on structured CV fields and explicit config."""
     logger.info("[Hard Filters] Evaluating structured criteria...")
-    profile = state.get("candidate_profile")
+    profile = coerce_model(state.get("candidate_profile"), CandidateProfile)
     jd = state.get("job_description", "")
     config = state.get("hard_filters_config", [])
     penalties = state.get("penalties", [])
     
     if not profile:
         return {"filter_rejections": ["No profile parsed."]}
+
     
     log = []
     

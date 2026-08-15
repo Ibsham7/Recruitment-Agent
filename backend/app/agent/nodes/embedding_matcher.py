@@ -5,10 +5,12 @@ import httpx
 import hashlib
 from app.database import prisma
 from app.agent.embeddings import get_embedding_async, get_embedding_with_cost_async, cosine_similarity, _distill_jd_async
-from app.agent.state import RecruitmentState
+from app.agent.state import RecruitmentState, coerce_model
+from app.agent.schemas import CandidateProfile
 from app.core.logging import logger
 
 async def _ensure_resume_embedding_async(file_hash: str, text_to_embed: str) -> tuple[list[float] | None, float, dict]:
+
     """
     Ensures that the Resume embedding exists in the database.
     Returns the vector list and cost info only if generated on the fly.
@@ -60,7 +62,7 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
     Uses native PGVector cosine distance (<=>) in PostgreSQL directly.
     """
     logger.info("[Embedding Matcher] Calculating semantic similarity...")
-    profile = state.get("candidate_profile")
+    profile = coerce_model(state.get("candidate_profile"), CandidateProfile)
     jd = state.get("job_description", "")
     
     if not profile:

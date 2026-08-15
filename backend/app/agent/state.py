@@ -1,6 +1,24 @@
-from typing import TypedDict, Annotated, Optional
+from typing import TypedDict, Annotated, Optional, TypeVar, Type, Any
 from operator import add
 from app.agent.schemas import CandidateProfile, ScreeningResult, InterviewQuestion, InterviewTranscript, EvaluationReport, CanonicalJDSpec
+
+T = TypeVar("T")
+
+def coerce_model(obj: Any, model_cls: Type[T]) -> T | None:
+    """
+    Safely coerces dict or Pydantic model instance from LangGraph checkpoint state.
+    Prevents AttributeError when state is restored from AsyncPostgresSaver.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, model_cls):
+        return obj
+    if isinstance(obj, dict):
+        if hasattr(model_cls, "model_validate"):
+            return model_cls.model_validate(obj)
+        return model_cls(**obj)
+    return None
+
 
 def merge_dicts(a: dict | None, b: dict | None) -> dict:
     """Merges two dictionaries for LangGraph Annotated state fields."""

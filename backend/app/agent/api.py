@@ -11,7 +11,8 @@ from app.database import prisma
 from prisma import Json
 from .graph import build_recruitment_graph
 from app.dev_logger import log_event, log_error
-from app.agent.state import RecruitmentState
+from app.agent.state import RecruitmentState, coerce_model
+from app.agent.schemas import CandidateProfile, ScreeningResult, CanonicalJDSpec
 
 @contextlib.asynccontextmanager
 async def get_checkpointer(cp=None):
@@ -176,7 +177,14 @@ def _build_evaluation_from_screening(res, strictness: str = "moderate"):
 async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str, checkpointer=None):
     # Load existing profile if it's cached
     candidate = await prisma.candidate.find_unique(where={"id": candidate_id}, include={"campaign": True, "resume": True})
+    
+    # In-Flight Concurrency Guard: prevent duplicate concurrent invocations for the same candidate
+    if candidate and candidate.status == "screening":
+        log_event(candidate_id, "GRAPH", f"Candidate {candidate_id} screening already in progress; skipping duplicate run.")
+        return
+
     candidate_profile = None
+    canonical_jd_spec = None
     hard_filters_config = []
     enable_interviews = True
     interview_config = None
@@ -184,11 +192,10 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
     if candidate:
         if candidate.resume and candidate.resume.structuredProfile:
             import json
-            from app.agent.schemas import CandidateProfile
             profile_data = candidate.resume.structuredProfile
             if isinstance(profile_data, str):
                 profile_data = json.loads(profile_data)
-            candidate_profile = CandidateProfile(**profile_data)
+            candidate_profile = coerce_model(profile_data, CandidateProfile)
             
         if candidate.campaign:
             if candidate.campaign.hardFiltersConfig:
@@ -211,9 +218,8 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                     import json
                     db_spec = json.loads(db_spec)
                 if isinstance(db_spec, dict):
-                    from app.agent.schemas import CanonicalJDSpec
                     try:
-                        canonical_jd_spec = CanonicalJDSpec.model_validate(db_spec)
+                        canonical_jd_spec = coerce_model(db_spec, CanonicalJDSpec)
                     except Exception as e:
                         from app.core.logging import logger
                         logger.warning(f"[CanonicalJDSpec] Failed to validate spec from DB: {e}")
@@ -283,8 +289,8 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             await prisma.candidate.update(
                 where={"id": candidate_id},
                 data={
-                    "status": "screening",
-                    "rejectionReason": None
+                    "status": "failed",
+                    "rejectionReason": f"System Error: Pipeline execution failed ({str(e)})"
                 }
             )
             
@@ -304,13 +310,14 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
         if final_state.get("rejection_reason"):
             update_data["rejectionReason"] = final_state["rejection_reason"]
             
-        if final_state.get("screening_result"):
-            base_score = final_state["screening_result"].fit_score
+        screening_res = coerce_model(final_state.get("screening_result"), ScreeningResult)
+        if screening_res:
+            base_score = screening_res.fit_score
             if base_score is not None:
                 update_data["fitScore"] = min(100.0, max(0.0, float(base_score)))
             
-        if final_state.get("candidate_profile"):
-            profile = final_state["candidate_profile"]
+        profile = coerce_model(final_state.get("candidate_profile"), CandidateProfile)
+        if profile:
             if hasattr(profile, "model_dump"):
                 profile_dict = profile.model_dump()
             else:
@@ -339,9 +346,8 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
         evaluation_report = final_state.get("evaluation_report")
         
         # Auto-generate evaluation for candidate if missing after JD screening
-        if not evaluation_report and final_state.get("screening_result"):
-            res = final_state["screening_result"]
-            evaluation_report = _build_evaluation_from_screening(res, evaluation_strictness)
+        if not evaluation_report and screening_res:
+            evaluation_report = _build_evaluation_from_screening(screening_res, evaluation_strictness)
         elif not evaluation_report and status == "rejected" and final_state.get("rejection_reason"):
             from app.agent.schemas import EvaluationReport
             evaluation_report = EvaluationReport(
@@ -385,6 +391,7 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
             where={"id": candidate_id},
             data={"status": fallback_status}
         )
+
 async def _run_evaluator_background(candidate_id: str, candidate: Any, transcript_list: list):
     try:
         import json
