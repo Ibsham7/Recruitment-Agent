@@ -15,7 +15,7 @@ export default function Step1Sidebar({
   title,
   wordCount,
   strictness,
-  hardFilters
+  hardFilters = []
 }: Step1SidebarProps) {
   const G = getGlass(t);
 
@@ -24,7 +24,7 @@ export default function Step1Sidebar({
       {/* Live Campaign Preview Card */}
       <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
         <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ color: t.txtPrimary }}>
+          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
             Live Campaign Overview
           </h3>
         </div>
@@ -65,7 +65,7 @@ export default function Step1Sidebar({
       {/* AI Screening Engine Capabilities */}
       <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
         <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ color: t.txtPrimary }}>
+          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
             AI Screening Workflow
           </h3>
         </div>

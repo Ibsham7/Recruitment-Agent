@@ -25,7 +25,7 @@ export default function Step1Details({
   setJd,
   strictness,
   setStrictness,
-  hardFilters,
+  hardFilters = [],
   setShowFiltersModal,
   onContinue
 }: Step1DetailsProps) {

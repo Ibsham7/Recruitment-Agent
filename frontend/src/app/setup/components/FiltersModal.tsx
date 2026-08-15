@@ -55,7 +55,7 @@ export default function FiltersModal({
         {/* Sticky Header */}
         <div className="shrink-0 z-10 p-5 border-b flex items-center justify-between" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
           <div>
-            <h3 className="text-base font-bold" style={{ color: t.txtPrimary }}>Hard Filters & Penalties</h3>
+            <h3 className="text-base font-bold" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>Hard Filters & Penalties</h3>
             <p className="text-xs mt-0.5" style={{ color: t.txtSecondary }}>Define mandatory requirements and score deductions.</p>
           </div>
           <button 

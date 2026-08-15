@@ -2,15 +2,16 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from app.database import prisma
+from app.services.r2_service import delete_r2_object_by_url, delete_r2_campaign_folder
 
 logger = logging.getLogger(__name__)
 
 async def hard_delete_expired_candidates(ctx=None):
     """
-    Sweeps the database for candidates older than 30 days.
+    Sweeps the database and Cloudflare R2 object storage for campaigns/candidates older than 30 days.
     - Copies anonymous statistics to CandidateAnalytics
-    - Hard deletes the Candidate (which cascades to Evaluation)
-    - If the associated Resume is no longer referenced by any other candidates, deletes the Resume.
+    - Deletes campaign resume folders and individual resume files from Cloudflare R2
+    - Hard deletes Candidate and expired Campaign records in DB (cascading to Evaluation)
     """
     try:
         if not prisma.is_connected():
@@ -18,7 +19,7 @@ async def hard_delete_expired_candidates(ctx=None):
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=30)
         
-        # Find candidates older than 30 days
+        # 1. Find candidates older than 30 days
         expired_candidates = await prisma.candidate.find_many(
             where={
                 "createdAt": {"lt": cutoff}
@@ -29,54 +30,68 @@ async def hard_delete_expired_candidates(ctx=None):
             }
         )
         
-        if not expired_candidates:
-            logger.info("No expired candidates found to sweep.")
-            return
+        if expired_candidates:
+            analytics_payload = []
+            candidate_ids = []
+            possible_resume_ids = set()
+            campaign_ids_to_clean = set()
+            individual_cv_urls = set()
 
-        # 1. Prepare batch analytics payload & collect IDs
-        analytics_payload = []
-        candidate_ids = []
-        possible_resume_ids = set()
+            for c in expired_candidates:
+                candidate_ids.append(c.id)
+                if c.campaignId:
+                    campaign_ids_to_clean.add(c.campaignId)
+                if c.cvUrl:
+                    individual_cv_urls.add(c.cvUrl)
+                if hasattr(c, 'resumeId') and c.resumeId:
+                    possible_resume_ids.add(c.resumeId)
 
-        for c in expired_candidates:
-            candidate_ids.append(c.id)
-            if c.resumeId:
-                possible_resume_ids.add(c.resumeId)
-            analytics_payload.append({
-                "campaignId": c.campaignId,
-                "campaignTitle": c.campaign.title if c.campaign else "Unknown",
-                "status": c.status,
-                "fitScore": c.fitScore,
-                "overallScore": c.evaluation.overallScore if c.evaluation else None,
-                "exitStage": c.status
-            })
+                analytics_payload.append({
+                    "campaignId": c.campaignId,
+                    "campaignTitle": c.campaign.title if c.campaign else "Unknown",
+                    "status": c.status,
+                    "fitScore": c.fitScore,
+                    "overallScore": c.evaluation.overallScore if c.evaluation else None,
+                    "exitStage": c.status
+                })
 
-        # 2. Batch insert analytics records
-        if analytics_payload:
-            await prisma.candidateanalytics.create_many(data=analytics_payload)
+            # Save anonymous metrics
+            if analytics_payload:
+                await prisma.candidateanalytics.create_many(data=analytics_payload)
 
-        # 3. Batch delete candidates
-        delete_result = await prisma.candidate.delete_many(
-            where={"id": {"in": candidate_ids}}
-        )
-        deleted_count = delete_result
+            # Purge R2 Storage
+            r2_deleted_files_count = 0
+            for camp_id in campaign_ids_to_clean:
+                count = delete_r2_campaign_folder(camp_id)
+                r2_deleted_files_count += count
 
-        # 4. Clean up orphaned resumes in batch
-        resume_deleted_count = 0
-        if possible_resume_ids:
-            active_links = await prisma.candidate.find_many(
-                where={"resumeId": {"in": list(possible_resume_ids)}},
-                distinct=["resumeId"]
+            for cv_url in individual_cv_urls:
+                # Delete any legacy flat resumes or individual URLs if still present
+                delete_r2_object_by_url(cv_url)
+
+            # Hard delete DB candidates
+            delete_result = await prisma.candidate.delete_many(
+                where={"id": {"in": candidate_ids}}
             )
-            linked_resume_ids = {c.resumeId for c in active_links if c.resumeId}
-            orphaned_ids = list(possible_resume_ids - linked_resume_ids)
+            deleted_count = delete_result
 
-            if orphaned_ids:
-                resume_deleted_count = await prisma.resume.delete_many(
-                    where={"id": {"in": orphaned_ids}}
-                )
+            logger.info(f"[Sweeper] Purged {deleted_count} candidate DB records and ~{r2_deleted_files_count} R2 storage files.")
 
-        logger.info(f"Sweeper finished: Deleted {deleted_count} candidates and {resume_deleted_count} orphaned resumes.")
+        # 2. Find and purge expired campaigns with no remaining candidates
+        expired_campaigns = await prisma.campaign.find_many(
+            where={
+                "createdAt": {"lt": cutoff}
+            }
+        )
+        if expired_campaigns:
+            for camp in expired_campaigns:
+                delete_r2_campaign_folder(camp.id)
+            
+            expired_camp_ids = [c.id for c in expired_campaigns]
+            await prisma.campaign.delete_many(
+                where={"id": {"in": expired_camp_ids}}
+            )
+            logger.info(f"[Sweeper] Purged {len(expired_campaigns)} expired campaigns older than 30 days.")
 
     except Exception as e:
         logger.error(f"Error running hard_delete_expired_candidates: {e}")
@@ -84,7 +99,6 @@ async def hard_delete_expired_candidates(ctx=None):
 async def sweep_stale_overrides(ctx=None):
     """
     Finds candidates stuck in 'pending' or 'hold' decision for > 14 days and auto-rejects them.
-    (Note: This just updates DB status. If LangGraph is waiting, it will naturally be ignored once hard deleted.)
     """
     try:
         if not prisma.is_connected():
@@ -116,7 +130,6 @@ async def run_all_sweepers(ctx=None):
     await hard_delete_expired_candidates(ctx)
 
 if __name__ == "__main__":
-    # For manual testing
     import sys
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())

@@ -23,7 +23,8 @@ export async function fetchCampaignsData(): Promise<ExtendedCampaign[]> {
       cand.status !== "pending" && cand.status !== "screening"
     ).length;
     const shortlisted = candidates.filter((cand: any) =>
-      cand.status === "shortlisted" || cand.status === "complete" || cand.status === "finalized"
+      ["shortlisted", "invited", "interviewing", "interview_completed", "review", "finalized", "complete"].includes(cand.status) ||
+      cand.decision === "approve"
     ).length;
 
     const scoredCandidates = candidates.filter((cand: any) =>
@@ -62,6 +63,14 @@ export function useCampaigns() {
   const query = useQuery({
     queryKey: CAMPAIGNS_QUERY_KEY,
     queryFn: fetchCampaignsData,
+    refetchInterval: (query) => {
+      const campaigns = query.state.data;
+      if (!Array.isArray(campaigns)) return false;
+      const hasActiveProcessing = campaigns.some(
+        (c) => c.status === "active" && typeof c.total === "number" && typeof c.processed === "number" && c.total > 0 && c.processed < c.total
+      );
+      return hasActiveProcessing ? 3000 : false;
+    },
   });
 
   const invalidateCampaigns = useCallback(() => {

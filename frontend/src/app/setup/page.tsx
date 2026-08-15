@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Theme } from "../../lib/types";
+import { hexToRgba } from "../../lib/theme";
 import { apiFetch } from "../../lib/api";
 import { queryClient } from "../queryClient";
 import { CAMPAIGNS_QUERY_KEY } from "../../lib/hooks/useCampaigns";
@@ -22,6 +23,7 @@ import FiltersModal from "./components/FiltersModal";
 export default function SetupPage({ theme: t }: { theme: Theme }) {
   const navigate = useNavigate();
 
+  const [campaignId] = useState(() => crypto.randomUUID());
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState(DEFAULT_TITLE);
   const [jd, setJd] = useState(DEFAULT_JD);
@@ -63,33 +65,38 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
     return results;
   };
 
-  const uploadToCloudinarySingle = (taskId: string, file: File): Promise<string> => {
+  const uploadToR2Single = async (taskId: string, file: File): Promise<string> => {
+    const val = validateFile(file);
+    if (val.isError) {
+      const errorMsg = val.reason || "Invalid file.";
+      setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', progress: 0, errorReason: errorMsg } : t));
+      throw new Error(errorMsg);
+    }
+
+    setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploading', progress: 0 } : t));
+
+    // Step A: Fetch presigned upload URL from backend with campaign folder isolation
+    const contentType = file.type || "application/pdf";
+    const presignedRes = await apiFetch(
+      `${import.meta.env.VITE_BACKEND_URL}/api/upload/presigned-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(contentType)}&campaignId=${encodeURIComponent(campaignId)}`
+    );
+    if (!presignedRes.ok) {
+      let errReason = `Presigned URL generation failed (${presignedRes.status})`;
+      try {
+        const errJson = await presignedRes.json();
+        if (errJson.detail) errReason = errJson.detail;
+      } catch (e) {}
+      setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: errReason } : t));
+      throw new Error(errReason);
+    }
+
+    const { uploadUrl, fileUrl } = await presignedRes.json();
+
+    // Step B: Direct PUT upload to Cloudflare R2 with progress tracking
     return new Promise((resolve, reject) => {
-      const val = validateFile(file);
-      if (val.isError) {
-        const errorMsg = val.reason || "Invalid file.";
-        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', progress: 0, errorReason: errorMsg } : t));
-        reject(new Error(errorMsg));
-        return;
-      }
-
-      const cloudName = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
-      const uploadPreset = (import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "").trim();
-      
-      if (!cloudName || !uploadPreset) {
-        const errorMsg = "Cloudinary upload credentials missing (VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET).";
-        console.error(errorMsg);
-        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', progress: 0, errorReason: "Cloudinary config missing" } : t));
-        reject(new Error(errorMsg));
-        return;
-      }
-
-      setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploading', progress: 0 } : t));
-
       const xhr = new XMLHttpRequest();
-      const url = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
-      
-      xhr.open("POST", url, true);
+      xhr.open("PUT", uploadUrl, true);
+      xhr.setRequestHeader("Content-Type", contentType);
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
@@ -100,62 +107,38 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'success', progress: 100, url: response.secure_url } : t));
-            resolve(response.secure_url);
-          } catch (err) {
-            setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: "Invalid server response" } : t));
-            reject(new Error("Failed to parse Cloudinary response"));
-          }
+          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'success', progress: 100, url: fileUrl } : t));
+          resolve(fileUrl);
         } else {
-          let errDetail = `Upload failed (${xhr.status})`;
-          try {
-            const errRes = JSON.parse(xhr.responseText);
-            if (errRes.error?.message) {
-              errDetail = errRes.error.message;
-            }
-          } catch (e) {}
-          
-          const isRateLimit = xhr.status === 429 || errDetail.toLowerCase().includes("slow down") || errDetail.toLowerCase().includes("capacity");
-          const finalReason = isRateLimit ? "Cloudinary rate limit (429)" : errDetail;
-          
-          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: finalReason } : t));
-          
-          const errObj = new Error(finalReason);
-          (errObj as any).isRateLimit = isRateLimit;
-          (errObj as any).status = xhr.status;
-          reject(errObj);
+          const errReason = `R2 Upload failed (${xhr.status})`;
+          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: errReason } : t));
+          reject(new Error(errReason));
         }
       };
 
       xhr.onerror = () => {
         setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error', errorReason: "Network upload error" } : t));
-        reject(new Error("Network error during upload"));
+        reject(new Error("Network error during R2 upload"));
       };
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", uploadPreset);
-
-      xhr.send(formData);
+      xhr.send(file);
     });
   };
 
-  const uploadToCloudinaryWithProgress = async (taskId: string, file: File, maxRetries = 3): Promise<string> => {
+  const uploadToR2WithProgress = async (taskId: string, file: File, maxRetries = 3): Promise<string> => {
     let attempt = 0;
     while (true) {
       try {
-        return await uploadToCloudinarySingle(taskId, file);
+        return await uploadToR2Single(taskId, file);
       } catch (err: any) {
         attempt++;
-        if (attempt <= maxRetries && (err?.isRateLimit || err?.status === 429 || (err?.message && err.message.toLowerCase().includes("slow down")))) {
-          const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        if (attempt <= maxRetries) {
+          const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
           setUploadTasks(prev => prev.map(t => t.id === taskId ? { 
             ...t, 
             status: 'uploading', 
             progress: 0, 
-            errorReason: `Rate limited. Retrying (${attempt}/${maxRetries}) in ${Math.round(delay/1000)}s...` 
+            errorReason: `Upload error. Retrying (${attempt}/${maxRetries}) in ${Math.round(delay/1000)}s...` 
           } : t));
           await new Promise(r => setTimeout(r, delay));
         } else {
@@ -168,7 +151,6 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
   const onComplete = async () => {
     if (!title || !jd || uploadTasks.length === 0) return;
 
-    // Filter only valid (non-error and non-0 B) tasks for upload
     const currentTasks = uploadTasksRef.current;
     const validCurrentTasks = currentTasks.filter(t => t.status !== 'error' && t.file.size > 0);
     
@@ -180,38 +162,14 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
     setUploading(true);
     
     try {
-      let isAwake = false;
-      let firstTry = true;
-      while (!isAwake) {
-        try {
-          const healthRes = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/health/db`);
-          if (healthRes.ok) {
-            isAwake = true;
-          } else {
-            if (firstTry) {
-              setDbWakingUp(true);
-              firstTry = false;
-            }
-            await new Promise(r => setTimeout(r, 3000));
-          }
-        } catch (e) {
-          if (firstTry) {
-            setDbWakingUp(true);
-            firstTry = false;
-          }
-          await new Promise(r => setTimeout(r, 3000));
-        }
-      }
-      setDbWakingUp(false);
-
       const activeTasks = uploadTasksRef.current;
       const tasksToUpload = activeTasks.filter(t => (t.status === 'pending' || t.status === 'error') && t.file.size > 0);
       
       const newlyUploadedUrls: Record<string, string> = {};
       if (tasksToUpload.length > 0) {
-        // Concurrency limit of max 2 simultaneous uploads to Cloudinary
-        const uploadResults = await runWithConcurrencyLimit(tasksToUpload, 2, async (t) => {
-          const url = await uploadToCloudinaryWithProgress(t.id, t.file);
+        // Concurrency limit of max 5 simultaneous uploads to Cloudflare R2
+        const uploadResults = await runWithConcurrencyLimit(tasksToUpload, 5, async (t) => {
+          const url = await uploadToR2WithProgress(t.id, t.file);
           return { id: t.id, url };
         });
         
@@ -236,35 +194,45 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
         return;
       }
 
-      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          jobDescription: jd,
-          resumes: fileUrls,
-          hardFiltersConfig: hardFilters,
-          enableInterviews: true,
-          strictness
-        })
-      });
+      const wakeUpTimer = setTimeout(() => setDbWakingUp(true), 3500);
 
-      if (!res.ok) throw new Error("Failed to create campaign");
-      
-      await queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY });
-      navigate("/dashboard");
-    } catch (err) {
-      console.error(err);
-      alert("An error occurred during upload or campaign creation.");
+      let res: Response;
+      try {
+        res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: campaignId,
+            title,
+            jobDescription: jd,
+            resumes: fileUrls,
+            hardFiltersConfig: hardFilters,
+            enableInterviews: true,
+            strictness
+          })
+        });
+      } finally {
+        clearTimeout(wakeUpTimer);
+        setDbWakingUp(false);
+      }
+
+      if (!res.ok) {
+        setUploading(false);
+        alert("Failed to launch campaign. Please check backend logs.");
+        return;
+      }
+
+      const data = await res.json();
+      queryClient.invalidateQueries({ queryKey: [CAMPAIGNS_QUERY_KEY] });
+      navigate(`/pipeline/${data.campaignId}`);
+    } catch (err: any) {
       setUploading(false);
+      alert(err.message || "An unexpected error occurred during campaign setup.");
     }
   };
 
-  const wordCount = jd.trim() ? jd.trim().split(/\s+/).length : 0;
-
   return (
-    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
-      {/* Top Header Bar */}
+    <div className="min-h-screen font-sans transition-colors duration-200" style={{ background: t.bgPage }}>
       <SetupHeader 
         theme={t} 
         step={step} 
@@ -273,52 +241,84 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
         jd={jd} 
       />
 
-      {/* STEP 1: Job Details & Evaluation Criteria */}
-      {step === 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <Step1Details 
-            theme={t}
-            title={title}
-            setTitle={setTitle}
-            jd={jd}
-            setJd={setJd}
-            strictness={strictness}
-            setStrictness={setStrictness}
-            hardFilters={hardFilters}
-            setShowFiltersModal={setShowFiltersModal}
-            onContinue={() => setStep(2)}
-          />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Step Indicator */}
+        <div className="flex items-center gap-4 border-b pb-4" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
+          <button 
+            onClick={() => setStep(1)} 
+            className={`flex items-center gap-2 text-sm font-bold transition-all px-3 py-1.5 rounded-lg ${step === 1 ? 'shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+            style={{ 
+              background: step === 1 ? hexToRgba(t.accentPrimary, 0.15) : 'transparent',
+              color: step === 1 ? t.accentPrimary : t.txtMuted 
+            }}
+          >
+            <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black border" style={{ borderColor: step === 1 ? t.accentPrimary : t.txtMuted }}>1</span>
+            <span>Campaign Details & JD</span>
+          </button>
+          
+          <span className="text-xs font-black" style={{ color: t.txtGhost }}>➔</span>
 
-          <Step1Sidebar 
-            theme={t}
-            title={title}
-            wordCount={wordCount}
-            strictness={strictness}
-            hardFilters={hardFilters}
-          />
+          <button 
+            disabled={!title || !jd}
+            onClick={() => setStep(2)} 
+            className={`flex items-center gap-2 text-sm font-bold transition-all px-3 py-1.5 rounded-lg ${step === 2 ? 'shadow-sm' : 'opacity-60 hover:opacity-100 disabled:opacity-30'}`}
+            style={{ 
+              background: step === 2 ? hexToRgba(t.accentPrimary, 0.15) : 'transparent',
+              color: step === 2 ? t.accentPrimary : t.txtMuted 
+            }}
+          >
+            <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black border" style={{ borderColor: step === 2 ? t.accentPrimary : t.txtMuted }}>2</span>
+            <span>Resume Upload & Batch Launch</span>
+          </button>
         </div>
-      )}
 
-      {/* STEP 2: Resume Upload & Batch Launch */}
-      {step === 2 && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <Step2Upload 
-            theme={t}
-            uploadTasks={uploadTasks}
-            setUploadTasks={setUploadTasks}
-            uploading={uploading}
-            dbWakingUp={dbWakingUp}
-            setStep={setStep}
-            onComplete={onComplete}
-            uploadToCloudinaryWithProgress={uploadToCloudinaryWithProgress}
-          />
+        {/* STEP 1: Campaign Details & JD */}
+        {step === 1 && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <Step1Details 
+              theme={t}
+              title={title}
+              setTitle={setTitle}
+              jd={jd}
+              setJd={setJd}
+              strictness={strictness}
+              setStrictness={setStrictness}
+              hardFilters={hardFilters}
+              setShowFiltersModal={setShowFiltersModal}
+              onContinue={() => setStep(2)}
+            />
 
-          <Step2Sidebar 
-            theme={t}
-            uploadTasks={uploadTasks}
-          />
-        </div>
-      )}
+            <Step1Sidebar 
+              theme={t}
+              title={title}
+              wordCount={jd.trim() ? jd.trim().split(/\s+/).length : 0}
+              strictness={strictness}
+              hardFilters={hardFilters}
+            />
+          </div>
+        )}
+
+        {/* STEP 2: Resume Upload & Batch Launch */}
+        {step === 2 && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <Step2Upload 
+              theme={t}
+              uploadTasks={uploadTasks}
+              setUploadTasks={setUploadTasks}
+              uploading={uploading}
+              dbWakingUp={dbWakingUp}
+              setStep={setStep}
+              onComplete={onComplete}
+              uploadToR2WithProgress={uploadToR2WithProgress}
+            />
+
+            <Step2Sidebar 
+              theme={t}
+              uploadTasks={uploadTasks}
+            />
+          </div>
+        )}
+      </main>
 
       {/* Hard Filters Configuration Modal */}
       <FiltersModal 

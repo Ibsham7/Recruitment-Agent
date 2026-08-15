@@ -211,7 +211,7 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
                 { name: "Supabase Inc.", role: "Managed PostgreSQL Database & Authentication Provider", loc: "USA / EU" },
                 { name: "OpenAI / OpenRouter", role: "LLM Question Generation & Vector Embeddings", loc: "USA (Zero-Data-Retention)" },
                 { name: "Upstash Inc.", role: "Serverless Distributed Task Queue & Rate Limiting", loc: "USA / EU" },
-                { name: "Cloudinary Inc.", role: "Encrypted Document & Resume Cloud Storage", loc: "USA / EU" },
+                { name: "Cloudflare Inc.", role: "Encrypted Cloudflare R2 Object Storage & Resume Host", loc: "USA / EU" },
               ].map((sp, idx) => (
                 <div
                   key={idx}

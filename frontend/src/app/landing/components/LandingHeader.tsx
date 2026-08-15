@@ -27,7 +27,7 @@ export function LandingHeader({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
       }}
     >
       <div className="flex items-center">
-        <img src={t.isDark ? logoDarkImg : logoLightImg} alt="hireagent logo" width={148} height={48} decoding="async" fetchPriority="high" className="cursor-target max-h-9 w-auto object-contain object-left" />
+        <img src={t.isDark ? logoDarkImg : logoLightImg} alt="hireagent logo" width={148} height={48} decoding="async" fetchpriority="high" className="cursor-target max-h-9 w-auto object-contain object-left" />
       </div>
 
       <PillNav

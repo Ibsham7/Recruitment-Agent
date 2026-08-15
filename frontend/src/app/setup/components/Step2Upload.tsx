@@ -20,7 +20,7 @@ interface Step2UploadProps {
   dbWakingUp: boolean;
   setStep: (step: number) => void;
   onComplete: () => void;
-  uploadToCloudinaryWithProgress: (taskId: string, file: File) => Promise<string>;
+  uploadToR2WithProgress: (taskId: string, file: File) => Promise<string>;
 }
 
 export default function Step2Upload({
@@ -31,7 +31,7 @@ export default function Step2Upload({
   dbWakingUp,
   setStep,
   onComplete,
-  uploadToCloudinaryWithProgress
+  uploadToR2WithProgress
 }: Step2UploadProps) {
   const G = getGlass(t);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +79,7 @@ export default function Step2Upload({
 
   const handleRetryAllFailed = () => {
     retryableTasks.forEach(t => {
-      uploadToCloudinaryWithProgress(t.id, t.file).catch(() => {});
+      uploadToR2WithProgress(t.id, t.file).catch(() => {});
     });
   };
 
@@ -154,7 +154,7 @@ export default function Step2Upload({
               </div>
               <div className="text-[11px] text-red-400/90 mt-0.5 font-medium">
                 {retryableTasks.length > 0 
-                  ? "Cloudinary rate limit or network error occurred on some files. Tap Retry or remove problematic files."
+                  ? "R2 upload or network error occurred on some files. Tap Retry or remove problematic files."
                   : "Contains empty (0 B) or invalid files. Remove them to launch campaign smoothly."}
               </div>
             </div>
@@ -250,7 +250,7 @@ export default function Step2Upload({
                       <div className="flex items-center gap-1.5">
                         {task.file.size > 0 && (
                           <button 
-                            onClick={(e) => { e.stopPropagation(); uploadToCloudinaryWithProgress(task.id, task.file).catch(() => {}); }} 
+                            onClick={(e) => { e.stopPropagation(); uploadToR2WithProgress(task.id, task.file).catch(() => {}); }} 
                             className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-bold transition-colors"
                             style={{ border: `1px solid ${hexToRgba('#ef4444', 0.4)}`, color: '#ef4444', background: hexToRgba('#ef4444', 0.1) }}
                           >

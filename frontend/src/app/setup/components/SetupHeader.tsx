@@ -10,7 +10,13 @@ interface SetupHeaderProps {
   jd: string;
 }
 
-export default function SetupHeader({ theme: t, step, setStep, title, jd }: SetupHeaderProps) {
+export default function SetupHeader({ 
+  theme: t, 
+  step = 1, 
+  setStep = () => {}, 
+  title = "", 
+  jd = "" 
+}: SetupHeaderProps) {
   const G = getGlass(t);
 
   return (
@@ -23,9 +29,9 @@ export default function SetupHeader({ theme: t, step, setStep, title, jd }: Setu
           >
             Campaign Setup Wizard
           </span>
-          <span className="text-xs" style={{ color: t.txtMuted }}>• Step {step} of 2</span>
+          <span className="text-xs font-medium" style={{ color: t.txtMuted }}>• Step {step} of 2</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: t.txtPrimary }}>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
           {step === 1 ? "Create Recruitment Campaign" : "Upload Candidate Resumes"}
         </h1>
         <p className="text-xs sm:text-sm mt-1 font-medium max-w-2xl" style={{ color: t.txtSecondary }}>

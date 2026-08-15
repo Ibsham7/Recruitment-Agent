@@ -17,7 +17,7 @@ export default function Step2Sidebar({ theme: t, uploadTasks }: Step2SidebarProp
       {/* Batch Upload Summary Card */}
       <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
         <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ color: t.txtPrimary }}>
+          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
             Batch Upload Status
           </h3>
         </div>
@@ -52,7 +52,7 @@ export default function Step2Sidebar({ theme: t, uploadTasks }: Step2SidebarProp
       {/* AI Evaluation Pipeline Card */}
       <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
         <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ color: t.txtPrimary }}>
+          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
             What Happens Next?
           </h3>
         </div>

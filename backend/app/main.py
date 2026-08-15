@@ -83,6 +83,7 @@ app.add_middleware(
 )
 
 class CampaignCreate(BaseModel):
+    id: Optional[str] = None
     title: str
     jobDescription: str
     resumes: List[str]
@@ -91,20 +92,44 @@ class CampaignCreate(BaseModel):
     interviewConfig: Optional[str] = None
     strictness: str = "moderate"
 
+@app.get("/api/upload/presigned-url")
+async def get_presigned_upload_url(
+    filename: str, 
+    contentType: Optional[str] = "application/pdf", 
+    campaignId: Optional[str] = None,
+    user: dict = Depends(verify_jwt)
+):
+    """
+    Generate a presigned PUT URL for direct browser upload to Cloudflare R2.
+    Optionally isolates under campaigns/{campaignId}/ folder.
+    """
+    try:
+        from app.services.r2_service import generate_presigned_upload_url
+        res = generate_presigned_upload_url(filename, contentType or "application/pdf", campaign_id=campaignId)
+        return res
+    except ValueError as ve:
+        logger.error(f"R2 configuration error: {ve}")
+        raise HTTPException(status_code=500, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Failed to generate presigned upload URL: {e}")
+        raise HTTPException(status_code=500, detail="Could not generate upload URL")
+
 @app.post("/api/campaigns")
 async def create_campaign(campaign: CampaignCreate, request: Request, background_tasks: BackgroundTasks, user: dict = Depends(verify_jwt)):
     from prisma import Json
-    new_campaign = await prisma.campaign.create(
-        data={
-            "userId": user.get("sub"),
-            "title": campaign.title,
-            "jobDescription": campaign.jobDescription,
-            "hardFiltersConfig": Json(campaign.hardFiltersConfig) if campaign.hardFiltersConfig is not None else None,
-            "enableInterviews": campaign.enableInterviews,
-            "interviewConfig": campaign.interviewConfig,
-            "evaluationStrictness": campaign.strictness
-        }
-    )
+    campaign_data = {
+        "userId": user.get("sub"),
+        "title": campaign.title,
+        "jobDescription": campaign.jobDescription,
+        "hardFiltersConfig": Json(campaign.hardFiltersConfig) if campaign.hardFiltersConfig is not None else None,
+        "enableInterviews": campaign.enableInterviews,
+        "interviewConfig": campaign.interviewConfig,
+        "evaluationStrictness": campaign.strictness
+    }
+    if campaign.id and campaign.id.strip():
+        campaign_data["id"] = campaign.id.strip()
+
+    new_campaign = await prisma.campaign.create(data=campaign_data)
     
     # Synchronously generate canonical JD spec, distilled JD, and embedding before queuing any candidates
     jd_extraction_cost = 0.0
