@@ -16,8 +16,12 @@ async def generate_followup_probe(question_text: str, brief_answer: str) -> tupl
         "provide a specific example, or clarify their technical role/decisions."
     )
     try:
+        import asyncio
         model = get_model("fast")
-        res = await model.ainvoke([HumanMessage(content=prompt)])
+        res = await asyncio.wait_for(
+            model.ainvoke([HumanMessage(content=prompt)]),
+            timeout=10.0
+        )
         cost, token_info = extract_cost_and_tokens(res, model_name=MODELS.get("fast", "google/gemini-3.1-flash-lite"))
         return res.content.strip(), cost, token_info
     except Exception:

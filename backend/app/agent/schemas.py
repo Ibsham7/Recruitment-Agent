@@ -406,9 +406,15 @@ def normalize_telemetry(raw: Any) -> dict:
     if raw is None:
         raw = {}
     elif hasattr(raw, "model_dump"):
-        raw = raw.model_dump()
+        try:
+            raw = raw.model_dump()
+        except Exception:
+            raw = {}
     elif hasattr(raw, "dict"):
-        raw = raw.dict()
+        try:
+            raw = raw.dict()
+        except Exception:
+            raw = {}
     elif not isinstance(raw, dict):
         raw = {}
 
@@ -418,25 +424,50 @@ def normalize_telemetry(raw: Any) -> dict:
                 return raw[k]
         return default
 
-    blur_count = int(get_val(["blur_count", "blurCount"], 0))
-    focus_duration = float(get_val(["focus_duration_seconds", "focusDuration", "focus_duration"], 0.0))
-    paste_count = int(get_val(["paste_count", "pasteCount"], 0))
-    total_pasted = int(get_val(["total_pasted_chars", "totalPastedChars"], 0))
-    total_answer = int(get_val(["total_answer_chars", "totalAnswerChars"], 0))
+    def safe_int(keys, default=0):
+        val = get_val(keys, default)
+        try:
+            return max(0, int(val))
+        except (ValueError, TypeError):
+            return default
+
+    def safe_float(keys, default=0.0):
+        val = get_val(keys, default)
+        try:
+            return max(0.0, float(val))
+        except (ValueError, TypeError):
+            return default
+
+    blur_count = safe_int(["blur_count", "blurCount", "tabSwitches"], 0)
+    focus_duration = safe_float(["focus_duration_seconds", "focusDuration", "focus_duration"], 0.0)
+    paste_count = safe_int(["paste_count", "pasteCount"], 0)
+    total_pasted = safe_int(["total_pasted_chars", "totalPastedChars"], 0)
+    total_answer = safe_int(["total_answer_chars", "totalAnswerChars"], 0)
+
     paste_ratio_val = get_val(["paste_ratio", "pasteRatio"], None)
     if paste_ratio_val is not None:
-        paste_ratio = float(paste_ratio_val)
+        try:
+            ratio = float(paste_ratio_val)
+            if ratio > 1.0:  # Percentage format passed by client
+                ratio = ratio / 100.0
+            paste_ratio = round(min(1.0, max(0.0, ratio)), 4)
+        except (ValueError, TypeError):
+            paste_ratio = 0.0
     elif total_answer > 0:
-        paste_ratio = round(total_pasted / total_answer, 4)
+        paste_ratio = round(min(1.0, max(0.0, total_pasted / total_answer)), 4)
     else:
         paste_ratio = 0.0
 
-    paste_timestamps = get_val(["paste_timestamps", "pasteTimestamps"], [])
-    if not isinstance(paste_timestamps, list):
+    raw_timestamps = get_val(["paste_timestamps", "pasteTimestamps"], [])
+    if isinstance(raw_timestamps, list):
+        paste_timestamps = [str(ts) for ts in raw_timestamps if ts is not None]
+    else:
         paste_timestamps = []
 
-    flags = get_val(["flags"], [])
-    if not isinstance(flags, list):
+    raw_flags = get_val(["flags"], [])
+    if isinstance(raw_flags, list):
+        flags = [str(f) for f in raw_flags if f]
+    else:
         flags = []
 
     return {

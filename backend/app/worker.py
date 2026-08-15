@@ -73,6 +73,36 @@ async def resume_pipeline_task(ctx, candidate_id: str, resume_data: str):
     finally:
         candidate_id_ctx.set("")
 
+async def process_evaluator_task(ctx, candidate_id: str):
+    """
+    Background job to run evaluation for a candidate whose interview is completed.
+    """
+    candidate_id_ctx.set(candidate_id)
+    try:
+        log_event(candidate_id, "WORKER", f"Starting background evaluator task for candidate {candidate_id}")
+        candidate = await prisma.candidate.find_unique(
+            where={"id": candidate_id},
+            include={"campaign": True, "resume": True, "evaluation": True}
+        )
+        if not candidate or not candidate.evaluation:
+            log_event(candidate_id, "WORKER", f"Candidate {candidate_id} or evaluation record missing during evaluator task.")
+            return
+
+        raw_transcript = candidate.evaluation.interviewTranscript or []
+        if isinstance(raw_transcript, str):
+            import json
+            raw_transcript = json.loads(raw_transcript)
+        transcript_list = list(raw_transcript) if isinstance(raw_transcript, list) else []
+
+        from app.agent.api import _run_evaluator_background
+        await _run_evaluator_background(candidate_id, candidate, transcript_list)
+        log_event(candidate_id, "WORKER", f"Completed background evaluator task for candidate {candidate_id}")
+    except Exception as e:
+        log_error(candidate_id, "WORKER", e)
+        raise
+    finally:
+        candidate_id_ctx.set("")
+
 def _get_redis_settings() -> RedisSettings:
     url = os.getenv("REDIS_URL", "redis://localhost:6379")
     settings = RedisSettings.from_dsn(url)
@@ -89,7 +119,7 @@ class WorkerSettings:
     ARQ Worker Settings.
     This class is read by the `arq app.worker.WorkerSettings` command.
     """
-    functions = [process_cv_task, resume_pipeline_task]
+    functions = [process_cv_task, resume_pipeline_task, process_evaluator_task]
     cron_jobs = [
         cron(run_all_sweepers, hour={2, 14}, minute=0) # Run at 2 AM and 2 PM
     ]

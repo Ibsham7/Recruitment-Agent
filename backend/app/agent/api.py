@@ -560,216 +560,254 @@ async def _run_evaluator_background(candidate_id: str, candidate: Any, transcrip
     except Exception as e:
         print(f"[Interview] Evaluator background task failed for {candidate_id}: {e}")
 
-async def process_interview_answer(candidate_id: str, answer_text: str, telemetry: Any = None):
+async def process_interview_answer(candidate_id: str, answer_text: str, telemetry: Any = None, expected_turn_index: Optional[int] = None):
     """
     Processes candidate answer submission for an active interview session.
+    Uses atomic transaction and row locking to prevent dual-click or concurrent duplicate submissions.
     Updates interview transcript with embedded turn anti-cheat telemetry,
-    calculates cumulative antiCheatMetadata, handles non-blocking adaptive probing,
-    and advances or completes assessment when all questions are answered.
+    calculates cumulative antiCheatMetadata, handles non-blocking adaptive probing (10s timeout),
+    and enqueues background evaluation via ARQ Redis Queue when all questions are answered.
     """
-    candidate = await prisma.candidate.find_unique(
-        where={"id": candidate_id},
-        include={"campaign": True, "resume": True, "evaluation": True}
-    )
-    if not candidate or not candidate.evaluation:
-        print(f"[Interview] Candidate {candidate_id} or evaluation not found")
-        return
-
-    if candidate.status == "interview_completed":
-        print(f"[Interview] Candidate {candidate_id} has already completed interview")
-        return
-
     import json
+    import asyncio
     from datetime import datetime
     from app.agent.schemas import normalize_telemetry
 
-    now_str = datetime.now().strftime("%I:%M %p")
+    interview_is_complete = False
+    candidate_obj = None
+    transcript_snapshot = []
 
-    raw_questions = candidate.evaluation.interviewQuestions or []
-    if isinstance(raw_questions, str):
-        raw_questions = json.loads(raw_questions)
-    if not isinstance(raw_questions, list):
-        raw_questions = []
-
-    raw_transcript = candidate.evaluation.interviewTranscript or []
-    if isinstance(raw_transcript, str):
-        raw_transcript = json.loads(raw_transcript)
-    transcript_list = list(raw_transcript)
-
-    # 1. Count candidate responses so far
-    cand_turns = [t for t in transcript_list if isinstance(t, dict) and t.get("role") == "candidate"]
-    curr_ans_idx = len(cand_turns)  # Index of question currently being answered
-
-    # Get question text being answered
-    q_obj = raw_questions[curr_ans_idx] if curr_ans_idx < len(raw_questions) else (raw_questions[-1] if raw_questions else {})
-    q_text = q_obj.get("question") if isinstance(q_obj, dict) else str(q_obj)
-
-    # Ensure initial AI question is in transcript if transcript was completely empty
-    if len(transcript_list) == 0 and len(raw_questions) > 0:
-        first_q = raw_questions[0]
-        q1_text = first_q.get("question") if isinstance(first_q, dict) else str(first_q)
-        transcript_list.append({"role": "ai", "message": q1_text, "time": now_str})
-
-    # Normalize turn telemetry and ensure answer character metrics are recorded
-    telemetry_dict = normalize_telemetry(telemetry)
-    ans_len = len(answer_text)
-    if telemetry_dict.get("total_answer_chars", 0) == 0:
-        telemetry_dict["total_answer_chars"] = ans_len
-        telemetry_dict["totalAnswerChars"] = ans_len
-        if telemetry_dict.get("total_pasted_chars", 0) > 0 and ans_len > 0:
-            calc_ratio = round(telemetry_dict["total_pasted_chars"] / ans_len, 4)
-            telemetry_dict["paste_ratio"] = calc_ratio
-            telemetry_dict["pasteRatio"] = calc_ratio
-
-    # Record candidate answer turn containing embedded turn telemetry
-    transcript_list.append({
-        "role": "candidate",
-        "message": answer_text,
-        "time": now_str,
-        "telemetry": telemetry_dict
-    })
-
-    # Check for adaptive probing: if answer is short (< 20 words) and probe not generated yet for this interview
-    words = answer_text.strip().split()
-    probe_already_exists = any(
-        isinstance(q, dict) and str(q.get("question", "")).startswith("[Follow-up]")
-        for q in raw_questions
-    )
-
-    probe_added = False
-    if len(words) < 20 and not probe_already_exists and curr_ans_idx < 3:
+    async with prisma.tx() as tx:
+        # Acquire atomic row-level transaction lock on Evaluation record to prevent concurrent overwrite
         try:
-            from app.agent.nodes.interviewer import generate_followup_probe
-            probe_question = await generate_followup_probe(q_text, answer_text)
-            if probe_question:
-                new_probe_q = {
-                    "question": f"[Follow-up] {probe_question}",
-                    "topic": "Clarification",
-                    "difficulty": "Adaptive",
-                    "is_probe": True,
-                    "is_adaptive": True,
-                    "timer_seconds": 45
-                }
-                raw_questions.append(new_probe_q)
-                probe_added = True
-        except Exception as e:
-            print(f"[Interview] Error generating follow-up probe: {e}")
+            await tx.execute_raw('SELECT "id" FROM "Evaluation" WHERE "candidateId" = $1 FOR UPDATE;', candidate_id)
+        except Exception:
+            pass
 
-    # Next AI question to log into transcript for audit/display
-    next_cand_turn_idx = curr_ans_idx + 1
-    if next_cand_turn_idx < len(raw_questions):
-        next_q_obj = raw_questions[next_cand_turn_idx]
-        next_q_text = next_q_obj.get("question") if isinstance(next_q_obj, dict) else str(next_q_obj)
-        transcript_list.append({"role": "ai", "message": next_q_text, "time": now_str})
-
-    # Calculate cumulative candidate antiCheatMetadata across all candidate turns
-    total_blur = 0
-    total_focus = 0.0
-    total_paste_cnt = 0
-    total_pasted_ch = 0
-    total_ans_ch = 0
-    all_timestamps = []
-    all_flags = []
-
-    for turn in transcript_list:
-        if isinstance(turn, dict) and turn.get("role") == "candidate":
-            t_telemetry = turn.get("telemetry") or {}
-            if isinstance(t_telemetry, dict):
-                total_blur += int(t_telemetry.get("blur_count") or t_telemetry.get("blurCount") or 0)
-                total_focus += float(t_telemetry.get("focus_duration_seconds") or t_telemetry.get("focusDuration") or t_telemetry.get("focus_duration") or 0.0)
-                total_paste_cnt += int(t_telemetry.get("paste_count") or t_telemetry.get("pasteCount") or 0)
-                total_pasted_ch += int(t_telemetry.get("total_pasted_chars") or t_telemetry.get("totalPastedChars") or 0)
-                
-                turn_msg_len = len(turn.get("message", ""))
-                t_ans_ch = int(t_telemetry.get("total_answer_chars") or t_telemetry.get("totalAnswerChars") or turn_msg_len)
-                total_ans_ch += t_ans_ch
-                
-                ts = t_telemetry.get("paste_timestamps") or t_telemetry.get("pasteTimestamps") or []
-                if isinstance(ts, list):
-                    all_timestamps.extend(ts)
-                    
-                fl = t_telemetry.get("flags") or []
-                if isinstance(fl, list):
-                    all_flags.extend(fl)
-
-    cum_paste_ratio = round(total_pasted_ch / total_ans_ch, 4) if total_ans_ch > 0 else 0.0
-
-    cumulative_anti_cheat_metadata = {
-        "blur_count": total_blur,
-        "blurCount": total_blur,
-        "focus_duration_seconds": total_focus,
-        "focusDuration": total_focus,
-        "paste_count": total_paste_cnt,
-        "pasteCount": total_paste_cnt,
-        "total_pasted_chars": total_pasted_ch,
-        "totalPastedChars": total_pasted_ch,
-        "total_answer_chars": total_ans_ch,
-        "totalAnswerChars": total_ans_ch,
-        "paste_ratio": cum_paste_ratio,
-        "pasteRatio": cum_paste_ratio,
-        "paste_timestamps": all_timestamps,
-        "pasteTimestamps": all_timestamps,
-        "flags": list(dict.fromkeys([str(f) for f in all_flags if f]))
-    }
-
-    # Run deterministic anti-cheat signal analysis on accumulated candidate answers
-    answers_given = [t.get("message", "") for t in transcript_list if isinstance(t, dict) and t.get("role") == "candidate"]
-    from app.agent.nodes.evaluator import analyze_anti_cheat_signals
-    heuristic_ai_score, heuristic_flags = analyze_anti_cheat_signals(answers_given, cumulative_anti_cheat_metadata)
-
-    existing_flags = cumulative_anti_cheat_metadata.get("flags", [])
-    flag_strings = list(dict.fromkeys(existing_flags + [f["flag"] for f in heuristic_flags if isinstance(f, dict) and "flag" in f]))
-    cumulative_anti_cheat_metadata["flags"] = flag_strings
-
-    # Save interviewTranscript, antiCheatMetadata, aiGeneratedLikelihoodScore, and antiCheatFlags to Evaluation table in Prisma
-    eval_update: dict = {
-        "interviewTranscript": Json(transcript_list),
-        "antiCheatMetadata": Json(cumulative_anti_cheat_metadata),
-        "aiGeneratedLikelihoodScore": heuristic_ai_score,
-        "antiCheatFlags": Json(heuristic_flags)
-    }
-    if probe_added:
-        eval_update["interviewQuestions"] = Json(raw_questions)
-
-    await prisma.evaluation.update(
-        where={"candidateId": candidate_id},
-        data=eval_update
-    )
-
-    # Check if all questions (including any added probes) have been answered
-    if next_cand_turn_idx >= len(raw_questions):
-        ans_count = len(answers_given)
-        avg_words = sum(len(a.split()) for a in answers_given) / max(1, ans_count) if ans_count > 0 else 0
-        
-        # Initial deterministic evaluation scores
-        tech_score = min(95.0, max(40.0, avg_words * 0.8)) if not heuristic_flags else max(10.0, min(65.0, avg_words * 0.5))
-        comm_score = min(95.0, max(40.0, avg_words * 0.7)) if not heuristic_flags else max(10.0, min(60.0, avg_words * 0.4))
-        cult_score = min(90.0, max(50.0, 70.0))
-        
-        if any(f.get("severity") == "high" for f in heuristic_flags if isinstance(f, dict)):
-            tech_score = min(25.0, tech_score)
-            comm_score = min(25.0, comm_score)
-
-        init_overall = round((tech_score * 0.4) + (comm_score * 0.3) + (cult_score * 0.3), 1)
-
-        await prisma.evaluation.update(
-            where={"candidateId": candidate_id},
-            data={
-                "overallScore": init_overall,
-                "technicalScore": tech_score,
-                "communicationScore": comm_score,
-                "culturalFitScore": cult_score,
-                "aiGeneratedLikelihoodScore": heuristic_ai_score,
-                "antiCheatFlags": Json(heuristic_flags),
-            }
-        )
-
-        await prisma.candidate.update(
+        candidate = await tx.candidate.find_unique(
             where={"id": candidate_id},
-            data={"status": "interview_completed"}
+            include={"campaign": True, "resume": True, "evaluation": True}
         )
-        import asyncio
-        asyncio.create_task(_run_evaluator_background(candidate_id, candidate, transcript_list))
+        if not candidate or not candidate.evaluation:
+            print(f"[Interview] Candidate {candidate_id} or evaluation not found")
+            return
+
+        if candidate.status == "interview_completed":
+            print(f"[Interview] Candidate {candidate_id} has already completed interview")
+            return
+
+        raw_questions = candidate.evaluation.interviewQuestions or []
+        if isinstance(raw_questions, str):
+            raw_questions = json.loads(raw_questions)
+        if not isinstance(raw_questions, list):
+            raw_questions = []
+
+        raw_transcript = candidate.evaluation.interviewTranscript or []
+        if isinstance(raw_transcript, str):
+            raw_transcript = json.loads(raw_transcript)
+        transcript_list = list(raw_transcript)
+
+        # Count candidate responses so far
+        cand_turns = [t for t in transcript_list if isinstance(t, dict) and t.get("role") == "candidate"]
+        curr_ans_idx = len(cand_turns)  # Index of question currently being answered
+
+        # Turn Index Validation: If client specifies expected_turn_index, reject out-of-order or duplicate submissions
+        if expected_turn_index is not None and expected_turn_index != curr_ans_idx:
+            print(f"[Interview] Duplicate or out-of-order submission ignored for candidate {candidate_id}: expected turn {curr_ans_idx}, got {expected_turn_index}")
+            return
+
+        if curr_ans_idx >= len(raw_questions) and len(raw_questions) > 0:
+            print(f"[Interview] All questions already answered for candidate {candidate_id}; skipping duplicate turn submission.")
+            return
+
+        now_str = datetime.now().strftime("%I:%M %p")
+
+        # Get question text being answered
+        q_obj = raw_questions[curr_ans_idx] if curr_ans_idx < len(raw_questions) else (raw_questions[-1] if raw_questions else {})
+        q_text = q_obj.get("question") if isinstance(q_obj, dict) else str(q_obj)
+
+        # Ensure initial AI question is in transcript if transcript was completely empty
+        if len(transcript_list) == 0 and len(raw_questions) > 0:
+            first_q = raw_questions[0]
+            q1_text = first_q.get("question") if isinstance(first_q, dict) else str(first_q)
+            transcript_list.append({"role": "ai", "message": q1_text, "time": now_str})
+
+        # Normalize turn telemetry and ensure answer character metrics are recorded
+        telemetry_dict = normalize_telemetry(telemetry)
+        ans_len = len(answer_text)
+        if telemetry_dict.get("total_answer_chars", 0) == 0:
+            telemetry_dict["total_answer_chars"] = ans_len
+            telemetry_dict["totalAnswerChars"] = ans_len
+            if telemetry_dict.get("total_pasted_chars", 0) > 0 and ans_len > 0:
+                calc_ratio = round(telemetry_dict["total_pasted_chars"] / ans_len, 4)
+                telemetry_dict["paste_ratio"] = calc_ratio
+                telemetry_dict["pasteRatio"] = calc_ratio
+
+        # Record candidate answer turn containing embedded turn telemetry
+        transcript_list.append({
+            "role": "candidate",
+            "message": answer_text,
+            "time": now_str,
+            "telemetry": telemetry_dict
+        })
+
+        # Check for adaptive probing: if answer is short (< 20 words) and probe not generated yet for this interview
+        words = answer_text.strip().split()
+        probe_already_exists = any(
+            isinstance(q, dict) and str(q.get("question", "")).startswith("[Follow-up]")
+            for q in raw_questions
+        )
+
+        probe_added = False
+        if len(words) < 20 and not probe_already_exists and curr_ans_idx < 3:
+            try:
+                from app.agent.nodes.interviewer import generate_followup_probe
+                res_tuple = await asyncio.wait_for(generate_followup_probe(q_text, answer_text), timeout=10.0)
+                probe_question = res_tuple[0] if isinstance(res_tuple, tuple) else str(res_tuple)
+                if probe_question:
+                    new_probe_q = {
+                        "question": f"[Follow-up] {probe_question}",
+                        "topic": "Clarification",
+                        "difficulty": "Adaptive",
+                        "is_probe": True,
+                        "is_adaptive": True,
+                        "timer_seconds": 45
+                    }
+                    raw_questions.append(new_probe_q)
+                    probe_added = True
+            except Exception as e:
+                print(f"[Interview] Error generating follow-up probe: {e}")
+
+        # Next AI question to log into transcript for audit/display
+        next_cand_turn_idx = curr_ans_idx + 1
+        if next_cand_turn_idx < len(raw_questions):
+            next_q_obj = raw_questions[next_cand_turn_idx]
+            next_q_text = next_q_obj.get("question") if isinstance(next_q_obj, dict) else str(next_q_obj)
+            transcript_list.append({"role": "ai", "message": next_q_text, "time": now_str})
+
+        # Calculate cumulative candidate antiCheatMetadata across all candidate turns
+        total_blur = 0
+        total_focus = 0.0
+        total_paste_cnt = 0
+        total_pasted_ch = 0
+        total_ans_ch = 0
+        all_timestamps = []
+        all_flags = []
+
+        for turn in transcript_list:
+            if isinstance(turn, dict) and turn.get("role") == "candidate":
+                t_telemetry = turn.get("telemetry") or {}
+                if isinstance(t_telemetry, dict):
+                    total_blur += int(t_telemetry.get("blur_count") or t_telemetry.get("blurCount") or 0)
+                    total_focus += float(t_telemetry.get("focus_duration_seconds") or t_telemetry.get("focusDuration") or t_telemetry.get("focus_duration") or 0.0)
+                    total_paste_cnt += int(t_telemetry.get("paste_count") or t_telemetry.get("pasteCount") or 0)
+                    total_pasted_ch += int(t_telemetry.get("total_pasted_chars") or t_telemetry.get("totalPastedChars") or 0)
+                    
+                    turn_msg_len = len(turn.get("message", ""))
+                    t_ans_ch = int(t_telemetry.get("total_answer_chars") or t_telemetry.get("totalAnswerChars") or turn_msg_len)
+                    total_ans_ch += t_ans_ch
+                    
+                    ts = t_telemetry.get("paste_timestamps") or t_telemetry.get("pasteTimestamps") or []
+                    if isinstance(ts, list):
+                        all_timestamps.extend(ts)
+                        
+                    fl = t_telemetry.get("flags") or []
+                    if isinstance(fl, list):
+                        all_flags.extend(fl)
+
+        cum_paste_ratio = round(total_pasted_ch / total_ans_ch, 4) if total_ans_ch > 0 else 0.0
+
+        cumulative_anti_cheat_metadata = {
+            "blur_count": total_blur,
+            "blurCount": total_blur,
+            "focus_duration_seconds": total_focus,
+            "focusDuration": total_focus,
+            "paste_count": total_paste_cnt,
+            "pasteCount": total_paste_cnt,
+            "total_pasted_chars": total_pasted_ch,
+            "totalPastedChars": total_pasted_ch,
+            "total_answer_chars": total_ans_ch,
+            "totalAnswerChars": total_ans_ch,
+            "paste_ratio": cum_paste_ratio,
+            "pasteRatio": cum_paste_ratio,
+            "paste_timestamps": all_timestamps,
+            "pasteTimestamps": all_timestamps,
+            "flags": list(dict.fromkeys([str(f) for f in all_flags if f]))
+        }
+
+        # Run deterministic anti-cheat signal analysis on accumulated candidate answers
+        answers_given = [t.get("message", "") for t in transcript_list if isinstance(t, dict) and t.get("role") == "candidate"]
+        from app.agent.nodes.evaluator import analyze_anti_cheat_signals
+        heuristic_ai_score, heuristic_flags = analyze_anti_cheat_signals(answers_given, cumulative_anti_cheat_metadata)
+
+        existing_flags = cumulative_anti_cheat_metadata.get("flags", [])
+        flag_strings = list(dict.fromkeys(existing_flags + [f["flag"] for f in heuristic_flags if isinstance(f, dict) and "flag" in f]))
+        cumulative_anti_cheat_metadata["flags"] = flag_strings
+
+        # Save interviewTranscript, antiCheatMetadata, aiGeneratedLikelihoodScore, and antiCheatFlags to Evaluation table in Prisma
+        eval_update: dict = {
+            "interviewTranscript": Json(transcript_list),
+            "antiCheatMetadata": Json(cumulative_anti_cheat_metadata),
+            "aiGeneratedLikelihoodScore": heuristic_ai_score,
+            "antiCheatFlags": Json(heuristic_flags)
+        }
+        if probe_added:
+            eval_update["interviewQuestions"] = Json(raw_questions)
+
+        await tx.evaluation.update(
+            where={"candidateId": candidate_id},
+            data=eval_update
+        )
+
+        if next_cand_turn_idx >= len(raw_questions):
+            interview_is_complete = True
+            ans_count = len(answers_given)
+            avg_words = sum(len(a.split()) for a in answers_given) / max(1, ans_count) if ans_count > 0 else 0
+            
+            # Initial deterministic evaluation scores
+            tech_score = min(95.0, max(40.0, avg_words * 0.8)) if not heuristic_flags else max(10.0, min(65.0, avg_words * 0.5))
+            comm_score = min(95.0, max(40.0, avg_words * 0.7)) if not heuristic_flags else max(10.0, min(60.0, avg_words * 0.4))
+            cult_score = min(90.0, max(50.0, 70.0))
+            
+            if any(f.get("severity") == "high" for f in heuristic_flags if isinstance(f, dict)):
+                tech_score = min(25.0, tech_score)
+                comm_score = min(25.0, comm_score)
+
+            init_overall = round((tech_score * 0.4) + (comm_score * 0.3) + (cult_score * 0.3), 1)
+
+            await tx.evaluation.update(
+                where={"candidateId": candidate_id},
+                data={
+                    "overallScore": init_overall,
+                    "technicalScore": tech_score,
+                    "communicationScore": comm_score,
+                    "culturalFitScore": cult_score,
+                    "aiGeneratedLikelihoodScore": heuristic_ai_score,
+                    "antiCheatFlags": Json(heuristic_flags),
+                }
+            )
+
+            await tx.candidate.update(
+                where={"id": candidate_id},
+                data={"status": "interview_completed"}
+            )
+
+        candidate_obj = candidate
+        transcript_snapshot = transcript_list
+
+    # Outside transaction, enqueue background evaluation task to ARQ Redis Queue
+    if interview_is_complete:
+        from app.database import get_redis_pool
+        redis_pool = await get_redis_pool()
+        if redis_pool:
+            try:
+                await redis_pool.enqueue_job("process_evaluator_task", candidate_id)
+                print(f"[Interview] Enqueued process_evaluator_task for candidate {candidate_id} in ARQ Redis Queue")
+            except Exception as eq_err:
+                print(f"[Interview] Failed to enqueue ARQ evaluation task, falling back to local task: {eq_err}")
+                asyncio.create_task(_run_evaluator_background(candidate_id, candidate_obj, transcript_snapshot))
+        else:
+            asyncio.create_task(_run_evaluator_background(candidate_id, candidate_obj, transcript_snapshot))
 
 async def resume_pipeline(candidate_id: str, resume_data: Any, checkpointer=None):
     candidate = await prisma.candidate.find_unique(where={"id": candidate_id})

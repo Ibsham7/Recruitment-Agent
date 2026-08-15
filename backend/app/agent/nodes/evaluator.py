@@ -239,7 +239,30 @@ Ensure your output populates:
         except Exception as e:
             logger.warning(f"[Evaluator] Attempt {attempt+1} failed: {e}.")
             if attempt == max_retries - 1:
-                raise RuntimeError(f"Failed to generate evaluation report after {max_retries} attempts: {e}")
+                logger.error(f"[Evaluator] All LLM evaluation retries failed. Constructing deterministic fallback evaluation: {e}")
+                answers_count = len(transcript.answers_given)
+                avg_words = sum(len(a.split()) for a in transcript.answers_given) / max(1, answers_count) if answers_count > 0 else 0
+                
+                tech_score = min(95.0, max(40.0, avg_words * 0.8)) if not heuristic_flags else max(10.0, min(65.0, avg_words * 0.5))
+                comm_score = min(95.0, max(40.0, avg_words * 0.7)) if not heuristic_flags else max(10.0, min(60.0, avg_words * 0.4))
+                cult_score = min(90.0, max(50.0, 70.0))
+                overall = round((tech_score * 0.4) + (comm_score * 0.3) + (cult_score * 0.3), 1)
+
+                rec = "shortlist" if overall >= 75 and not heuristic_flags else ("hold" if overall >= 50 else "reject")
+
+                report = EvaluationReport(
+                    overall_score=overall,
+                    communication_score=comm_score,
+                    technical_score=tech_score,
+                    cultural_fit_score=cult_score,
+                    strengths=["Interview completed."],
+                    concerns=["Deterministic evaluation applied due to evaluator service timeout/outage."] + [f["description"] for f in heuristic_flags if isinstance(f, dict) and "description" in f],
+                    recommendation=rec,
+                    summary=f"Interview completed with score of {overall}/100 (System Fallback). Human review required.",
+                    ai_generated_likelihood_score=heuristic_ai_score,
+                    anti_cheat_flags=heuristic_flags,
+                    chain_of_thought=f"System Note: Primary LLM Evaluator failed across {max_retries} attempts ({e}). Heuristic anti-cheat scores assigned."
+                )
 
     return {
         "evaluation_report": report,
