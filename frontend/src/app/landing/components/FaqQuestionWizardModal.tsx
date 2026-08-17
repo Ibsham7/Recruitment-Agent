@@ -136,7 +136,8 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
     const fetchKnowledge = async () => {
       setIsSearching(true);
       try {
-        const res = await fetch("http://localhost:8000/api/faqs/search-knowledge", {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+        const res = await fetch(`${backendUrl}/api/faqs/search-knowledge`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ query: searchQuery, category }),
@@ -221,7 +222,8 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
         preferredContact,
       };
 
-      const res = await fetch("http://localhost:8000/api/faqs/questions", {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+      const res = await fetch(`${backendUrl}/api/faqs/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
