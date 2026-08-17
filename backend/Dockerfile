@@ -8,7 +8,9 @@ FROM python:3.11-slim AS base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
-    PORT=8000
+    PORT=8000 \
+    PRISMA_BINARY_CACHE_DIR=/app/.cache/prisma-python/binaries \
+    XDG_CACHE_HOME=/app/.cache
 
 # Install system dependencies:
 # - OpenSSL & CA certificates for TLS

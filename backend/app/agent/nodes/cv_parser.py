@@ -27,9 +27,12 @@ from typing import Tuple, Optional, Dict
 import httpx
 
 try:
-    import fitz
+    import pymupdf as fitz
 except ImportError:
-    fitz = None
+    try:
+        import fitz
+    except ImportError:
+        fitz = None
 
 
 from urllib.parse import urlparse
