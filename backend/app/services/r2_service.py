@@ -23,6 +23,31 @@ def get_r2_client():
         region_name="auto"
     )
 
+def ensure_r2_bucket_cors(bucket_name: Optional[str] = None) -> bool:
+    """
+    Configures bucket CORS rules on Cloudflare R2 to allow direct browser uploads from frontend origins.
+    """
+    try:
+        s3_client = get_r2_client()
+        target_bucket = bucket_name or os.getenv("R2_BUCKET_NAME", "recruitment-cvs")
+        cors_config = {
+            'CORSRules': [
+                {
+                    'AllowedHeaders': ['*'],
+                    'AllowedMethods': ['GET', 'PUT', 'POST', 'HEAD', 'DELETE'],
+                    'AllowedOrigins': ['*'],
+                    'ExposeHeaders': ['ETag'],
+                    'MaxAgeSeconds': 3600
+                }
+            ]
+        }
+        s3_client.put_bucket_cors(Bucket=target_bucket, CORSConfiguration=cors_config)
+        logger.info(f"[R2 Service] Successfully verified and applied CORS rules on bucket '{target_bucket}'.")
+        return True
+    except Exception as e:
+        logger.warning(f"[R2 Service] Could not apply CORS rules to R2 bucket: {e}")
+        return False
+
 def generate_presigned_upload_url(
     filename: str, 
     content_type: str = "application/pdf", 

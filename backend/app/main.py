@@ -52,6 +52,14 @@ async def lifespan(app: FastAPI):
     await prisma.connect()
     await init_db_pool()
     app.state.redis = await create_pool(_get_redis_settings())
+    
+    # Verify and configure Cloudflare R2 bucket CORS rules for browser uploads
+    try:
+        from app.services.r2_service import ensure_r2_bucket_cors
+        await asyncio.to_thread(ensure_r2_bucket_cors)
+    except Exception as e:
+        logger.warning(f"R2 CORS startup verification warning: {e}")
+
     yield
     # Shutdown: Disconnect database pool and Redis Queue
     await prisma.disconnect()
@@ -93,6 +101,7 @@ for default_origin in ["http://localhost:5173", "http://localhost:3000", "http:/
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

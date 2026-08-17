@@ -3,11 +3,40 @@ from fastapi import HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import httpx
+import time
+from typing import Dict, Any, Tuple, Optional
+from app.core.logging import logger
 
 security = HTTPBearer()
 
+# In-memory token cache: token_hash -> (payload, expires_at)
+_token_cache: Dict[str, Tuple[Dict[str, Any], float]] = {}
+
+# Shared HTTP client for Supabase GoTrue fallback with connection pooling
+_http_client: Optional[httpx.AsyncClient] = None
+
+def _get_shared_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(
+            timeout=15.0,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=50)
+        )
+    return _http_client
+
 async def verify_jwt(credentials: HTTPAuthorizationCredentials = Security(security)):
     token = credentials.credentials
+    now = time.time()
+    
+    # 1. Check in-memory cache for fast sub-millisecond response on concurrent requests
+    cached = _token_cache.get(token)
+    if cached:
+        payload, expires_at = cached
+        if now < expires_at:
+            return payload
+        else:
+            _token_cache.pop(token, None)
+
     secret = os.getenv("SUPABASE_JWT_SECRET")
     
     if not secret or secret == "your-supabase-jwt-secret-here":
@@ -19,6 +48,8 @@ async def verify_jwt(credentials: HTTPAuthorizationCredentials = Security(securi
     try:
         # Decode token. Disable audience verification since it might vary
         payload = jwt.decode(token, secret, algorithms=["HS256"], options={"verify_aud": False})
+        exp = payload.get("exp", now + 300)
+        _token_cache[token] = (payload, min(exp, now + 300))
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
@@ -31,20 +62,24 @@ async def verify_jwt(credentials: HTTPAuthorizationCredentials = Security(securi
             raise HTTPException(status_code=401, detail="Invalid token signature and Supabase config missing")
             
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{supabase_url}/auth/v1/user",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "apikey": supabase_anon_key
-                    },
-                    timeout=5.0
-                )
+            client = _get_shared_client()
+            response = await client.get(
+                f"{supabase_url}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": supabase_anon_key
+                }
+            )
             if response.status_code == 200:
                 user_data = response.json()
-                return {"sub": user_data.get("id"), **user_data}
+                payload = {"sub": user_data.get("id"), **user_data}
+                # Cache successful auth verification for up to 5 minutes to prevent hammering Supabase
+                _token_cache[token] = (payload, now + 300)
+                return payload
             else:
                 raise HTTPException(status_code=401, detail="Invalid token")
-        except httpx.RequestError:
+        except httpx.RequestError as req_err:
+            logger.error(f"[Auth] Supabase GoTrue verification failed: {req_err}")
             raise HTTPException(status_code=500, detail="Auth verification failed")
+
 
