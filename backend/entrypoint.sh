@@ -23,8 +23,8 @@ shutdown() {
     exit 0
 }
 
-# Trap termination signals sent by Docker / Render
-trap shutdown SIGTERM SIGINT SIGQUIT
+# Trap termination signals sent by Docker / Render (POSIX sh / dash compliant)
+trap shutdown TERM INT QUIT
 
 echo "[Entrypoint] Starting ARQ Background Worker..."
 arq app.worker.WorkerSettings &
