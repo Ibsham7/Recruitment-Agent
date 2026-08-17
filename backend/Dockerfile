@@ -10,11 +10,16 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     PORT=8000
 
-# Install system dependencies (OpenSSL & CA certificates for Prisma query engine and TLS)
+# Install system dependencies:
+# - OpenSSL & CA certificates for TLS
+# - libatomic1, Node.js, and npm for Prisma CLI generator
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     openssl \
+    libatomic1 \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
