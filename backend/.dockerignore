@@ -1,0 +1,46 @@
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Node / JS artifacts
+node_modules/
+package-lock.json
+
+# Logs & Temporary Files
+*.log
+log.txt
+debug_output.json
+outputs/
+
+# Test data & scripts
+test/
+tests/
+test pdfs/
+test_*.py
+test.pdf
+sample_data/
+*.bak
+
+# OS / Editor Metadata
+.git/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -15,3 +15,5 @@ redis
 pymupdf
 python-docx
 boto3
+httpx
+PyJWT

@@ -88,6 +88,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health", tags=["System"])
+@app.get("/api/health", tags=["System"])
+async def health_check():
+    """Health check probe endpoint for container orchestration and uptime monitoring."""
+    return {"status": "ok", "service": "recruitment-agent-backend"}
+
 class CampaignCreate(BaseModel):
     id: Optional[str] = None
     title: str
