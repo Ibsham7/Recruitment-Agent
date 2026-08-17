@@ -67,10 +67,16 @@ async def _distill_jd_with_cost_async(jd_text: str) -> tuple[str, float, dict]:
     """Distill the JD to its core requirements and compute token costs."""
     try:
         from app.agent.utils import extract_cost_and_tokens
+        from app.agent.security import build_secure_llm_payload
+        secure_jd_payload, _ = build_secure_llm_payload(
+            jd_text,
+            label="JOB_DESCRIPTION",
+            task_description="Distill the core technical qualification requirements from this Job Description"
+        )
         model = get_model("fast")
         response = await model.ainvoke([
             SystemMessage(content=JD_DISTILLER_SYSTEM),
-            HumanMessage(content=jd_text)
+            HumanMessage(content=secure_jd_payload)
         ])
         cost, token_info = extract_cost_and_tokens(response, model_name="google/gemini-3.1-flash-lite")
         return response.content, cost, token_info

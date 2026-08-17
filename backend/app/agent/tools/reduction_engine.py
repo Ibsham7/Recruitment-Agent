@@ -307,11 +307,11 @@ def reduce_match(
         else:
             exp_text_parts.append(str(getattr(p, "title", "")) + " " + str(getattr(p, "description", "")))
 
-    exp_corpus = (" ".join(exp_text_parts) + " " + raw_cv).lower()
+    exp_corpus = " ".join(exp_text_parts).lower()
 
     # Check if quote or requirement tokens exist in work/project history
     quote_in_exp = False
-    if has_substantive_quote:
+    if has_substantive_quote and exp_corpus.strip():
         snippet = ev_quote_clean[:30].strip()
         if snippet and snippet in exp_corpus:
             quote_in_exp = True
@@ -358,7 +358,15 @@ def reduce_match(
     else:
         skills_declared = getattr(candidate_profile, "skills_declared", []) or getattr(candidate_profile, "skills", []) or []
 
-    if declared_in_skills or alias_hit(requirement_name, skills_declared):
+    skills_decl_lower = [str(s).lower().strip() for s in skills_declared if s]
+    ev_in_skills = bool(
+        ev_quote_clean and any(
+            s in ev_quote_clean or ev_quote_clean in s
+            for s in skills_decl_lower if len(s) >= 2
+        )
+    )
+
+    if declared_in_skills or alias_hit(requirement_name, skills_declared) or ev_in_skills:
         return "partial", "claim_only"
 
     # Branch C: Absent — no bullet evidence, not declared in skills

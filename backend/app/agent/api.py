@@ -2,7 +2,7 @@ import asyncio
 import os
 import contextlib
 from urllib.parse import urlparse, urlunparse
-from typing import Any, cast
+from typing import Any, cast, Optional, Dict, List, Tuple
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -631,9 +631,13 @@ async def process_interview_answer(candidate_id: str, answer_text: str, telemetr
             q1_text = first_q.get("question") if isinstance(first_q, dict) else str(first_q)
             transcript_list.append({"role": "ai", "message": q1_text, "time": now_str})
 
+        # Sanitize answer text at intake and scan for adversarial prompt injection
+        from app.agent.security import sanitize_interview_answer, MAX_ANSWER_CHARS
+        sanitized_answer, scan_res = sanitize_interview_answer(answer_text, max_chars=MAX_ANSWER_CHARS)
+
         # Normalize turn telemetry and ensure answer character metrics are recorded
         telemetry_dict = normalize_telemetry(telemetry)
-        ans_len = len(answer_text)
+        ans_len = len(sanitized_answer)
         if telemetry_dict.get("total_answer_chars", 0) == 0:
             telemetry_dict["total_answer_chars"] = ans_len
             telemetry_dict["totalAnswerChars"] = ans_len
@@ -642,16 +646,23 @@ async def process_interview_answer(candidate_id: str, answer_text: str, telemetr
                 telemetry_dict["paste_ratio"] = calc_ratio
                 telemetry_dict["pasteRatio"] = calc_ratio
 
+        # Record prompt injection security flags in turn telemetry
+        if scan_res.is_suspicious:
+            t_flags = telemetry_dict.setdefault("flags", [])
+            for s_flag in scan_res.security_flags:
+                if s_flag not in t_flags:
+                    t_flags.append(s_flag)
+
         # Record candidate answer turn containing embedded turn telemetry
         transcript_list.append({
             "role": "candidate",
-            "message": answer_text,
+            "message": sanitized_answer,
             "time": now_str,
             "telemetry": telemetry_dict
         })
 
         # Check for adaptive probing: if answer is short (< 20 words) and probe not generated yet for this interview
-        words = answer_text.strip().split()
+        words = sanitized_answer.strip().split()
         probe_already_exists = any(
             isinstance(q, dict) and str(q.get("question", "")).startswith("[Follow-up]")
             for q in raw_questions
@@ -661,7 +672,7 @@ async def process_interview_answer(candidate_id: str, answer_text: str, telemetr
         if len(words) < 20 and not probe_already_exists and curr_ans_idx < 3:
             try:
                 from app.agent.nodes.interviewer import generate_followup_probe
-                res_tuple = await asyncio.wait_for(generate_followup_probe(q_text, answer_text), timeout=10.0)
+                res_tuple = await asyncio.wait_for(generate_followup_probe(q_text, sanitized_answer), timeout=10.0)
                 probe_question = res_tuple[0] if isinstance(res_tuple, tuple) else str(res_tuple)
                 if probe_question:
                     new_probe_q = {

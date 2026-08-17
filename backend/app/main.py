@@ -20,6 +20,12 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
+if sys.platform == "win32":
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    except Exception:
+        pass
+
 from app.agent.api import start_candidate_pipeline, resume_pipeline, generate_on_demand_questions, process_interview_answer
 from app.agent.schemas import normalize_telemetry
 from app.database import prisma, init_db_pool, close_db_pool
@@ -117,13 +123,32 @@ async def get_presigned_upload_url(
 @app.post("/api/campaigns")
 async def create_campaign(campaign: CampaignCreate, request: Request, background_tasks: BackgroundTasks, user: dict = Depends(verify_jwt)):
     from prisma import Json
+    from app.agent.security import validate_untrusted_input
+
+    # Gatekeeper validation for untrusted recruiter inputs before saving to DB or invoking LLMs
+    clean_jd = validate_untrusted_input(
+        campaign.jobDescription,
+        field_name="Job Description",
+        min_chars=50,
+        max_chars=25000
+    )
+    clean_interview_config = None
+    if campaign.interviewConfig:
+        clean_interview_config = validate_untrusted_input(
+            campaign.interviewConfig,
+            field_name="Interview Config",
+            min_chars=0,
+            max_chars=2000,
+            allow_empty=True
+        ) or None
+
     campaign_data = {
         "userId": user.get("sub"),
         "title": campaign.title,
-        "jobDescription": campaign.jobDescription,
+        "jobDescription": clean_jd,
         "hardFiltersConfig": Json(campaign.hardFiltersConfig) if campaign.hardFiltersConfig is not None else None,
         "enableInterviews": campaign.enableInterviews,
-        "interviewConfig": campaign.interviewConfig,
+        "interviewConfig": clean_interview_config,
         "evaluationStrictness": campaign.strictness
     }
     if campaign.id and campaign.id.strip():
@@ -139,7 +164,7 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
 
     try:
         from app.agent.nodes.jd_matcher import distill_jd_requirements_with_cost
-        canonical_spec, spec_cost, spec_tokens = await distill_jd_requirements_with_cost(campaign.jobDescription)
+        canonical_spec, spec_cost, spec_tokens = await distill_jd_requirements_with_cost(clean_jd)
         spec_dict = canonical_spec.model_dump() if hasattr(canonical_spec, "model_dump") else canonical_spec.dict()
         
         jd_extraction_cost += spec_cost
@@ -157,7 +182,7 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
 
     try:
         from app.agent.embeddings import _distill_jd_with_cost_async, get_embedding_with_cost_async
-        distilled_jd, distill_cost, distill_tokens = await _distill_jd_with_cost_async(campaign.jobDescription)
+        distilled_jd, distill_cost, distill_tokens = await _distill_jd_with_cost_async(clean_jd)
         jd_embedding, embed_cost, embed_tokens = await get_embedding_with_cost_async(distilled_jd)
         
         jd_extraction_cost += distill_cost
@@ -241,7 +266,7 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
             "status": "pending",
             "cvUrl": resume_url
         })
-        jobs_to_enqueue.append((cand_id, resume_url, campaign.jobDescription))
+        jobs_to_enqueue.append((cand_id, resume_url, clean_jd))
         
     if candidate_records:
         await prisma.candidate.create_many(data=candidate_records)
@@ -291,13 +316,24 @@ class CampaignInterviewConfigUpdate(BaseModel):
 
 @app.patch("/api/campaigns/{id}/interview-config")
 async def update_campaign_interview_config(id: str, config_data: CampaignInterviewConfigUpdate, user: dict = Depends(verify_jwt)):
+    from app.agent.security import validate_untrusted_input
     campaign = await prisma.campaign.find_first(where={"id": id, "userId": user.get("sub")})
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
-        
+
+    clean_interview_config = None
+    if config_data.interviewConfig:
+        clean_interview_config = validate_untrusted_input(
+            config_data.interviewConfig,
+            field_name="Interview Config",
+            min_chars=0,
+            max_chars=2000,
+            allow_empty=True
+        ) or None
+
     updated = await prisma.campaign.update(
         where={"id": id},
-        data={"interviewConfig": config_data.interviewConfig}
+        data={"interviewConfig": clean_interview_config}
     )
     return {"status": "success", "campaignId": updated.id, "interviewConfig": updated.interviewConfig}
 
@@ -607,6 +643,43 @@ async def start_candidate_interview(id: str, req: StartInterviewRequest):
     
     updated_cand = await get_candidate(id)
     return updated_cand
+
+class InterviewAnswerRequest(BaseModel):
+    answer: str
+    anti_cheat_telemetry: Optional[dict] = None
+    telemetry: Optional[dict] = None
+    expected_turn_index: Optional[int] = None
+
+# Aliases for backward compatibility in tests
+InterviewAnswer = InterviewAnswerRequest
+
+@app.post("/api/candidates/{id}/interview/answer")
+async def submit_candidate_interview_answer(id: str, req: InterviewAnswerRequest):
+    """
+    Submits a candidate's answer for their active interview session.
+    Validates input length, neutralizes prompt injection payloads,
+    updates transcript with telemetry, and enqueues evaluation when complete.
+    """
+    if len(req.answer) > 10000:
+        raise HTTPException(status_code=400, detail="Answer exceeds maximum permissible character limit.")
+
+    candidate = await prisma.candidate.find_unique(where={"id": id})
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    if candidate.status not in ["interviewing", "invited", "shortlisted"]:
+        raise HTTPException(status_code=400, detail=f"Candidate is not in an active interview status (current: {candidate.status})")
+
+    await process_interview_answer(
+        candidate_id=id,
+        answer_text=req.answer,
+        telemetry=req.anti_cheat_telemetry,
+        expected_turn_index=req.expected_turn_index
+    )
+
+    updated_cand = await get_candidate(id)
+    return updated_cand
+
+submit_interview_answer = submit_candidate_interview_answer
 
 @app.get("/api/interviews/candidates")
 async def get_interview_candidates(campaignId: Optional[str] = None, status: Optional[str] = None, user: dict = Depends(verify_jwt)):

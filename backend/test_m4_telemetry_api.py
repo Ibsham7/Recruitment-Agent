@@ -120,17 +120,30 @@ async def test_process_interview_answer_telemetry_embedding():
     mock_cand.status = "interviewing"
     mock_cand.evaluation = mock_eval
 
+    mock_tx = MagicMock()
+    mock_tx.execute_raw = AsyncMock()
+    mock_tx.candidate.find_unique = AsyncMock(return_value=mock_cand)
+    mock_tx.evaluation.update = AsyncMock()
+    mock_tx.candidate.update = AsyncMock()
+
+    class MockTxContext:
+        async def __aenter__(self):
+            return mock_tx
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
     with patch("app.agent.api.prisma") as mock_prisma:
+        mock_prisma.tx = MagicMock(return_value=MockTxContext())
         mock_prisma.candidate.find_unique = AsyncMock(return_value=mock_cand)
-        mock_prisma.evaluation.update = AsyncMock()
-        mock_prisma.candidate.update = AsyncMock()
+        mock_prisma.evaluation.update = mock_tx.evaluation.update
+        mock_prisma.candidate.update = mock_tx.candidate.update
 
         telemetry_in = {"blurCount": 2, "pasteCount": 1, "totalPastedChars": 40}
         await process_interview_answer("cand-test-1", "This is my detailed response to the interview question.", telemetry=telemetry_in)
 
         # Verify prisma.evaluation.update was called with updated transcript containing turn telemetry and cumulative antiCheatMetadata
-        assert mock_prisma.evaluation.update.called
-        call_kwargs = mock_prisma.evaluation.update.call_args[1]
+        assert mock_tx.evaluation.update.called
+        call_kwargs = mock_tx.evaluation.update.call_args[1]
         data = call_kwargs["data"]
 
         transcript_arg = data["interviewTranscript"]

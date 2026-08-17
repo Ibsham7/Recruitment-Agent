@@ -1,6 +1,19 @@
 from pydantic import BaseModel, Field, field_validator, AliasChoices
 from typing import Optional, Literal, Any
 from datetime import datetime
+from app.agent.security.injection_guard import (
+    FLAG_INJECTION_DETECTED,
+    FLAG_OBFUSCATED_BASE64,
+    FLAG_OBFUSCATED_HEX,
+    FLAG_OBFUSCATED_BINARY,
+    FLAG_OBFUSCATED_ROT13,
+    FLAG_OBFUSCATED_UNICODE,
+    FLAG_SPECIAL_TOKENS,
+    FLAG_SCORING_COERCION,
+    FLAG_MULTI_LINGUAL_INJECTION,
+    FLAG_DELIMITER_TAMPERING,
+    SECURITY_FLAGS,
+)
 
 class ExperienceBullet(BaseModel):
     """Represents a single verbatim bullet point with a unique ID."""

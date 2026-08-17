@@ -170,21 +170,26 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
         edu_list = getattr(candidate_profile, "education", []) or [] if candidate_profile else []
         has_edu_on_cv = bool(edu_list) or bool(re.search(r"\b(?:bs|b\.s\.|bachelor|master|m\.s\.|phd|degree|comsats|university|college)\b", raw_cv_text, re.IGNORECASE))
         
-        if has_edu_on_cv or match_val != "none":
-            if edu_list:
-                pts, summary, rel_status = classify_degree_relevance(edu_list, jd_keywords=[req_name], canonical_jd_spec=None)
-                if rel_status == "full":
-                    match_val = "full"
-                    override_note = " [Degree credential matched from education records]"
-                elif rel_status == "partial":
-                    match_val = "partial" if eval_mode_key == "strict" else "full"
-                    override_note = f" [{summary}]"
-                else:
-                    match_val = "full"
-                    override_note = " [Degree credential found on CV]"
-            else:
+        if edu_list:
+            pts, summary, rel_status = classify_degree_relevance(edu_list, jd_keywords=[req_name], canonical_jd_spec=None)
+            if rel_status == "full":
                 match_val = "full"
-                override_note = " [Degree credential requirement satisfied]"
+                override_note = " [Degree credential matched from education records]"
+            elif rel_status == "partial":
+                match_val = "partial" if eval_mode_key in ("default", "strict") else "full"
+                override_note = f" [{summary}]"
+            elif rel_status == "unrelated":
+                match_val = "none" if eval_mode_key in ("default", "strict") else "quarter"
+                override_note = f" [{summary}]"
+            else:
+                match_val = "none"
+                override_note = " [Degree credential missing or unverified]"
+        elif has_edu_on_cv:
+            match_val = "partial" if eval_mode_key == "lenient" else "none"
+            override_note = " [Degree mentioned on CV without structured details]"
+        else:
+            match_val = "none"
+            override_note = " [Degree requirement missing from candidate education records]"
         
         if item is not None:
             if hasattr(item, "match"):
@@ -195,8 +200,7 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             elif isinstance(item, dict):
                 item["match"] = match_val
 
-            # Update evidence text if empty or showing negative evidence
-            edu_summary = "; ".join([str(e) for e in edu_list]) if edu_list else "Degree requirement satisfied from candidate education records"
+            edu_summary = "; ".join([str(e) for e in edu_list]) if edu_list else "Degree requirement from candidate education records"
             if hasattr(item, "evidence"):
                 try:
                     if not item.evidence or "no evidence" in item.evidence.lower() or "absent" in item.evidence.lower():
@@ -211,43 +215,50 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
     # --- SPECIAL CATEGORY 2: SOFT SKILLS GENEROUS MARKING ---
     is_soft_skill = _is_soft_skill_requirement(req_name)
     if is_soft_skill:
-        SOFT_COLLAB_VERBS = ("participat", "assist", "attend", "collaborat", "work", "support", "contribut", "sprint", "standup", "stand-up", "team", "mentor", "lead", "manage", "communicat", "present")
-        if (
-            any(v in ev_lower for v in SOFT_COLLAB_VERBS) or
-            (raw_cv_text and any(v in raw_cv_text.lower() for v in ("stand-up", "standup", "sprint planning", "teamwork", "team", "mentor", "lead", "management", "communication", "collaborat"))) or
-            match_val != "none"
-        ):
-            match_val = "full"
-            override_note = " [Soft skill requirement satisfied via authentic team collaboration evidence]"
-            if item is not None:
-                if hasattr(item, "match"):
+        has_negative = any(p in ev_lower for p in NEGATIVE_EVIDENCE_PHRASES) or any(p in ev_lower for p in ("no direct evidence", "no evidence", "not mentioned", "absence of"))
+        if has_negative or match_val == "none":
+            match_val = "none"
+            override_note = " [No evidence found on CV for soft skill requirement]"
+        else:
+            SOFT_COLLAB_VERBS = ("participat", "assist", "attend", "collaborat", "work", "support", "contribut", "sprint", "standup", "stand-up", "team", "mentor", "lead", "manage", "communicat", "present")
+            if (
+                any(v in ev_lower for v in SOFT_COLLAB_VERBS) or
+                (raw_cv_text and any(v in raw_cv_text.lower() for v in ("stand-up", "standup", "sprint planning", "teamwork", "team", "mentor", "lead", "management", "communication", "collaborat")))
+            ):
+                match_val = "full"
+                override_note = " [Soft skill requirement satisfied via authentic team collaboration evidence]"
+            else:
+                match_val = "partial" if eval_mode_key == "lenient" else "none"
+                override_note = " [Soft skill not directly evidenced]"
+
+        if item is not None:
+            if hasattr(item, "match"):
+                try:
+                    item.match = match_val
+                except AttributeError:
+                    pass
+            elif isinstance(item, dict):
+                item["match"] = match_val
+
+            curr_ev = getattr(item, "evidence", "") if hasattr(item, "evidence") else (item.get("evidence", "") if isinstance(item, dict) else "")
+            if not curr_ev or (match_val != "none" and ("no evidence" in curr_ev.lower() or "absent" in curr_ev.lower())):
+                achievements = getattr(candidate_profile, "key_achievements", []) or [] if candidate_profile else []
+                soft_quote = None
+                for ach in achievements:
+                    ach_str = str(ach)
+                    if any(w in ach_str.lower() for w in ("mentor", "lead", "manage", "collaborat", "team", "autonomy", "guid")):
+                        soft_quote = ach_str
+                        break
+                if not soft_quote:
+                    soft_quote = "Demonstrated soft skills and team collaboration across professional roles"
+                if hasattr(item, "evidence"):
                     try:
-                        item.match = match_val
+                        item.evidence = soft_quote
                     except AttributeError:
                         pass
                 elif isinstance(item, dict):
-                    item["match"] = match_val
-
-                # Update evidence text if empty or showing negative evidence
-                curr_ev = getattr(item, "evidence", "") if hasattr(item, "evidence") else (item.get("evidence", "") if isinstance(item, dict) else "")
-                if not curr_ev or "no evidence" in curr_ev.lower() or "absent" in curr_ev.lower():
-                    achievements = getattr(candidate_profile, "key_achievements", []) or [] if candidate_profile else []
-                    soft_quote = None
-                    for ach in achievements:
-                        ach_str = str(ach)
-                        if any(w in ach_str.lower() for w in ("mentor", "lead", "manage", "collaborat", "team", "autonomy", "guid")):
-                            soft_quote = ach_str
-                            break
-                    if not soft_quote:
-                        soft_quote = "Demonstrated soft skills and team collaboration across professional roles"
-                    if hasattr(item, "evidence"):
-                        try:
-                            item.evidence = soft_quote
-                        except AttributeError:
-                            pass
-                    elif isinstance(item, dict):
-                        item["evidence"] = soft_quote
-            return match_val, override_note
+                    item["evidence"] = soft_quote
+        return match_val, override_note
 
     # Rule 0: Zero Proficiency Signal Guardrail (only for unevidenced & non-declared hard technical skills)
     if match_val != "none" and prof_signal == "none" and not is_declared_only and not declared_in_skills:
@@ -368,12 +379,25 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             )
 
             if is_skills_only and not has_substantive_execution:
+                cand_declared_skills = []
+                if candidate_profile:
+                    cand_declared_skills = getattr(candidate_profile, "skills_declared", []) or getattr(candidate_profile, "skills", []) or []
+
+                from app.agent.tools.reduction_engine import alias_hit
                 is_explicit_declared = bool(
                     getattr(item, "declared_in_skills", False) or
                     (isinstance(item, dict) and item.get("declared_in_skills", False)) or
-                    "declared in skills" in ev_lower
+                    "declared in skills" in ev_lower or
+                    "skills section" in ev_lower or
+                    alias_hit(req_name, cand_declared_skills) or
+                    any(s.lower() in ev_lower or ev_lower in s.lower() for s in [str(x) for x in cand_declared_skills] if len(str(x)) >= 2)
                 )
                 if is_explicit_declared:
+                    if hasattr(item, "declared_in_skills"):
+                        item.declared_in_skills = True
+                    elif isinstance(item, dict):
+                        item["declared_in_skills"] = True
+
                     if eval_mode_key == "lenient":
                         match_val = "partial"
                         override_note = " [Claim-only skill: declared in skills section, partial credit (75%) assigned in lenient mode]"
@@ -632,7 +656,7 @@ def classify_degree_relevance(education_list: list, jd_keywords: list = None, ca
         return pts, f"Adjacent STEM / Foundational Discipline ({'; '.join(edu_strings)}). Provides core quantitative or technical background.", "partial"
 
     # Tier 3: Unrelated Degree (5.0 pts)
-    return 5.0, f"Unrelated Degree Completed ({'; '.join(edu_strings)}). Low direct relevance to target role domain.", "partial"
+    return 5.0, f"Unrelated Degree Completed ({'; '.join(edu_strings)}). Low direct relevance to target role domain.", "unrelated"
 
 def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, eval_mode: str, jd_keywords: list = None, canonical_jd_spec: Any = None) -> Tuple[float, list, str]:
     """
