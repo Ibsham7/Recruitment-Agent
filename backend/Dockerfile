@@ -28,8 +28,12 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY prisma/ ./prisma/
 RUN prisma generate --schema=prisma/schema.prisma
 
-# Step 3: Copy application source code
+# Step 3: Copy application source code and entrypoint supervisor
 COPY app/ ./app/
+COPY entrypoint.sh ./entrypoint.sh
+
+# Fix Windows CRLF line endings if present and grant execution permissions
+RUN sed -i 's/\r$//' ./entrypoint.sh && chmod +x ./entrypoint.sh
 
 # Step 4: Create a non-root system user for secure container execution
 RUN addgroup --system --gid 1001 appgroup && \
@@ -45,6 +49,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Default command runs the FastAPI web API server (respects Render's dynamic $PORT)
-# (To run the ARQ background worker, override CMD: ["arq", "app.worker.WorkerSettings"])
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Launch both ARQ Worker and FastAPI Web API via process supervisor
+CMD ["./entrypoint.sh"]
