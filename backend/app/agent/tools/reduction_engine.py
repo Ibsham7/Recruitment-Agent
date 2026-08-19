@@ -74,33 +74,43 @@ HEDGE_RE = re.compile(
     re.IGNORECASE
 )
 
-SKILL_ALIASES: dict[str, list[str]] = {
-    "python": ["python3", "python 3", "cpython"],
-    "javascript": ["js", "ecmascript", "es6", "es2015"],
-    "typescript": ["ts"],
-    "react": ["reactjs", "react.js", "react js"],
-    "node": ["nodejs", "node.js", "node js"],
-    "postgresql": ["postgres", "psql", "pg"],
-    "mongodb": ["mongo"],
-    "docker": ["docker container", "containerization", "dockerfile"],
-    "kubernetes": ["k8s", "kube"],
-    "aws": ["amazon web services", "amazon aws", "ecs", "fargate", "lambda", "ec2", "s3", "rds"],
-    "azure": ["microsoft azure", "ms azure"],
-    "gcp": ["google cloud", "google cloud platform"],
-    "ci/cd": ["cicd", "ci cd", "continuous integration", "continuous deployment", "continuous delivery", "github actions"],
-    "fastapi": ["fast api", "fast-api"],
-    "django": ["django rest framework", "drf"],
-    "flask": ["flask api"],
-    "terraform": ["tf", "hashicorp terraform"],
-    "redis": ["redis cache", "redis db"],
-    "mysql": ["mariadb"],
-    "graphql": ["graph ql"],
-    "rest api": ["restful", "rest apis", "restful api", "rest api"],
-    "machine learning": ["ml", "machine-learning"],
-    "deep learning": ["dl", "deep-learning"],
-    "natural language processing": ["nlp"],
-    "computer vision": ["cv", "image recognition"],
-}
+def _normalize_for_matching(text: str) -> str:
+    """Strip common suffixes and syntax for matching."""
+    t = text.lower().strip()
+    # Strip framework/file suffixes
+    t = re.sub(r'\.(?:js|ts|py|rb|go|rs|net)\b', '', t)
+    t = re.sub(r'(?<=[a-z])js\b', '', t)
+    # Strip common qualifiers
+    t = re.sub(r'\b(?:pipelines?|workflows?|services?)\b', '', t)
+    t = re.sub(r'[-_./]', ' ', t)
+    t = re.sub(r'\s+', ' ', t).strip()
+    return t
+
+
+def _is_acronym_match(acronym: str, full_phrase: str) -> bool:
+    """
+    Conservative acronym matching: checks if an uppercase token (≥2 chars)
+    matches the first letters of a multi-word phrase, or a known numeronym.
+    """
+    acr = acronym.strip()
+    if len(acr) < 2 or len(acr) > 6:
+        return False
+
+    # Handle k8s/i18n-style numeronyms: first letter + digit(s) + last letter
+    if re.match(r'^[a-zA-Z]\d+[a-zA-Z]$', acr):
+        first, last = acr[0].lower(), acr[-1].lower()
+        phrase_lower = full_phrase.lower().strip()
+        return phrase_lower.startswith(first) and phrase_lower.endswith(last)
+
+    # Standard first-letter acronym matching: requires uppercase
+    if not acr.isupper():
+        return False
+
+    words = [w for w in re.findall(r'[a-zA-Z]+', full_phrase) if len(w) >= 2]
+    if len(words) != len(acr):
+        return False
+
+    return all(w[0].upper() == c for w, c in zip(words, acr))
 
 
 def classify_bullet_source(bullet_id: str) -> str:
@@ -119,35 +129,41 @@ def classify_bullet_source(bullet_id: str) -> str:
     return "employment"
 
 
-def alias_hit(requirement_text: str, skills_declared: list[str]) -> bool:
+def is_skill_grounded_in_declared(requirement_name: str, skills_declared: list[str]) -> bool:
     """
-    Deterministic backstop: check if requirement matches any declared skill via alias map.
-    Only turns 'none' into 'partial'.
+    Domain-agnostic check: does the requirement match any declared skill
+    via normalized token matching, substring matching, word-boundary intersection, or acronym resolution?
+
+    Replaces the former alias_hit() + SKILL_ALIASES dictionary.
     """
-    if not requirement_text or not skills_declared:
+    if not requirement_name or not skills_declared:
         return False
-
-    req_lower = requirement_text.lower()
-    skills_lower = {str(s).lower().strip() for s in skills_declared if s}
-
-    # Direct substring check first
-    req_words = set(re.findall(r'\w+', req_lower))
-    for skill in skills_lower:
-        if skill in req_lower or any(w in skill for w in req_words if len(w) >= 3):
+    req_norm = _normalize_for_matching(requirement_name)
+    req_words = set(re.findall(r'\w+', req_norm))
+    for raw_skill in skills_declared:
+        if not raw_skill:
+            continue
+        skill_str = str(raw_skill).strip()
+        skill_norm = _normalize_for_matching(skill_str)
+        # 1. Exact or word-boundary match (prevents raw substring match like 'java' in 'javascript')
+        if skill_norm == req_norm:
             return True
-
-    # Alias check
-    for canonical, aliases in SKILL_ALIASES.items():
-        all_forms = [canonical] + aliases
-        req_matches = any(form in req_lower for form in all_forms)
-        if req_matches:
-            skill_matches = any(
-                any(form in skill for form in all_forms)
-                for skill in skills_lower
-            )
-            if skill_matches:
-                return True
-
+        if re.search(rf'\b{re.escape(skill_norm)}\b', req_norm) or re.search(rf'\b{re.escape(req_norm)}\b', skill_norm):
+            return True
+        # 2. Word intersection match — use word boundaries to prevent java/javascript false positive
+        if any(re.search(rf'\b{re.escape(w)}\b', skill_norm) for w in req_words if len(w) >= 3):
+            return True
+        skill_words = set(re.findall(r'\w+', skill_norm))
+        if any(re.search(rf'\b{re.escape(w)}\b', req_norm) for w in skill_words if len(w) >= 3):
+            return True
+        # 3. Acronym matching (both directions)
+        # Requirement is acronym, skill is full phrase (e.g., req="NLP", skill="Natural Language Processing")
+        req_stripped = requirement_name.strip()
+        if _is_acronym_match(req_stripped, skill_str):
+            return True
+        # Skill is acronym, requirement is full phrase (e.g., skill="NLP", req="Natural Language Processing")
+        if _is_acronym_match(skill_str, req_stripped):
+            return True
     return False
 
 
@@ -366,7 +382,7 @@ def reduce_match(
         )
     )
 
-    if declared_in_skills or alias_hit(requirement_name, skills_declared) or ev_in_skills:
+    if declared_in_skills or is_skill_grounded_in_declared(requirement_name, skills_declared) or ev_in_skills:
         return "partial", "claim_only"
 
     # Branch C: Absent — no bullet evidence, not declared in skills

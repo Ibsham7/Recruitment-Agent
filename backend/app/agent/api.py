@@ -358,31 +358,33 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
                 summary=final_state["rejection_reason"]
             )
 
-        async with prisma.tx() as tx:
-            await tx.candidate.update(where={"id": candidate_id}, data=update_data)
-            if evaluation_report:
-                existing_eval = await tx.evaluation.find_unique(where={"candidateId": candidate_id})
-                eval_data = {
-                    "overallScore": evaluation_report.overall_score,
-                    "technicalScore": evaluation_report.technical_score,
-                    "communicationScore": evaluation_report.communication_score,
-                    "culturalFitScore": evaluation_report.cultural_fit_score,
-                    "recommendation": evaluation_report.recommendation,
-                    "summary": evaluation_report.summary,
-                    "strengths": evaluation_report.strengths,
-                    "concerns": evaluation_report.concerns,
-                    "chainOfThought": evaluation_report.chain_of_thought,
+        await prisma.candidate.update(where={"id": candidate_id}, data=update_data)
+        if evaluation_report:
+            eval_data = {
+                "overallScore": evaluation_report.overall_score,
+                "technicalScore": evaluation_report.technical_score,
+                "communicationScore": evaluation_report.communication_score,
+                "culturalFitScore": evaluation_report.cultural_fit_score,
+                "recommendation": evaluation_report.recommendation,
+                "summary": evaluation_report.summary,
+                "strengths": evaluation_report.strengths,
+                "concerns": evaluation_report.concerns,
+                "chainOfThought": evaluation_report.chain_of_thought,
+            }
+            if evaluation_report.score_breakdown:
+                eval_data["scoreBreakdown"] = Json(evaluation_report.score_breakdown.dict())
+            if final_state.get("interview_questions"):
+                eval_data["interviewQuestions"] = Json([q.dict() for q in final_state["interview_questions"]])
+                
+            create_data = dict(eval_data)
+            create_data["candidate"] = {"connect": {"id": candidate_id}}
+            await prisma.evaluation.upsert(
+                where={"candidateId": candidate_id},
+                data={
+                    "create": create_data,
+                    "update": eval_data
                 }
-                if evaluation_report.score_breakdown:
-                    eval_data["scoreBreakdown"] = Json(evaluation_report.score_breakdown.dict())
-                if final_state.get("interview_questions"):
-                    eval_data["interviewQuestions"] = Json([q.dict() for q in final_state["interview_questions"]])
-                    
-                if not existing_eval:
-                    eval_data["candidate"] = {"connect": {"id": candidate_id}}
-                    await tx.evaluation.create(data=eval_data)
-                else:
-                    await tx.evaluation.update(where={"candidateId": candidate_id}, data=eval_data)
+            )
     elif interrupt_value:
         # Fallback if no final_state but interrupted
         fallback_status = "screening_hold" if interrupt_value == "hold_for_review" else "shortlisted"
@@ -576,7 +578,7 @@ async def process_interview_answer(candidate_id: str, answer_text: str, telemetr
     candidate_obj = None
     transcript_snapshot = []
 
-    async with prisma.tx() as tx:
+    async with prisma.tx(max_wait=20000, timeout=30000) as tx:
         # Acquire atomic row-level transaction lock on Evaluation record to prevent concurrent overwrite
         try:
             await tx.execute_raw('SELECT "id" FROM "Evaluation" WHERE "candidateId" = $1 FOR UPDATE;', candidate_id)

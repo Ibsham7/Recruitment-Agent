@@ -19,15 +19,14 @@ GENERIC_BOILERPLATE_WORDS = {
     "statement", "statements", "service", "level", "general", "specialist", "lead"
 }
 
-CATEGORY_ALIASES: dict[str, list[str]] = {
-    "cloud": ["aws", "gcp", "azure", "ec2", "ecs", "fargate", "lambda", "app service", "cloudformation", "terraform"],
-    "ci/cd": ["github actions", "jenkins", "gitlab ci", "azure devops", "pipeline", "circleci", "travis"],
-    "task queue": ["celery", "kafka", "rabbitmq", "sqs", "redis queue", "bullmq", "sidekiq"],
-    "container": ["docker", "kubernetes", "k8s", "containerise", "containerize", "helm"],
-    "database": ["mysql", "postgresql", "postgres", "mongodb", "redis", "dynamodb", "oracle", "sql server"],
-    "version control": ["git", "github", "gitlab", "bitbucket"],
-    "testing": ["pytest", "jest", "cypress", "junit", "selenium", "mocha"],
-    "api": ["rest", "graphql", "grpc", "fastapi", "flask", "express"]
+# Minimal category → common instantiations mapping for deterministic bullet recovery.
+# Only activated when requirement has NO parenthetical alternatives.
+# Kept small and domain-neutral — covers high-frequency bare categories only.
+CATEGORY_EXPANSIONS: dict[str, list[str]] = {
+    "cloud": ["aws", "gcp", "azure", "terraform"],
+    "ci/cd": ["jenkins", "github actions", "gitlab ci"],
+    "container": ["docker", "kubernetes", "helm"],
+    "database": ["postgresql", "mysql", "mongodb", "redis"],
 }
 
 SECTION_PRIORITY_WEIGHTS: dict[str, float] = {
@@ -57,7 +56,9 @@ def stem_token(token: str) -> str:
 
 def extract_dynamic_requirement_tokens(requirement_name: str, jd_quote: str = "") -> Set[str]:
     """
-    Dynamically extract substantive requirement tokens, stems, and category aliases from requirement name & quote.
+    Dynamically extract substantive requirement tokens, stems, and (conditionally)
+    category expansions from requirement name & quote. Domain-agnostic.
+    Category expansions only activate when the requirement contains no parenthetical alternatives.
     """
     combined_text = f"{requirement_name or ''} {jd_quote or ''}".lower()
     if not combined_text.strip():
@@ -65,13 +66,21 @@ def extract_dynamic_requirement_tokens(requirement_name: str, jd_quote: str = ""
 
     clean_tokens = set()
 
-    # Category alias expansion
-    for cat_key, aliases in CATEGORY_ALIASES.items():
-        if cat_key in combined_text or any(word in combined_text for word in cat_key.split()):
-            for alias in aliases:
-                clean_tokens.add(alias.lower())
+    # Conditional category expansion — only if requirement has NO parenthetical alternatives
+    has_parenthetical = bool(re.search(r'\([^)]+\)', combined_text))
+    if not has_parenthetical:
+        for cat_key, expansions in CATEGORY_EXPANSIONS.items():
+            if cat_key in combined_text:
+                for exp in expansions:
+                    exp_clean = exp.lower().strip()
+                    clean_tokens.add(exp_clean)
+                    for w in re.findall(r'[a-zA-Z0-9+#/\-]+', exp_clean):
+                        w_clean = w.strip(" -/,.")
+                        if w_clean and len(w_clean) >= 2 and w_clean not in GENERIC_BOILERPLATE_WORDS:
+                            clean_tokens.add(w_clean)
+                            clean_tokens.add(stem_token(w_clean))
 
-    # 1. Extract parenthetical and slashed alternatives
+    # 1. Extract parenthetical alternatives (e.g., "(Jenkins, CircleCI, GitHub Actions)")
     paren_matches = re.findall(r'\(([^)]+)\)', combined_text)
     for p_content in paren_matches:
         alts = [t.strip() for t in re.split(r'[/,|]|\b(?:or|and/or|and|e\.g\.|i\.e\.)\b', p_content, flags=re.IGNORECASE)]
@@ -83,7 +92,16 @@ def extract_dynamic_requirement_tokens(requirement_name: str, jd_quote: str = ""
                     clean_tokens.add(w_clean)
                     clean_tokens.add(stem_token(w_clean))
 
-    # 2. Extract words from overall requirement text
+    # 2. Extract slash-separated alternatives from main text (e.g., "PostgreSQL / MySQL")
+    slash_groups = re.findall(r'(\b[a-zA-Z0-9+#\-]+(?:\s*/\s*[a-zA-Z0-9+#\-]+)+)', combined_text)
+    for group in slash_groups:
+        parts = [p.strip() for p in group.split('/')]
+        for part in parts:
+            if part and len(part) >= 2 and part not in GENERIC_BOILERPLATE_WORDS:
+                clean_tokens.add(part)
+                clean_tokens.add(stem_token(part))
+
+    # 3. Extract all substantive words from requirement text
     raw_words = re.findall(r'[a-zA-Z0-9+#/\-]+', combined_text)
     for word in raw_words:
         w_clean = word.strip(" -/,.")

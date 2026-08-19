@@ -76,7 +76,8 @@ def _filter_tenure_requirements(items: list) -> list:
 LOW_PROFICIENCY_KEYWORDS = (
     "some exposure", "limited exposure", "basic exposure", "basic knowledge",
     "familiarity with", "assisted with", "assisted", "supervised use", "introductory",
-    "learning", "(learning)", "personal project", "personal projects",
+    "learning", "(learning)", "tutorial", "guided project", "code-along", "codealong",
+    "cloned project", "cloned repo", "youtube tutorial", "bootcamp exercise", "course assignment",
     "beginner", "self-taught", "coursework", "academic use", "student"
 )
 
@@ -371,7 +372,7 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
             has_substantive_execution = any(v in ev_lower for v in SUBSTANTIVE_EXECUTION_VERBS)
 
             has_coursework_or_academic = any(
-                k in ev_lower for k in ("course project", "coursework", "academic", "personal project", "learning", "basic exposure")
+                k in ev_lower for k in ("course project", "coursework", "academic", "tutorial", "guided project", "learning", "basic exposure")
             ) or (
                 bool(raw_cv_text) and
                 any(k in raw_cv_text.lower() for k in ("course project", "coursework", "academic project")) and
@@ -383,13 +384,13 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
                 if candidate_profile:
                     cand_declared_skills = getattr(candidate_profile, "skills_declared", []) or getattr(candidate_profile, "skills", []) or []
 
-                from app.agent.tools.reduction_engine import alias_hit
+                from app.agent.tools.reduction_engine import is_skill_grounded_in_declared
                 is_explicit_declared = bool(
                     getattr(item, "declared_in_skills", False) or
                     (isinstance(item, dict) and item.get("declared_in_skills", False)) or
                     "declared in skills" in ev_lower or
                     "skills section" in ev_lower or
-                    alias_hit(req_name, cand_declared_skills) or
+                    is_skill_grounded_in_declared(req_name, cand_declared_skills) or
                     any(s.lower() in ev_lower or ev_lower in s.lower() for s in [str(x) for x in cand_declared_skills] if len(str(x)) >= 2)
                 )
                 if is_explicit_declared:
@@ -435,7 +436,7 @@ def _sanitize_match_val(req_name: str, match_val: str, evidence_val: str, item: 
     # If match_val is none but coursework or academic project exposure is present on evidence, upgrade to partial/quarter credit
     if match_val == "none" and not has_negative_phrase:
         has_coursework_or_academic = any(
-            k in ev_lower for k in ("course project", "coursework", "academic", "personal project", "learning", "basic exposure")
+            k in ev_lower for k in ("course project", "coursework", "academic", "tutorial", "guided project", "learning", "basic exposure")
         ) or (
             bool(raw_cv_text) and
             any(k in raw_cv_text.lower() for k in ("course project", "coursework", "academic project")) and

@@ -311,12 +311,16 @@ def calculate_experience_for_domain(roles: List[Any], keywords: List[str], refer
         desc_tokens = set(re.findall(r'[a-zA-Z0-9+#/\-]+', desc))
 
         is_non_eng_title = any(re.search(pat, title) for pat in NON_HANDS_ON_COORDINATION_TITLES) and not any(re.search(pat, title) for pat in HANDS_ON_ENG_TITLES)
+        is_hands_on_eng_title = any(re.search(pat, title) for pat in HANDS_ON_ENG_TITLES)
 
         if is_tech_eng_domain and is_non_eng_title:
             # For tech engineering target roles, non-engineering titles (e.g. Coordinator, QA Analyst)
             # must match domain tokens in title or declared skills_used to count — prose-only mentions do not count.
             if (domain_tokens & title_tokens) or (domain_tokens & skills_tokens):
                 matching_roles.append(role)
+        elif is_tech_eng_domain and is_hands_on_eng_title:
+            # Hands-on engineering titles (e.g. Software Engineer, Developer) are domain-relevant for tech engineering roles
+            matching_roles.append(role)
         else:
             combined_tokens = title_tokens | skills_tokens | desc_tokens
             if domain_tokens & combined_tokens:

@@ -563,7 +563,7 @@ async def send_interview_invitations(req: SendInvitationsRequest, user: dict = D
     )
     
     email_tasks = []
-    async with prisma.tx() as tx:
+    async with prisma.tx(max_wait=20000, timeout=30000) as tx:
         for cand in candidates:
             if not cand.email:
                 continue

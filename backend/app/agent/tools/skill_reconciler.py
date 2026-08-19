@@ -17,15 +17,6 @@ class ReconciledSkill(NamedTuple):
     bullet_ids: list[str]
 
 
-CANONICAL_TECH_TAXONOMY = {
-    "python", "javascript", "typescript", "java", "c++", "c#", "go", "golang", "rust",
-    "fastapi", "django", "flask", "express", "react", "vue", "angular", "node", "nodejs",
-    "postgresql", "postgres", "mysql", "mongodb", "redis", "elasticsearch", "sqlite",
-    "docker", "kubernetes", "k8s", "helm", "terraform", "ansible", "aws", "azure", "gcp",
-    "ci/cd", "github actions", "jenkins", "celery", "kafka", "rabbitmq", "graphql", "rest api",
-    "machine learning", "deep learning", "nlp", "pytorch", "tensorflow", "scikit-learn"
-}
-
 
 def reconcile_candidate_skills(candidate_profile: Any) -> dict[str, Any]:
     """

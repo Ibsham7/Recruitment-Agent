@@ -688,8 +688,8 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
             # Deterministic fallback check via degree/soft skill/reduction engine recovery
             from app.agent.tools.scoring import _is_degree_requirement, _is_soft_skill_requirement
             skills_declared = getattr(profile, "skills_declared", []) or getattr(profile, "skills", []) or []
-            from app.agent.tools.reduction_engine import alias_hit
-            is_declared = alias_hit(c_name, skills_declared)
+            from app.agent.tools.reduction_engine import is_skill_grounded_in_declared
+            is_declared = is_skill_grounded_in_declared(c_name, skills_declared)
 
             if _is_degree_requirement(c_name):
                 from app.agent.tools.scoring import classify_degree_relevance
@@ -819,8 +819,8 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
 
         else:
             skills_declared = getattr(profile, "skills_declared", []) or getattr(profile, "skills", []) or []
-            from app.agent.tools.reduction_engine import alias_hit
-            is_declared = alias_hit(c_name, skills_declared)
+            from app.agent.tools.reduction_engine import is_skill_grounded_in_declared
+            is_declared = is_skill_grounded_in_declared(c_name, skills_declared)
             verdict, flag = reduce_match(
                 requirement_name=c_name,
                 evidence_bullet_ids=[],
