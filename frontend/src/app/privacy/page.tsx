@@ -292,10 +292,10 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
             >
               <div>
                 <div className="font-bold text-xs" style={{ color: t.txtPrimary }}>Data Protection & Compliance Team</div>
-                <div className="text-xs font-mono mt-0.5" style={{ color: t.accentPrimary }}>privacy@hireagent.ai • dpo@hireagent.ai</div>
+                <div className="text-xs font-mono mt-0.5" style={{ color: t.accentPrimary }}>contact@agentichr.dev</div>
               </div>
               <a
-                href="mailto:privacy@hireagent.ai?subject=Candidate%20Data%20Privacy%20Inquiry"
+                href="mailto:contact@agentichr.dev?subject=Candidate%20Data%20Privacy%20Inquiry"
                 className="px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-opacity hover:opacity-80"
                 style={{ background: t.accentPrimary, color: t.accentText }}
               >

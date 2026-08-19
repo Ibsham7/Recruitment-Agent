@@ -267,7 +267,7 @@ export default function TermsPage({ theme: t = PRESETS[4] }: { theme?: Theme }) 
               To the maximum extent permitted by applicable law, hireagent and its affiliates shall not be liable for indirect, incidental, or consequential damages resulting from technical interruptions or candidate internet connection failures during assessments.
             </p>
             <p style={{ color: t.txtSecondary }}>
-              For legal notices or questions regarding these terms, please contact us at <span className="font-mono" style={{ color: t.accentPrimary }}>legal@hireagent.ai</span>.
+              For legal notices or questions regarding these terms, please contact us at <a href="mailto:contact@agentichr.dev" className="font-mono hover:underline" style={{ color: t.accentPrimary }}>contact@agentichr.dev</a>.
             </p>
           </section>
         </main>
