@@ -97,7 +97,7 @@ async def send_interview_invitation_email(
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = f"{from_name} <{from_email}>"
+        msg["From"] = email.utils.formataddr((from_name, from_email))
         msg["To"] = candidate_email
         msg.attach(MIMEText(html_content, "html"))
         msg_str = msg.as_string()
