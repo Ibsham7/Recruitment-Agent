@@ -571,6 +571,9 @@ async def send_interview_invitations(req: SendInvitationsRequest, user: dict = D
     )
     
     email_tasks = []
+    sent_count = 0
+    now = datetime.datetime.now(datetime.timezone.utc)
+    
     async with prisma.tx(max_wait=20000, timeout=30000) as tx:
         for cand in candidates:
             if not cand.email:
@@ -592,7 +595,10 @@ async def send_interview_invitations(req: SendInvitationsRequest, user: dict = D
             sent_count += 1
 
     for name, email, campaign_title, interview_url in email_tasks:
-        await send_interview_invitation_email(name, email, campaign_title, interview_url)
+        try:
+            await send_interview_invitation_email(name, email, campaign_title, interview_url)
+        except Exception as e:
+            logger.error(f"Failed to send invitation email to {email}: {e}")
         
     return {"status": "success", "count": sent_count, "message": f"Sent {sent_count} interview invitation emails."}
 
