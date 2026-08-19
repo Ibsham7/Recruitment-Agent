@@ -85,7 +85,8 @@ app = FastAPI(title="Recruitment Agent API", lifespan=lifespan)
 # Add Correlation ID middleware for distributed request tracing
 app.add_middleware(CorrelationIdMiddleware)
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+# Extract the primary canonical frontend URL for invitation links (first entry if comma-separated)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://agentichr.dev").split(",")[0].strip().rstrip("/")
 
 # Parse origins from environment variable (supporting comma-separated lists and stripping trailing slashes)
 allowed_origins = [
@@ -93,7 +94,14 @@ allowed_origins = [
     for origin in os.getenv("FRONTEND_URL", "http://localhost:5173").split(",")
     if origin.strip()
 ]
-for default_origin in ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"]:
+for default_origin in [
+    "https://agentichr.dev",
+    "https://www.agentichr.dev",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000"
+]:
     if default_origin not in allowed_origins:
         allowed_origins.append(default_origin)
 
@@ -101,7 +109,7 @@ for default_origin in ["http://localhost:5173", "http://localhost:3000", "http:/
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://.*(\.vercel\.app|agentichr\.dev)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
