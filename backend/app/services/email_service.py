@@ -45,47 +45,280 @@ async def send_interview_invitation_email(
     Falls back to dev logging if SMTP credentials are not configured or if sending fails.
     """
     cfg = _get_env_config()
-    subject = f"Interview Invitation: {campaign_title}"
+    subject = f"Interview Invitation: {campaign_title} — AgenticHR"
     
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; }}
-        .card {{ max-width: 600px; margin: 0 auto; background-color: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }}
-        .header {{ font-size: 20px; font-weight: 600; color: #38bdf8; margin-bottom: 8px; }}
-        .title {{ font-size: 24px; font-weight: 700; color: #f8fafc; margin-bottom: 16px; }}
-        .text {{ font-size: 15px; line-height: 1.6; color: #94a3b8; margin-bottom: 24px; }}
-        .btn {{ display: inline-block; background: linear-gradient(135deg, #0ea5e9, #6366f1); color: #ffffff; text-decoration: none; font-weight: 600; font-size: 15px; padding: 14px 28px; border-radius: 10px; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4); }}
-        .footer {{ margin-top: 32px; font-size: 12px; color: #64748b; border-top: 1px solid #334155; padding-top: 16px; }}
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <div class="header">AI Recruitment Portal</div>
-        <div class="title">Interview Invitation for {campaign_title}</div>
-        <p class="text">Hello {candidate_name},</p>
-        <p class="text">
-          Congratulations! You have been selected for the next stage of our evaluation process for the <strong>{campaign_title}</strong> role.
+    plain_text_content = f"""Hello {candidate_name},
+
+Congratulations! You have been selected for the next stage of our evaluation process for the {campaign_title} role at AgenticHR.
+
+ASSESSMENT DETAILS:
+• Stage: AI-Guided Technical Assessment
+• Questions: 3 Interactive Questions
+• Estimated Time: 10 – 15 minutes (~2 mins per question)
+• Link Validity: Expires in 72 hours
+• Verified Email: {candidate_email}
+
+Please complete your assessment using the secure link below:
+{interview_url}
+
+Note: This link is personalized and encrypted. You will be prompted to confirm your email address ({candidate_email}) upon starting.
+
+Best regards,
+AgenticHR Recruitment Team
+"""
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Interview Invitation - AgenticHR</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td, p, a, span {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif !important; }}
+    .headline-mso {{ font-family: Georgia, 'Times New Roman', serif !important; }}
+  </style>
+  <![endif]-->
+  <style>
+    body {{
+      margin: 0;
+      padding: 0;
+      background-color: #EDE6D8;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      color: #2D2820;
+    }}
+    table {{ border-collapse: separate; }}
+    .wrapper {{ width: 100%; table-layout: fixed; background-color: #EDE6D8; padding: 40px 16px; box-sizing: border-box; }}
+    .main-card {{
+      max-width: 580px;
+      margin: 0 auto;
+      background-color: #FFFFFF;
+      border-radius: 16px;
+      border: 1px solid #DFD6C5;
+      box-shadow: 0 10px 32px rgba(45, 40, 32, 0.08);
+      overflow: hidden;
+    }}
+    .header-banner {{
+      background: linear-gradient(180deg, #F8F5EE 0%, #FFFFFF 100%);
+      padding: 32px 36px 20px 36px;
+      border-bottom: 1px solid #F0EAE0;
+    }}
+    .brand-tag {{
+      display: inline-block;
+      font-family: Consolas, 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #955D0F;
+      background: #F4EAD8;
+      border: 1px solid #E8D9BF;
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }}
+    .headline {{
+      font-family: Georgia, 'Fraunces', serif;
+      font-size: 26px;
+      line-height: 1.3;
+      font-weight: 700;
+      color: #2D2820;
+      margin: 0 0 6px 0;
+    }}
+    .subheadline {{
+      font-size: 14px;
+      color: #746B5E;
+      margin: 0;
+      font-weight: 500;
+    }}
+    .content-body {{
+      padding: 32px 36px;
+    }}
+    .greeting {{
+      font-size: 16px;
+      font-weight: 600;
+      color: #2D2820;
+      margin-bottom: 14px;
+    }}
+    .paragraph {{
+      font-size: 15px;
+      line-height: 1.65;
+      color: #4A443A;
+      margin-bottom: 20px;
+    }}
+    .details-box {{
+      background-color: #FAF7F2;
+      border: 1px solid #EAE2D2;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 24px 0;
+    }}
+    .details-grid {{
+      width: 100%;
+    }}
+    .details-row td {{
+      padding: 6px 0;
+      font-size: 13px;
+    }}
+    .details-label {{
+      color: #8A7F6E;
+      font-weight: 500;
+      width: 38%;
+    }}
+    .details-value {{
+      color: #2D2820;
+      font-weight: 600;
+    }}
+    .badge-stage {{
+      display: inline-block;
+      background: #EAF3EC;
+      color: #18582E;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid #D2E7D7;
+    }}
+    .cta-container {{
+      text-align: center;
+      padding: 10px 0 24px 0;
+    }}
+    .cta-button {{
+      display: inline-block;
+      background-color: #2D2820;
+      color: #FFFFFF !important;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 16px 36px;
+      border-radius: 10px;
+      border: 1px solid #C2A676;
+      box-shadow: 0 4px 18px rgba(45, 40, 32, 0.22);
+      letter-spacing: 0.01em;
+    }}
+    .security-notice {{
+      background-color: #F8F5EE;
+      border-left: 3px solid #C2A676;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      color: #635A4D;
+      line-height: 1.5;
+      margin-top: 16px;
+    }}
+    .footer {{
+      background-color: #F8F5EE;
+      padding: 24px 36px;
+      border-top: 1px solid #EDE6D8;
+      text-align: center;
+      font-size: 12px;
+      color: #8A7F6E;
+      line-height: 1.6;
+    }}
+    .footer a {{
+      color: #955D0F;
+      text-decoration: underline;
+    }}
+
+    @media only screen and (max-width: 600px) {{
+      .wrapper {{ padding: 16px 8px !important; }}
+      .header-banner {{ padding: 24px 20px 16px 20px !important; }}
+      .content-body {{ padding: 24px 20px !important; }}
+      .footer {{ padding: 20px !important; }}
+      .headline {{ font-size: 22px !important; }}
+      .cta-button {{ display: block !important; width: 100% !important; box-sizing: border-box !important; padding: 15px 16px !important; }}
+    }}
+  </style>
+</head>
+<body>
+  <!-- Preheader preview text -->
+  <div style="display:none; font-size:1px; color:#EDE6D8; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden; mso-hide:all;">
+    Interview Invitation: Complete your AI-guided technical assessment for {campaign_title}. Access expires in 72 hours.
+    &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;
+  </div>
+
+  <div class="wrapper">
+    <!--[if (gte mso 9)|(IE)]>
+    <table align="center" border="0" cellspacing="0" cellpadding="0" width="580">
+    <tr>
+    <td align="center" valign="top" width="580">
+    <![endif]-->
+    <div class="main-card">
+      <div class="header-banner">
+        <div class="brand-tag">AGENTIC HR • RECRUITMENT PORTAL</div>
+        <h1 class="headline headline-mso">Interview Invitation</h1>
+        <p class="subheadline">{campaign_title}</p>
+      </div>
+
+      <div class="content-body">
+        <div class="greeting">Hello {candidate_name},</div>
+        <p class="paragraph">
+          We were impressed with your background and qualifications. We are pleased to invite you to the next stage of our evaluation process for the <strong>{campaign_title}</strong> position.
         </p>
-        <p class="text">
-          Please click the link below to verify your email and complete your AI-guided technical assessment.
+
+        <div class="details-box">
+          <table class="details-grid" role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr class="details-row">
+              <td class="details-label">Stage</td>
+              <td class="details-value"><span class="badge-stage">AI-Guided Technical Assessment</span></td>
+            </tr>
+            <tr class="details-row">
+              <td class="details-label">Questions</td>
+              <td class="details-value">3 Interactive Questions</td>
+            </tr>
+            <tr class="details-row">
+              <td class="details-label">Estimated Time</td>
+              <td class="details-value">10 – 15 minutes</td>
+            </tr>
+            <tr class="details-row">
+              <td class="details-label">Link Validity</td>
+              <td class="details-value">Expires in 72 hours</td>
+            </tr>
+            <tr class="details-row">
+              <td class="details-label">Candidate Email</td>
+              <td class="details-value" style="font-family: Consolas, monospace; font-size: 12px;">{candidate_email}</td>
+            </tr>
+          </table>
+        </div>
+
+        <p class="paragraph" style="font-size: 14px; margin-bottom: 24px;">
+          The session consists of 3 targeted questions (approx. 2 minutes per question) evaluating problem-solving and domain expertise. Please ensure you are in a quiet environment with a stable internet connection.
         </p>
-        <p style="text-align: center; margin: 32px 0;">
-          <a href="{interview_url}" class="btn" target="_blank">Access Your Protected Assessment</a>
-        </p>
-        <p class="text" style="font-size: 13px;">
-          <em>Note: This link is personalized and securely protected. You will be asked to confirm your email address ({candidate_email}) to start the assessment.</em>
-        </p>
-        <div class="footer">
-          This is an automated invitation from our recruitment system. If you did not apply for this role, please ignore this message.
+
+        <div class="cta-container">
+          <!--[if mso]>
+          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{interview_url}" style="height:50px;v-text-anchor:middle;width:340px;" arcsize="20%" stroke="f" fillcolor="#2D2820">
+            <w:anchorlock/>
+            <center style="color:#FFFFFF;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">Access Your Protected Assessment &rarr;</center>
+          </v:roundrect>
+          <![endif]-->
+          <!--[if !mso]><!-- -->
+          <a href="{interview_url}" class="cta-button" target="_blank">Access Your Protected Assessment &rarr;</a>
+          <!--<![endif]-->
+        </div>
+
+        <div class="security-notice">
+          <strong>🔒 Security Verification:</strong> This is a personalized one-time link. Upon opening, you will be prompted to confirm your registered email address ({candidate_email}) before starting.
         </div>
       </div>
-    </body>
-    </html>
-    """
+
+      <div class="footer">
+        Sent by <strong>AgenticHR Automated Talent Intelligence</strong>.<br>
+        If you have any questions or require accessibility adjustments, reply directly to this email.<br>
+        <span style="font-size: 11px; color: #A09482;">© 2026 AgenticHR Inc. All rights reserved. • <a href="#">Privacy Policy</a></span>
+      </div>
+    </div>
+    <!--[if (gte mso 9)|(IE)]>
+    </td>
+    </tr>
+    </table>
+    <![endif]-->
+  </div>
+</body>
+</html>
+"""
 
     # 1. Try SMTP if configured
     if cfg["SMTP_HOST"] and cfg["SMTP_USER"] and cfg["SMTP_PASSWORD"] and cfg["SMTP_FROM"]:
@@ -93,12 +326,13 @@ async def send_interview_invitation_email(
         if not from_email:
             from_email = cfg["SMTP_FROM"]
         if not from_name:
-            from_name = "Team HR"
+            from_name = "AgenticHR Recruitment Team"
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = email.utils.formataddr((from_name, from_email))
         msg["To"] = candidate_email
+        msg.attach(MIMEText(plain_text_content, "plain"))
         msg.attach(MIMEText(html_content, "html"))
         msg_str = msg.as_string()
 
