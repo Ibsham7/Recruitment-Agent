@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="obsidian">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hireagent - Circular Endless Spec Deck Showcase (Optimized)</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Fraunces, Inter, DM Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ========================================================================= */
+    /* 1. DESIGN TOKENS & SYSTEM PALETTES                                       */
+    /* ========================================================================= */
+    :root, [data-theme="obsidian"] {
+      --bg-page: #07070E;
+      --bg-surface: #0E0E1C;
+      --bg-surface-elevated: #151528;
+      --bg-card: rgba(255, 255, 255, 0.035);
+      --border-card: rgba(255, 255, 255, 0.09);
+      --border-hover: rgba(0, 255, 122, 0.4);
+      --txt-primary: #F4F4FF;
+      --txt-body: #A6A6C5;
+      --txt-secondary: #74749E;
+      --txt-muted: #4C4C74;
+      --accent-badge: #00FF7A;
+      --accent-glow: rgba(0, 255, 122, 0.16);
+      --num-pos: #00E572;
+      --num-pos-bg: rgba(0, 229, 114, 0.12);
+      --num-pos-border: rgba(0, 229, 114, 0.28);
+      --num-mid: #FFB800;
+      --num-mid-bg: rgba(255, 184, 0, 0.12);
+      --num-mid-border: rgba(255, 184, 0, 0.28);
+      --num-neg: #FF4757;
+      --num-neg-bg: rgba(255, 71, 87, 0.14);
+      --num-neg-border: rgba(255, 71, 87, 0.32);
+      --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.6);
+      --traffic-red: #FF5F56;
+      --traffic-yellow: #FFBD2E;
+      --traffic-green: #27C93F;
+    }
+
+    [data-theme="ivory"] {
+      --bg-page: #F8F5EF;
+      --bg-surface: #EDE8DD;
+      --bg-surface-elevated: #E2DDD0;
+      --bg-card: rgba(255, 255, 255, 0.90);
+      --border-card: rgba(0, 0, 0, 0.10);
+      --border-hover: rgba(176, 24, 48, 0.35);
+      --txt-primary: #0A0A14;
+      --txt-body: #2C2C3E;
+      --txt-secondary: #58586E;
+      --txt-muted: #88889C;
+      --accent-badge: #B01830;
+      --accent-glow: rgba(176, 24, 48, 0.12);
+      --num-pos: #157A38;
+      --num-pos-bg: rgba(21, 122, 56, 0.10);
+      --num-pos-border: rgba(21, 122, 56, 0.25);
+      --num-mid: #9E6200;
+      --num-mid-bg: rgba(158, 98, 0, 0.10);
+      --num-mid-border: rgba(158, 98, 0, 0.25);
+      --num-neg: #B01830;
+      --num-neg-bg: rgba(176, 24, 48, 0.10);
+      --num-neg-border: rgba(176, 24, 48, 0.25);
+      --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 16px 40px rgba(0, 0, 0, 0.09);
+      --traffic-red: #E0443E;
+      --traffic-yellow: #DEA123;
+      --traffic-green: #1AAB29;
+    }
+
+    [data-theme="plum"] {
+      --bg-page: #0C0614;
+      --bg-surface: #150A24;
+      --bg-surface-elevated: #201036;
+      --bg-card: rgba(200, 160, 255, 0.045);
+      --border-card: rgba(200, 160, 255, 0.12);
+      --border-hover: rgba(204, 120, 255, 0.45);
+      --txt-primary: #F4EEFF;
+      --txt-body: #BD9FE8;
+      --txt-secondary: #8369B0;
+      --txt-muted: #58447E;
+      --accent-badge: #CC78FF;
+      --accent-glow: rgba(204, 120, 255, 0.20);
+      --num-pos: #5CD685;
+      --num-pos-bg: rgba(92, 214, 133, 0.12);
+      --num-pos-border: rgba(92, 214, 133, 0.28);
+      --num-mid: #FFB347;
+      --num-mid-bg: rgba(255, 179, 71, 0.12);
+      --num-mid-border: rgba(255, 179, 71, 0.28);
+      --num-neg: #FF5A82;
+      --num-neg-bg: rgba(255, 90, 130, 0.14);
+      --num-neg-border: rgba(255, 90, 130, 0.32);
+      --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(200, 160, 255, 0.10);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.65);
+      --traffic-red: #FF5F56;
+      --traffic-yellow: #FFBD2E;
+      --traffic-green: #27C93F;
+    }
+
+    [data-theme="copper"] {
+      --bg-page: #0B1017;
+      --bg-surface: #121A26;
+      --bg-surface-elevated: #192537;
+      --bg-card: rgba(255, 255, 255, 0.038);
+      --border-card: rgba(255, 255, 255, 0.10);
+      --border-hover: rgba(224, 120, 64, 0.45);
+      --txt-primary: #E2EBF5;
+      --txt-body: #9CB2CC;
+      --txt-secondary: #627C99;
+      --txt-muted: #3D526A;
+      --accent-badge: #E07840;
+      --accent-glow: rgba(224, 120, 64, 0.20);
+      --num-pos: #3DB868;
+      --num-pos-bg: rgba(61, 184, 104, 0.12);
+      --num-pos-border: rgba(61, 184, 104, 0.28);
+      --num-mid: #E5A338;
+      --num-mid-bg: rgba(229, 163, 56, 0.12);
+      --num-mid-border: rgba(229, 163, 56, 0.28);
+      --num-neg: #E05353;
+      --num-neg-bg: rgba(224, 83, 83, 0.14);
+      --num-neg-border: rgba(224, 83, 83, 0.32);
+      --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.6);
+      --traffic-red: #FF5F56;
+      --traffic-yellow: #FFBD2E;
+      --traffic-green: #27C93F;
+    }
+
+    /* ========================================================================= */
+    /* 2. BASE UTILITY STYLES                                                    */
+    /* ========================================================================= */
+    body {
+      background-color: var(--bg-page);
+      color: var(--txt-body);
+      font-family: 'Inter', sans-serif;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      overflow-x: hidden;
+    }
+
+    .font-serif-title { font-family: 'Fraunces', serif; }
+    .font-mono-badge { font-family: 'DM Mono', monospace; }
+
+    .glass-surface {
+      background: var(--bg-card);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-card);
+      box-shadow: var(--shadow-card);
+    }
+
+    .glass-nav {
+      background: var(--bg-surface);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border-bottom: 1px solid var(--border-card);
+    }
+
+    .screenshot-viewport {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-card);
+      border-radius: 1.25rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-viewport);
+    }
+
+    .viewport-inner-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-card);
+      border-radius: 0.875rem;
+    }
+
+    /* Status Tone Utilities */
+    .tone-pos { color: var(--num-pos); background: var(--num-pos-bg); border-color: var(--num-pos-border); }
+    .tone-neg { color: var(--num-neg); background: var(--num-neg-bg); border-color: var(--num-neg-border); }
+    .tone-mid { color: var(--num-mid); background: var(--num-mid-bg); border-color: var(--num-mid-border); }
+    .tone-accent { color: var(--accent-badge); background: var(--accent-glow); border-color: var(--border-card); }
+
+    /* ========================================================================= */
+    /* 3. HARDWARE-ACCELERATED 3D STAGE & CAROUSEL ORBIT                        */
+    /* ========================================================================= */
+    .carousel-stage {
+      position: relative;
+      width: 100%;
+      min-height: 520px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1600px;
+      touch-action: pan-y;
+      cursor: grab;
+      user-select: none;
+    }
+    .carousel-stage:active { cursor: grabbing; }
+
+    .circular-slide {
+      position: absolute;
+      width: 100%;
+      max-width: 980px;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), 
+                  opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), 
+                  filter 0.6s cubic-bezier(0.16, 1, 0.3, 1), 
+                  box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-style: preserve-3d;
+      will-change: transform, opacity, filter;
+    }
+
+    /* Transform States */
+    .state-center {
+      transform: translate3d(0%, 0, 0px) scale(1);
+      opacity: 1;
+      z-index: 30;
+      pointer-events: auto;
+      filter: blur(0px);
+      box-shadow: var(--shadow-card), 0 0 40px var(--accent-glow);
+    }
+
+    .state-left {
+      transform: translate3d(-68%, 0, -80px) scale(0.86) rotateY(6deg);
+      opacity: 0.32;
+      z-index: 20;
+      pointer-events: auto;
+      cursor: pointer;
+      filter: blur(1.5px);
+    }
+    .state-left:hover {
+      opacity: 0.65;
+      transform: translate3d(-64%, 0, -40px) scale(0.89) rotateY(4deg);
+      filter: blur(0px);
+    }
+
+    .state-right {
+      transform: translate3d(68%, 0, -80px) scale(0.86) rotateY(-6deg);
+      opacity: 0.32;
+      z-index: 20;
+      pointer-events: auto;
+      cursor: pointer;
+      filter: blur(1.5px);
+    }
+    .state-right:hover {
+      opacity: 0.65;
+      transform: translate3d(64%, 0, -40px) scale(0.89) rotateY(-4deg);
+      filter: blur(0px);
+    }
+
+    .state-far-left {
+      transform: translate3d(-120%, 0, -160px) scale(0.72);
+      opacity: 0;
+      z-index: 10;
+      pointer-events: none;
+      filter: blur(4px);
+    }
+
+    .state-far-right {
+      transform: translate3d(120%, 0, -160px) scale(0.72);
+      opacity: 0;
+      z-index: 10;
+      pointer-events: none;
+      filter: blur(4px);
+    }
+
+    .state-hidden {
+      transform: translate3d(0%, 0, -200px) scale(0.6);
+      opacity: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .indicator-pill.active {
+      background: var(--accent-glow) !important;
+      color: var(--accent-badge) !important;
+      border-color: var(--accent-badge) !important;
+      font-weight: 600;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-24 overflow-x-hidden">
+
+  <!-- ========================================================================= -->
+  <!-- 4. TOP STICKY BAR: BRANDING, STATUS & THEME SELECTOR                      -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-50 glass-nav px-4 sm:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center font-serif-title font-bold text-lg tone-accent border">
+        h
+      </div>
+      <div>
+        <div class="text-sm font-semibold tracking-tight" style="color: var(--txt-primary);">
+          hireagent <span class="text-xs font-mono-badge font-normal px-2 py-0.5 rounded-full ml-1.5 tone-accent border">Endless Spec Deck</span>
+        </div>
+        <div class="text-[11px]" style="color: var(--txt-secondary);">Auto-Rotates (2.25s) • Horizontal Scroll • Pause on Hover</div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <div id="auto-status-indicator" class="text-[11px] font-mono-badge hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface" style="color: var(--accent-badge);">
+        <span class="w-1.5 h-1.5 rounded-full animate-ping" style="background: var(--accent-badge);"></span>
+        <span id="auto-status-text">AUTO (2.25s)</span>
+      </div>
+
+      <!-- Theme Selector (Preserved 4 Palette System) -->
+      <div class="flex items-center gap-1.5 p-1 rounded-xl glass-surface" role="group" aria-label="Theme Selector">
+        <button onclick="DeckApp.setTheme('obsidian')" title="Obsidian Dark" class="w-6 h-6 rounded-full flex items-center justify-center border transition-all hover:scale-110" style="background: #07070E; border-color: #00FF7A;">
+          <div class="w-2 h-2 rounded-full" style="background: #00FF7A;"></div>
+        </button>
+        <button onclick="DeckApp.setTheme('ivory')" title="Ivory Light" class="w-6 h-6 rounded-full flex items-center justify-center border transition-all hover:scale-110" style="background: #F8F5EF; border-color: #B01830;">
+          <div class="w-2 h-2 rounded-full" style="background: #B01830;"></div>
+        </button>
+        <button onclick="DeckApp.setTheme('plum')" title="Plum Noir" class="w-6 h-6 rounded-full flex items-center justify-center border transition-all hover:scale-110" style="background: #0C0612; border-color: #CC78FF;">
+          <div class="w-2 h-2 rounded-full" style="background: #CC78FF;"></div>
+        </button>
+        <button onclick="DeckApp.setTheme('copper')" title="Copper Slate" class="w-6 h-6 rounded-full flex items-center justify-center border transition-all hover:scale-110" style="background: #0B1017; border-color: #E07840;">
+          <div class="w-2 h-2 rounded-full" style="background: #E07840;"></div>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Section Hero Header -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-8 pt-12 pb-6 text-center">
+    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono-badge uppercase tracking-widest mb-3 tone-accent border">
+      <i data-lucide="sparkles" class="w-3 h-3"></i> Core Features // Circular Endless Deck
+    </div>
+    <h1 class="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight mb-3" style="color: var(--txt-primary);">
+      Built for engineering precision.{"\n"}Designed for hiring velocity.
+    </h1>
+    <p class="max-w-2xl mx-auto text-sm sm:text-base leading-relaxed" style="color: var(--txt-secondary);">
+      Explore all 10 capabilities. Auto-rotates every 2.25 seconds (pauses on hover). Swipe horizontally, drag, or use arrow keys.
+    </p>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 5. CIRCULAR ENDLESS SLIDER CONTAINER                                       -->
+  <!-- ========================================================================= -->
+  <section class="w-full max-w-7xl mx-auto px-4 sm:px-8 overflow-hidden">
+    
+    <!-- Top Rail Navigation Deck -->
+    <div class="flex items-center justify-between mb-4 pb-2 border-b relative" style="border-color: var(--border-card);">
+      <div class="flex items-center gap-3">
+        <span class="w-2 h-2 rounded-full animate-pulse" style="background: var(--accent-badge);"></span>
+        <span id="current-slide-title" class="text-xs font-mono-badge uppercase tracking-wider font-semibold" style="color: var(--txt-primary);">
+          01 // 4-TIER VERBATIM EVIDENCE ATTRIBUTION
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span id="slide-number-display" class="text-xs font-mono-badge mr-2 font-bold" style="color: var(--accent-badge);">01 / 10</span>
+        <button onclick="DeckApp.rotate(-1)" aria-label="Previous Slide" class="w-9 h-9 rounded-xl glass-surface flex items-center justify-center transition-all hover:scale-105" style="color: var(--txt-primary);">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+        <button onclick="DeckApp.rotate(1)" aria-label="Next Slide" class="w-9 h-9 rounded-xl glass-surface flex items-center justify-center transition-all hover:scale-105" style="color: var(--txt-primary);">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- 3-Second Sweep Progress Bar -->
+      <div class="absolute bottom-0 left-0 h-[2px] w-full overflow-hidden bg-black/10">
+        <div id="slide-progress-bar" class="h-full w-0" style="background: var(--accent-badge);"></div>
+      </div>
+    </div>
+
+    <!-- The 3D Stage (Dynamic Slides Injected by Engine) -->
+    <div class="carousel-stage" id="carousel-stage" aria-roledescription="carousel" aria-label="hireagent Features 3D Stage"></div>
+
+    <!-- Quick Pill Selector Deck -->
+    <div id="pill-selector-deck" class="mt-8 flex flex-wrap justify-center gap-2"></div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 6. HIGH-PERFORMANCE DATA-DRIVEN JAVASCRIPT ENGINE                        -->
+  <!-- ========================================================================= -->
+  <script>
+    /**
+     * Immutable Feature Catalog Schema
+     * Cleanly separated from rendering logic for zero bloat and seamless Next.js migration.
+     */
+    const FEATURES_DATA = [
+      {
+        id: "verbatim-attribution",
+        number: "01",
+        category: "Zero-Hallucination",
+        icon: "file-check-2",
+        title: "4-Tier Verbatim Evidence Attribution",
+        description: "Every fit score is backed by exact highlighted quotes in the candidate’s CV. We eliminate AI hallucinations by cross-verifying employment bullets, projects, and credentials with 4-tier string verification.",
+        metrics: [
+          { label: "VERIFICATION AUDIT", value: "100% Quote Traced", tone: "pos" },
+          { label: "HALLUCINATION RATE", value: "0.0% Pure Math", tone: "pos" }
+        ],
+        viewport: {
+          file: "CandidateInspectionDrawer.tsx // ScoreBreakdownPanel",
+          tag: { text: "VERIFIED QUOTE", tone: "pos" },
+          renderContent: () => `
+            <div class="space-y-3 font-mono-badge text-xs">
+              <div class="viewport-inner-card p-3.5">
+                <div class="flex justify-between items-center mb-2">
+                  <span class="font-semibold text-[11px]" style="color: var(--txt-primary);">Requirement: Distributed SQL & Postgres (5+ Yrs)</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded font-bold tone-pos border">FULL MATCH (100%)</span>
+                </div>
+                <div class="p-2.5 rounded-lg text-[11px] leading-relaxed tone-accent border-l-[3px]" style="border-left-color: var(--accent-badge);">
+                  "...Architected PostgreSQL sharding and connection pooling saving 40% latency across 10M daily requests..."
+                </div>
+                <div class="mt-2 flex justify-between text-[10px]" style="color: var(--txt-secondary);">
+                  <span>Source: <strong style="color: var(--txt-primary);">Employment History (Weight: 1.5x)</strong></span>
+                  <span class="font-bold" style="color: var(--num-pos);">+25.0 / 25.0 Pts</span>
+                </div>
+              </div>
+              <div class="viewport-inner-card p-3 opacity-80 flex justify-between items-center text-[10px]">
+                <span style="color: var(--txt-secondary);">Requirement: Kubernetes Cluster Ops</span>
+                <span class="px-2 py-0.5 rounded font-semibold tone-mid border">CAPPED (Partial 50% - Skill List Only)</span>
+              </div>
+            </div>
+          `
+        }
+      },
+      {
+        id: "anti-cheat-telemetry",
+        number: "02",
+        category: "Assessment Security",
+        icon: "shield-alert",
+        title: "Multi-Signal Anti-Cheat Telemetry",
+        description: "Monitors candidate browser events in real time during technical assessments. Tracks tab switches, copy-paste bursts, and robotic phrasing to calculate a transparent AI Risk Score.",
+        metrics: [
+          { label: "TELEMETRY METRICS", value: "Tab + Paste + Velocity", tone: "neg" },
+          { label: "RISK CLASSIFICATION", value: "Low / Mod / High Flag", tone: "neg" }
+        ],
+        viewport: {
+          file: "AntiCheatInspectionCard.tsx",
+          tag: { text: "HIGH AI RISK: 85%", tone: "neg" },
+          renderContent: () => `
+            <div class="space-y-3 font-mono-badge text-xs">
+              <div class="grid grid-cols-3 gap-2 text-[11px]">
+                <div class="viewport-inner-card p-2.5 text-center">
+                  <div class="text-[9px] uppercase" style="color: var(--txt-muted);">Tab Switches</div>
+                  <div class="font-bold text-sm mt-1" style="color: var(--num-neg);">4 Blurs</div>
+                </div>
+                <div class="viewport-inner-card p-2.5 text-center">
+                  <div class="text-[9px] uppercase" style="color: var(--txt-muted);">Paste Ratio</div>
+                  <div class="font-bold text-sm mt-1" style="color: var(--num-neg);">82.4%</div>
+                </div>
+                <div class="viewport-inner-card p-2.5 text-center">
+                  <div class="text-[9px] uppercase" style="color: var(--txt-muted);">Pasted Chars</div>
+                  <div class="font-bold text-sm mt-1" style="color: var(--num-neg);">1,450 ch</div>
+                </div>
+              </div>
+              <div class="p-3 rounded-xl text-[10px] space-y-1 tone-neg border">
+                <div class="flex items-center gap-1.5 font-bold" style="color: var(--num-neg);">
+                  <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Detected Flags (2 Critical)
+                </div>
+                <p style="color: var(--txt-secondary);">• MASSIVE_PASTE_BLOB: Injected 450 characters 1.2s after tab blur.</p>
+                <p style="color: var(--txt-secondary);">• LLM_TRANSITIONS: Detected robotic boilerplate ("In summary, furthermore...").</p>
+              </div>
+            </div>
+          `
+        }
+      },
+      {
+        id: "timeline-merging",
+        number: "03",
+        category: "Anti-Fraud Math",
+        icon: "calendar-clock",
+        title: "Deterministic Timeline Merging",
+        description: "Eliminates resume tenure inflation. Merges overlapping concurrent roles, internships, and side gigs into non-overlapping calendar intervals for authentic domain tenure.",
+        metrics: [
+          { label: "CLAIMED STACKED", value: "<del>7.5 Years</del>", tone: "neg" },
+          { label: "AUTHENTIC DOMAIN", value: "4.8 Years Merged", tone: "pos" }
+        ],
+        viewport: {
+          file: "timeline.py // IntervalMergingAlgorithm",
+          tag: { text: "DISCRETE MATH", tone: "accent" },
+          renderContent: () => `
+            <div class="space-y-3 font-mono-badge text-xs">
+              <div class="viewport-inner-card p-3.5 space-y-2.5">
+                <div class="flex justify-between text-[11px]">
+                  <span style="color: var(--txt-secondary);">Overlapping Interval Deduplication</span>
+                  <span class="font-bold" style="color: var(--num-pos);">14 Months Merged</span>
+                </div>
+                <div class="space-y-2 py-1">
+                  <div class="flex items-center gap-2 text-[10px]">
+                    <span class="w-28 text-right truncate" style="color: var(--txt-muted);">Role A (2020-22)</span>
+                    <div class="flex-1 h-2 rounded bg-black/20 overflow-hidden"><div class="h-full rounded" style="width: 60%; background: var(--accent-badge);"></div></div>
+                  </div>
+                  <div class="flex items-center gap-2 text-[10px]">
+                    <span class="w-28 text-right truncate" style="color: var(--txt-muted);">Role B (2021-23)</span>
+                    <div class="flex-1 h-2 rounded bg-black/20 overflow-hidden flex justify-end"><div class="h-full rounded" style="width: 65%; background: var(--num-mid);"></div></div>
+                  </div>
+                  <div class="pt-2 border-t flex items-center gap-2 text-[10px]" style="border-color: var(--border-card);">
+                    <span class="w-28 text-right font-bold" style="color: var(--num-pos);">Merged Tenure</span>
+                    <div class="flex-1 h-2.5 rounded bg-black/20 overflow-hidden"><div class="h-full rounded" style="width: 85%; background: var(--num-pos);"></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `
+        }
+      },
+      {
+        id: "ai-interviews",
+        number: "04",
+        category: "Dynamic Q&A",
+        icon: "message-square-code",
+        title: "Resume-Anchored Technical Questions",
+        description: "Kills generic LeetCode and easily Googled questions. The generator formulates role-specific questions anchored to the candidate's exact CV project claims and recruiter requirements.",
+        metrics: [
+          { label: "QUESTION DEPTH", value: "CV Gap Anchored", tone: "accent" },
+          { label: "ADAPTIVE PROBING", value: "Real-Time Follow-Ups", tone: "pos" }
+        ],
+        viewport: {
+          file: "CandidateLiveInterviewPortal.tsx",
+          tag: { text: "TIMER: 01:24", tone: "mid" },
+          renderContent: () => `
+            <div class="space-y-2.5 font-mono-badge text-xs">
+              <div class="viewport-inner-card p-3 text-[11px] leading-relaxed" style="color: var(--txt-primary);">
+                <span class="text-[10px] uppercase font-bold block mb-1" style="color: var(--accent-badge);">Q2 // Architectural Depth Check:</span>
+                "In your role at Fintech Corp, you mentioned migrating to an event-driven architecture. How did you ensure idempotency across distributed order consumers?"
+              </div>
+              <div class="p-2.5 rounded-lg text-[10px] italic flex items-center gap-2 tone-accent border">
+                <span class="w-2 h-2 rounded-full animate-ping" style="background: var(--accent-badge);"></span>
+                <span>Real-Time Prober: Evaluating candidate answer depth on the fly...</span>
+              </div>
+            </div>
+          `
+        }
+      },
+      {
+        id: "radar-scorecards",
+        number: "05",
+        category: "Decision Clarity",
+        icon: "target",
+        title: "Multi-Axis Radar Scorecards",
+        description: "Provides instant, multi-dimensional hiring clarity across Technical Depth, Communication Clarity, Cultural Fit, and Growth Velocity with itemized strength & gap lists.",
+        metrics: [
+          { label: "DECISION SPEED", value: "Instant Shortlist", tone: "pos" },
+          { label: "RUBRIC STANDARD", value: "4-Axis Matrix", tone: "pos" }
+        ],
+        viewport: {
+          file: "EvaluationRadarScorecard.tsx",
+          tag: { text: "OVERALL FIT: 92%", tone: "pos" },
+          renderContent: () => `
+            <div class="space-y-2.5 font-mono-badge text-xs">
+              <div class="viewport-inner-card p-3.5 space-y-2.5">
+                <div>
+                  <div class="flex justify-between text-[11px] mb-1"><span style="color: var(--txt-primary);">Technical Depth</span><span class="font-bold" style="color: var(--num-pos);">94%</span></div>
+                  <div class="w-full h-1.5 rounded-full bg-black/20"><div class="h-full rounded-full" style="width: 94%; background: var(--num-pos);"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-[11px] mb-1"><span style="color: var(--txt-primary);">Communication Clarity</span><span class="font-bold" style="color: var(--num-pos);">88%</span></div>
+                  <div class="w-full h-1.5 rounded-full bg-black/20"><div class="h-full rounded-full" style="width: 88%; background: var(--num-pos);"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-[11px] mb-1"><span style="color: var(--txt-primary);">Cultural Fit</span><span class="font-bold" style="color: var(--num-pos);">90%</span></div>
+                  <div class="w-full h-1.5 rounded-full bg-black/20"><div class="h-full rounded-full" style="width: 90%; background: var(--num-pos);"></div></div>
+                </div>
+              </div>
+            </div>
+          `
+        }
+      },
+      {
+        id: "adaptive-probing",
+        number: "06",
+        category: "Adaptive AI",
+        icon: "sparkles",
+        title: "Adaptive Real-Time Probing",
+        description: "Our conversational state machine evaluates answer completeness on the fly. If a candidate's answer is brief or vague, an intelligent follow-up probe is triggered instantly.",
+        metrics: [
+          { label: "TRIGGER LOGIC", value: "&lt; 20 Words / Vague", tone: "accent" },
+          { label: "INTERVIEW DEPTH", value: "Zero Surface Fluff", tone: "pos" }
+        ],
+        viewport: {
+          file: "interviewer.py // AsyncProbingEngine",
+          tag: { text: "PROBING ACTIVE", tone: "accent" },
+          renderContent: () => `
+            <div class="space-y-2 font-mono-badge text-xs">
+              <div class="viewport-inner-card p-2.5 text-[11px]">
+                <span class="text-[9px] uppercase block mb-0.5" style="color: var(--txt-muted);">Candidate Response (18 words):</span>
+                <span style="color: var(--txt-primary);">"We used Redis caching to store user sessions and reduce our Postgres load during peak flash sales."</span>
+              </div>
+              <div class="p-3 rounded-xl text-[11px] space-y-1 tone-accent border">
+                <span class="text-[9px] uppercase font-bold block" style="color: var(--accent-badge);">⚡ AI Follow-Up Probe Generated:</span>
+                <span style="color: var(--txt-primary);">"Can you detail your cache invalidation strategy and how you prevented cache stampedes during those sales?"</span>
+              </div>
+            </div>
+          `
+        }
+      },
+      {
+        id: "strictness-presets",
+        number: "07",
+        category: "Calibration",
+        icon: "sliders-horizontal",
+        title: "Calibrated Strictness Presets",
+        description: "Switch between Lenient, Moderate, and Strict evaluation rules with mathematically guaranteed score consistency: Score_Lenient ≥ Score_Moderate ≥ Score_Strict.",
+        metrics: [
+          { label: "SCORING DRIFT", value: "0.0% Drift Guaranteed", tone: "pos" },
+          { label: "PRESET MODES", value: "Lenient / Mod / Strict", tone: "accent" }
+        ],
+        viewport: {
+          file: "scoring.py // StrictnessMultiplierMatrix",
+          tag: { text: "LIVE PRESET", tone: "accent" },
+          renderContent: () => `
+            <div class="space-y-3 font-mono-badge text-xs">
+              <div class="viewport-inner-card p-3.5 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px]" style="color: var(--txt-secondary);">Evaluation Strictness Mode</span>
+                  <span class="text-sm font-bold" style="color: var(--num-pos);" id="strictness-live-val">84% (Moderate)</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center text-[10px]">
+                  <button onclick="DeckApp.setStrictDemo('lenient', 91)" class="p-2 rounded-lg border transition-all" style="border-color: var(--border-card); background: var(--bg-card); color: var(--txt-primary);">Lenient (+4 pts)</button>
+                  <button onclick="DeckApp.setStrictDemo('moderate', 84)" class="p-2 rounded-lg font-bold transition-all tone-accent border" id="btn-strict-mod">Moderate (Default)</button>
+                  <button onclick="DeckApp.setStrictDemo('strict', 71)" class="p-2 rounded-lg border transition-all" style="border-color: var(--border-card); background: var(--bg-card); color: var(--txt-primary);">Strict (-25% Cap)</button>
+                </div>
+              </div>
+            </div>
+          `
+        }
+      },
+      {
+        id: "vision-ocr",
+        number: "08",
+        category: "Multi-Format Ingestion",
+        icon: "file-search",
+        title: "Vision OCR Graphic Resume Parsing",
+        description: "Zero lost applicants. Ingests standard PDFs, DOCX files, Canva templates, and scanned graphics by automatically falling back to multimodal Gemini Vision OCR when text layers are unreadable.",
+        metrics: [
+          { label: "FORMAT COVERAGE", value: "PDF, DOCX, Scan, Img", tone: "pos" },
+          { label: "APPLICANT LOSS", value: "0% Missing Resumes", tone: "pos" }
+        ],
+        viewport: {
+          file: "cv_parser.py // PyMuPDFVisionFallback",
+          tag: { text: "VISION OCR @ 150 DPI", tone: "pos" },
+          renderContent: () => `
+            <div class="space-y-2 font-mono-badge text-xs">
+              <div class="viewport-inner-card p-3 space-y-1.5 text-[11px]">
+                <div class="flex justify-between"><span style="color: var(--txt-secondary);">Canva Multi-Column Graphic PDF:</span><span class="font-bold" style="color: var(--num-pos);">Extracted (100%)</span></div>
+                <div class="flex justify-between"><span style="color: var(--txt-secondary);">Cryptographic SHA-256 Hash:</span><span style="color: var(--txt-muted);">#9f8a...e312 (Cached)</span></div>
+                <div class="flex justify-between"><span style="color: var(--txt-secondary);">Structured JSON Entity Extraction:</span><span class="font-bold" style="color: var(--num-pos);">Normalized</span></div>
+              </div>
+            </div>
+          `
+        }
+      },
+      {
+        id: "live-pipeline",
+        number: "09",
+        category: "Hiring Velocity",
+        icon: "layout-grid",
+        title: "Live Real-Time Kanban Pipeline",
+        description: "Visual drag-and-drop dashboard powered by Supabase WebSockets. Track candidate progression from initial upload to final offer with instant team synchronization.",
+        metrics: [
+          { label: "PIPELINE LATENCY", value: "&lt; 50ms Sync", tone: "pos" },
+          { label: "TEAM COLLABORATION", value: "Multi-Seat Live", tone: "pos" }
+        ],
+        viewport: {
+          file: "PipelinePage.tsx // KanbanStages",
+          tag: { text: "REALTIME SYNC", tone: "pos" },
+          renderContent: () => `
+            <div class="grid grid-cols-3 gap-2 font-mono-badge text-xs">
+              <div class="viewport-inner-card p-2.5">
+                <div class="text-[9px] uppercase font-semibold mb-1.5" style="color: var(--txt-muted);">Screening (12)</div>
+                <div class="p-1.5 rounded text-[10px] truncate mb-1" style="background: var(--bg-card); color: var(--txt-primary);">Ayesha K. (90%)</div>
+                <div class="p-1.5 rounded text-[10px] truncate" style="background: var(--bg-card); color: var(--txt-primary);">Daniyal M. (72%)</div>
+              </div>
+              <div class="viewport-inner-card p-2.5">
+                <div class="text-[9px] uppercase font-semibold mb-1.5" style="color: var(--num-mid);">Interviewing (4)</div>
+                <div class="p-1.5 rounded text-[10px] truncate tone-mid border">Chloe T. (Active)</div>
+              </div>
+              <div class="viewport-inner-card p-2.5">
+                <div class="text-[9px] uppercase font-semibold mb-1.5" style="color: var(--num-pos);">Shortlisted (3)</div>
+                <div class="p-1.5 rounded text-[10px] truncate font-bold tone-pos border">Farah Z. (94%)</div>
+              </div>
+            </div>
+          `
+        }
+      },
+      {
+        id: "keyword-stuffer-flag",
+        number: "10",
+        category: "Anti-Cheat Screening",
+        icon: "shield-alert",
+        title: "Anti-Keyword Stuffing & Fluff Flag",
+        description: "Traditional ATS screeners give 100% credit to candidates who dump 50+ keywords into a skills box. hireagent cross-verifies skills against actual project bullets, flagging unevidenced fluff and neutralizing inflated scores.",
+        metrics: [
+          { label: "KEYWORD TRAP DEFENSE", value: "100% Stuffer Immune", tone: "pos" },
+          { label: "SCORE OVERRIDE", value: "Caps Fluff to 0 Pts", tone: "neg" }
+        ],
+        viewport: {
+          file: "verification.py // KeywordStufferDetector",
+          tag: { text: "STUFFER FLAGGED", tone: "neg" },
+          renderContent: () => `
+            <div class="space-y-2.5 font-mono-badge text-xs">
+              <div class="viewport-inner-card p-3 space-y-1.5 text-[11px]">
+                <div class="flex justify-between"><span style="color: var(--txt-muted);">Detected Skill Dump:</span><span class="font-bold" style="color: var(--num-neg);">14 Unevidenced Keywords</span></div>
+                <div class="p-2 rounded-lg text-[10px] italic tone-neg border" style="color: var(--txt-primary);">
+                  "Skills: Python, Rust, AWS, Kubernetes, Terraform, AI/ML, Kafka, Distributed Systems, Docker, Redis..."
+                </div>
+                <div class="pt-1.5 border-t flex justify-between items-center text-[10px]" style="border-color: var(--border-card);">
+                  <span class="font-bold" style="color: var(--num-neg);">⚠️ Scoring Action:</span>
+                  <span style="color: var(--txt-secondary);">Overridden to 0% (Skills-List Only • No Evidence)</span>
+                </div>
+              </div>
+            </div>
+          `
+        }
+      }
+    ];
+
+    /**
+     * High-Performance Deck Controller
+     */
+    const DeckApp = {
+      activeIndex: 0,
+      total: FEATURES_DATA.length,
+      rotateInterval: 2250,
+      autoTimer: null,
+      isHovered: false,
+      isDragging: false,
+      startX: 0,
+      currentX: 0,
+      accumulatedDeltaX: 0,
+      wheelTimeout: null,
+      
+      // DOM References
+      stage: null,
+      slides: [],
+      pills: [],
+      progressBar: null,
+      statusText: null,
+      titleDisplay: null,
+      numberDisplay: null,
+
+      init() {
+        this.stage = document.getElementById('carousel-stage');
+        this.progressBar = document.getElementById('slide-progress-bar');
+        this.statusText = document.getElementById('auto-status-text');
+        this.titleDisplay = document.getElementById('current-slide-title');
+        this.numberDisplay = document.getElementById('slide-number-display');
+
+        this.renderSlides();
+        this.renderPills();
+        this.bindEvents();
+        
+        lucide.createIcons();
+        this.updateView();
+        this.startAutoRotate();
+      },
+
+      renderSlides() {
+        const fragment = document.createDocumentFragment();
+        FEATURES_DATA.forEach((feat, idx) => {
+          const slide = document.createElement('div');
+          slide.className = 'circular-slide glass-surface rounded-3xl p-6 sm:p-8 flex flex-col lg:flex-row gap-8 items-center';
+          slide.dataset.index = idx;
+          slide.dataset.title = `${feat.number} // ${feat.title.toUpperCase()}`;
+
+          slide.innerHTML = `
+            <div class="lg:w-5/12 flex flex-col justify-between h-full space-y-4">
+              <div>
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono-badge uppercase mb-3 tone-${feat.metrics[0].tone} border">
+                  <i data-lucide="${feat.icon}" class="w-3 h-3"></i> Feature ${feat.number} // ${feat.category}
+                </div>
+                <h3 class="font-serif-title text-2xl sm:text-3xl font-semibold mb-2" style="color: var(--txt-primary);">${feat.title}</h3>
+                <p class="text-xs sm:text-sm leading-relaxed" style="color: var(--txt-secondary);">${feat.description}</p>
+              </div>
+              <div class="grid grid-cols-2 gap-3 pt-3 border-t font-mono-badge text-xs" style="border-color: var(--border-card);">
+                <div>
+                  <div class="text-[10px]" style="color: var(--txt-muted);">${feat.metrics[0].label}</div>
+                  <div class="font-bold text-sm" style="color: var(--num-${feat.metrics[0].tone});">${feat.metrics[0].value}</div>
+                </div>
+                <div>
+                  <div class="text-[10px]" style="color: var(--txt-muted);">${feat.metrics[1].label}</div>
+                  <div class="font-bold text-sm" style="color: var(--num-${feat.metrics[1].tone});">${feat.metrics[1].value}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="lg:w-7/12 w-full screenshot-viewport p-4 sm:p-5">
+              <div class="flex items-center justify-between pb-3 mb-3 border-b text-[10px] font-mono-badge" style="border-color: var(--border-card);">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full" style="background: var(--traffic-red);"></span>
+                  <span class="w-2.5 h-2.5 rounded-full" style="background: var(--traffic-yellow);"></span>
+                  <span class="w-2.5 h-2.5 rounded-full" style="background: var(--traffic-green);"></span>
+                  <span class="ml-2 font-medium" style="color: var(--txt-muted);">${feat.viewport.file}</span>
+                </div>
+                <span class="px-2 py-0.5 rounded font-bold tone-${feat.viewport.tag.tone} border">${feat.viewport.tag.text}</span>
+              </div>
+              ${feat.viewport.renderContent()}
+            </div>
+          `;
+          fragment.appendChild(slide);
+        });
+
+        this.stage.appendChild(fragment);
+        this.slides = Array.from(this.stage.querySelectorAll('.circular-slide'));
+      },
+
+      renderPills() {
+        const pillDeck = document.getElementById('pill-selector-deck');
+        const fragment = document.createDocumentFragment();
+        
+        FEATURES_DATA.forEach((feat, idx) => {
+          const btn = document.createElement('button');
+          btn.className = `indicator-pill px-3 py-1.5 rounded-xl text-xs font-mono-badge glass-surface border transition-all ${idx === 0 ? 'active' : ''}`;
+          btn.textContent = `${feat.number} ${feat.title.split(' ')[0]}`;
+          btn.dataset.index = idx;
+          fragment.appendChild(btn);
+        });
+
+        pillDeck.appendChild(fragment);
+        this.pills = Array.from(pillDeck.querySelectorAll('.indicator-pill'));
+      },
+
+      bindEvents() {
+        // Unified Event Delegation on Stage
+        this.stage.addEventListener('click', (e) => {
+          const slide = e.target.closest('.circular-slide');
+          if (!slide) return;
+          if (slide.classList.contains('state-left')) {
+            this.rotate(-1);
+            this.startAutoRotate();
+          } else if (slide.classList.contains('state-right')) {
+            this.rotate(1);
+            this.startAutoRotate();
+          }
+        });
+
+        // Pill Deck Delegation
+        document.getElementById('pill-selector-deck').addEventListener('click', (e) => {
+          const pill = e.target.closest('.indicator-pill');
+          if (!pill) return;
+          this.jumpTo(parseInt(pill.dataset.index, 10));
+        });
+
+        // Hover Pausing
+        this.stage.addEventListener('mouseenter', () => {
+          this.isHovered = true;
+          this.stopAutoRotate();
+        });
+        this.stage.addEventListener('mouseleave', () => {
+          this.isHovered = false;
+          this.startAutoRotate();
+        });
+
+        // Keyboard Arrow Navigation
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowRight') { this.rotate(1); this.startAutoRotate(); }
+          if (e.key === 'ArrowLeft') { this.rotate(-1); this.startAutoRotate(); }
+        });
+
+        // Horizontal Trackpad / Mouse Scroll
+        this.stage.addEventListener('wheel', (e) => {
+          const deltaX = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+          if (Math.abs(deltaX) > 15) {
+            e.preventDefault();
+            this.accumulatedDeltaX += deltaX;
+            if (Math.abs(this.accumulatedDeltaX) >= 45) {
+              this.rotate(this.accumulatedDeltaX > 0 ? 1 : -1);
+              this.accumulatedDeltaX = 0;
+              this.startAutoRotate();
+            }
+          }
+          clearTimeout(this.wheelTimeout);
+          this.wheelTimeout = setTimeout(() => { this.accumulatedDeltaX = 0; }, 150);
+        }, { passive: false });
+
+        // Touch & Drag Physics
+        this.stage.addEventListener('touchstart', (e) => {
+          this.startX = e.touches[0].clientX;
+          this.isDragging = true;
+          this.stopAutoRotate();
+        }, { passive: true });
+
+        this.stage.addEventListener('touchmove', (e) => {
+          if (this.isDragging) this.currentX = e.touches[0].clientX;
+        }, { passive: true });
+
+        this.stage.addEventListener('touchend', () => {
+          if (!this.isDragging) return;
+          const delta = this.currentX - this.startX;
+          if (Math.abs(delta) > 50) this.rotate(delta < 0 ? 1 : -1);
+          this.isDragging = false;
+          this.startAutoRotate();
+        });
+
+        this.stage.addEventListener('mousedown', (e) => {
+          this.startX = e.clientX;
+          this.isDragging = true;
+          this.stopAutoRotate();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (this.isDragging) this.currentX = e.clientX;
+        });
+
+        window.addEventListener('mouseup', () => {
+          if (!this.isDragging) return;
+          const delta = this.currentX - this.startX;
+          if (Math.abs(delta) > 60) this.rotate(delta < 0 ? 1 : -1);
+          this.isDragging = false;
+          this.startAutoRotate();
+        });
+      },
+
+      updateView() {
+        this.slides.forEach((slide, idx) => {
+          let diff = (idx - this.activeIndex) % this.total;
+          if (diff < -Math.floor(this.total / 2)) diff += this.total;
+          if (diff > Math.floor(this.total / 2)) diff -= this.total;
+
+          // Remove state classes cleanly
+          slide.classList.remove('state-center', 'state-left', 'state-right', 'state-far-left', 'state-far-right', 'state-hidden');
+
+          if (diff === 0) slide.classList.add('state-center');
+          else if (diff === -1) slide.classList.add('state-left');
+          else if (diff === 1) slide.classList.add('state-right');
+          else if (diff === -2) slide.classList.add('state-far-left');
+          else if (diff === 2) slide.classList.add('state-far-right');
+          else slide.classList.add('state-hidden');
+        });
+
+        const activeSlide = this.slides[this.activeIndex];
+        if (this.titleDisplay) this.titleDisplay.textContent = activeSlide.dataset.title;
+        if (this.numberDisplay) this.numberDisplay.textContent = `${(this.activeIndex + 1).toString().padStart(2, '0')} / ${this.total.toString().padStart(2, '0')}`;
+
+        this.pills.forEach((pill, idx) => {
+          pill.classList.toggle('active', idx === this.activeIndex);
+        });
+
+        this.resetProgressBar();
+      },
+
+      rotate(step) {
+        this.activeIndex = (this.activeIndex + step + this.total) % this.total;
+        this.updateView();
+      },
+
+      jumpTo(index) {
+        this.activeIndex = (index + this.total) % this.total;
+        this.updateView();
+        this.startAutoRotate();
+      },
+
+      resetProgressBar() {
+        if (!this.progressBar) return;
+        this.progressBar.style.transition = 'none';
+        this.progressBar.style.width = '0%';
+        void this.progressBar.offsetWidth; // Force repaint
+        if (!this.isHovered) {
+          this.progressBar.style.transition = `width ${this.rotateInterval}ms linear`;
+          this.progressBar.style.width = '100%';
+        }
+      },
+
+      startAutoRotate() {
+        this.stopAutoRotate();
+        if (this.isHovered) return;
+        this.resetProgressBar();
+        if (this.statusText) this.statusText.textContent = "AUTO (2.25s)";
+        this.autoTimer = setInterval(() => { this.rotate(1); }, this.rotateInterval);
+      },
+
+      stopAutoRotate() {
+        if (this.autoTimer) {
+          clearInterval(this.autoTimer);
+          this.autoTimer = null;
+        }
+        if (this.progressBar) {
+          const computed = window.getComputedStyle(this.progressBar).width;
+          this.progressBar.style.transition = 'none';
+          this.progressBar.style.width = computed;
+        }
+        if (this.statusText && this.isHovered) {
+          this.statusText.textContent = "PAUSED (HOVER)";
+        }
+      },
+
+      setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        lucide.createIcons();
+        this.updateView();
+      },
+
+      setStrictDemo(mode, score) {
+        const valEl = document.getElementById('strictness-live-val');
+        if (valEl) valEl.textContent = `${score}% (${mode.charAt(0).toUpperCase() + mode.slice(1)})`;
+      }
+    };
+
+    // Boot Deck Engine on Load
+    document.addEventListener('DOMContentLoaded', () => {
+      DeckApp.init();
+    });
+  </script>
+</body>
+</html>

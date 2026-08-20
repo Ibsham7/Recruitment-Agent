@@ -17,10 +17,10 @@ import { FaqQuestionWizardModal } from "./FaqQuestionWizardModal";
 
 interface FaqSectionProps {
   theme: Theme;
-  onEnter: () => void;
+  onEnter?: () => void;
 }
 
-export function FaqSection({ theme: t, onEnter }: FaqSectionProps) {
+export function FaqSection({ theme: t, onEnter: _onEnter }: FaqSectionProps) {
   const [faqSearchQuery, setFaqSearchQuery] = useState<string>("");
   const [openFaqs, setOpenFaqs] = useState<number[]>([]);
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
