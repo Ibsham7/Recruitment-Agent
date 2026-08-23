@@ -17,7 +17,6 @@ interface Step2UploadProps {
   uploadTasks: UploadTask[];
   setUploadTasks: React.Dispatch<React.SetStateAction<UploadTask[]>>;
   uploading: boolean;
-  dbWakingUp: boolean;
   setStep: (step: number) => void;
   onComplete: () => void;
   uploadToR2WithProgress: (taskId: string, file: File) => Promise<string>;
@@ -28,7 +27,6 @@ export default function Step2Upload({
   uploadTasks,
   setUploadTasks,
   uploading,
-  dbWakingUp,
   setStep,
   onComplete,
   uploadToR2WithProgress
@@ -310,9 +308,7 @@ export default function Step2Upload({
           }}
         >
           {uploading ? (
-            dbWakingUp ? (
-              <><Loader2 size={16} className="animate-spin" /> Waking up database (~30s)...</>
-            ) : uploadTasks.some(t => t.status !== 'success') ? (
+            uploadTasks.some(t => t.status !== 'success') ? (
               <><Loader2 size={16} className="animate-spin" /> Uploading Candidate Resumes...</>
             ) : (
               <><Loader2 size={16} className="animate-spin" /> Launching Campaign...</>

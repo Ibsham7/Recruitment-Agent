@@ -38,7 +38,6 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
   const [hardFilters, setHardFilters] = useState<HardFilter[]>([]);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [dbWakingUp, setDbWakingUp] = useState(false);
 
   const runWithConcurrencyLimit = async <T, R>(
     items: T[],
@@ -194,27 +193,19 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
         return;
       }
 
-      const wakeUpTimer = setTimeout(() => setDbWakingUp(true), 3500);
-
-      let res: Response;
-      try {
-        res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: campaignId,
-            title,
-            jobDescription: jd,
-            resumes: fileUrls,
-            hardFiltersConfig: hardFilters,
-            enableInterviews: true,
-            strictness
-          })
-        });
-      } finally {
-        clearTimeout(wakeUpTimer);
-        setDbWakingUp(false);
-      }
+      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: campaignId,
+          title,
+          jobDescription: jd,
+          resumes: fileUrls,
+          hardFiltersConfig: hardFilters,
+          enableInterviews: true,
+          strictness
+        })
+      });
 
       if (!res.ok) {
         setUploading(false);
@@ -306,7 +297,6 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               uploadTasks={uploadTasks}
               setUploadTasks={setUploadTasks}
               uploading={uploading}
-              dbWakingUp={dbWakingUp}
               setStep={setStep}
               onComplete={onComplete}
               uploadToR2WithProgress={uploadToR2WithProgress}
