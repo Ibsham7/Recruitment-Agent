@@ -318,10 +318,26 @@ def reduce_match(
                 exp_text_parts.append(b_txt)
 
     for p in projects:
-        if isinstance(p, dict):
-            exp_text_parts.append(str(p.get("title", "")) + " " + str(p.get("description", "")))
+        if isinstance(p, str):
+            exp_text_parts.append(p)
+        elif isinstance(p, dict):
+            exp_text_parts.append(
+                str(p.get("title", "")) + " " + str(p.get("description", ""))
+                + " " + " ".join([str(s) for s in (p.get("skills_used", []) or [])])
+            )
+            for b in (p.get("bullets", []) or []):
+                b_txt = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
+                if b_txt:
+                    exp_text_parts.append(b_txt)
         else:
-            exp_text_parts.append(str(getattr(p, "title", "")) + " " + str(getattr(p, "description", "")))
+            exp_text_parts.append(
+                str(getattr(p, "title", "")) + " " + str(getattr(p, "description", ""))
+                + " " + " ".join([str(s) for s in (getattr(p, "skills_used", []) or [])])
+            )
+            for b in (getattr(p, "bullets", []) or []):
+                b_txt = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
+                if b_txt:
+                    exp_text_parts.append(b_txt)
 
     exp_corpus = " ".join(exp_text_parts).lower()
 

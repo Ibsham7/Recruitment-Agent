@@ -431,7 +431,16 @@ Rules:
 - skills_declared: list of skills extracted ONLY from the explicitly labeled "Skills" or "Technical Skills" section. Self-reported claims. Do NOT include bullet IDs here.
 - LINE UNWRAPPING: If a line in the CV does NOT start with a bullet marker (•, -, *, ▪) or section heading, and the previous line does NOT end with terminal punctuation (. ! ? :), JOIN that line to the previous line with a space to preserve continuation lines.
 - skills: include both domain/technical and soft skills across the entire CV.
-- projects: include notable academic, personal, or professional projects/campaigns.
+- projects: Extract each notable project, portfolio piece, campaign, publication, clinical initiative, or independent deliverable as a structured object with:
+  * id: unique project ID (e.g. 'P1', 'P2')
+  * title: project/campaign/publication name
+  * organization: client, institution, lab, hospital, or context (e.g. 'Open Source', 'Stanford Lab', 'Client Project'). Use null if personal/independent.
+  * skills_used: list of key tools/technologies/methods used in this project
+  * description: brief summary of objectives and deliverables
+  * url: repository URL, live demo link, publication DOI, or portfolio link (if present on CV). Use null if not stated.
+  * bullets: list of VERBATIM bullet objects copied character-for-character from CV text. Assign sequential IDs: P1.1, P1.2, P2.1, etc.
+  This applies across ALL industries: tech projects, marketing campaigns, financial deals/transactions, research publications, clinical rotations, design portfolios, legal cases, curriculum initiatives, etc.
+  If the CV has a dedicated "Projects" or "Portfolio" or "Publications" or "Campaigns" section, extract ALL items from it as structured ProjectRecord objects.
 - other_info: include anything else that is relevant like certifications, awards, licenses, etc.
 - Do not invent information. Every bullet text MUST be an EXACT substring of the CV text.
 """

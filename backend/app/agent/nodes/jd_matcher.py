@@ -249,10 +249,20 @@ def extract_verbatim_sentence_for_requirement(
     projects = getattr(candidate_profile, "projects", []) or []
     proj_text = ""
     for p in projects:
-        if isinstance(p, dict):
-            proj_text += f" {p.get('title', '')} {p.get('name', '')} {p.get('description', '')}"
+        if isinstance(p, str):
+            proj_text += f" {p}"
+        elif isinstance(p, dict):
+            proj_text += f" {p.get('title', '')} {p.get('name', '')} {p.get('description', '')} {' '.join([str(s) for s in (p.get('skills_used', []) or [])])}"
+            for b in (p.get("bullets", []) or []):
+                b_text = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
+                if b_text:
+                    proj_text += f" {b_text}"
         else:
-            proj_text += f" {getattr(p, 'title', '')} {getattr(p, 'description', '')}"
+            proj_text += f" {getattr(p, 'title', '')} {getattr(p, 'description', '')} {' '.join([str(s) for s in (getattr(p, 'skills_used', []) or [])])}"
+            for b in (getattr(p, "bullets", []) or []):
+                b_text = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
+                if b_text:
+                    proj_text += f" {b_text}"
     proj_text = proj_text.lower()
 
     skills = getattr(candidate_profile, "skills", []) or []
@@ -288,10 +298,12 @@ def extract_verbatim_sentence_for_requirement(
             continue
 
         sec_mult = SECTION_PRIORITY_WEIGHTS["inferred"]
-        if line_lower in roles_text or any(v in line_lower for v in SUBSTANTIVE_EXECUTION_VERBS):
+        if line_lower in roles_text:
             sec_mult = SECTION_PRIORITY_WEIGHTS["employment"]
         elif line_lower in proj_text:
             sec_mult = SECTION_PRIORITY_WEIGHTS["project"]
+        elif any(v in line_lower for v in SUBSTANTIVE_EXECUTION_VERBS):
+            sec_mult = SECTION_PRIORITY_WEIGHTS["inferred"]
         elif is_in_skills:
             sec_mult = SECTION_PRIORITY_WEIGHTS["skills_list_only"]
 
@@ -617,9 +629,12 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
         roles_text += f" {r_title} {r_desc} {r_skills}"
     projects_text = ""
     for p in (getattr(profile, "projects", []) or []):
-        p_title = getattr(p, "title", p.get("title", "") if isinstance(p, dict) else "")
-        p_desc = getattr(p, "description", p.get("description", "") if isinstance(p, dict) else "")
-        projects_text += f" {p_title} {p_desc}"
+        if isinstance(p, str):
+            projects_text += f" {p}"
+        elif isinstance(p, dict):
+            projects_text += f" {p.get('title', '')} {p.get('description', '')} {' '.join([str(s) for s in (p.get('skills_used', []) or [])])}"
+        else:
+            projects_text += f" {getattr(p, 'title', '')} {getattr(p, 'description', '')} {' '.join([str(s) for s in (getattr(p, 'skills_used', []) or [])])}"
     education_text = " ".join([str(e) for e in (getattr(profile, "education", []) or [])])
 
     cand_corpus = f"{raw_cv_text} {profile_skills_text} {roles_text} {projects_text} {education_text}".lower()
@@ -749,9 +764,17 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                     final_ev = "No evidence found on CV"
                     prof_sig = "none"
                 else:
-                    ev_type = "employment"
                     verb_line = extract_verbatim_sentence_for_requirement(c_name, profile, prefer_employment_only=True)
-                    final_ev = verb_line or "Evidenced in employment history"
+                    ev_type = "employment"
+                    if verb_line:
+                        _proj_corpus = " ".join(
+                            str(getattr(pp, "title", "")) + " " + str(getattr(pp, "description", ""))
+                            for pp in (getattr(profile, "projects", []) or [])
+                            if not isinstance(pp, str)
+                        ).lower()
+                        if verb_line.lower() in _proj_corpus:
+                            ev_type = "project"
+                    final_ev = verb_line or "Evidenced on CV"
                     prof_sig = "used"
 
             aligned_must_have.append(RequirementMatch(
@@ -840,9 +863,17 @@ async def jd_matcher_node(state: RecruitmentState) -> dict:
                 final_ev = "No evidence found on CV"
                 prof_sig = "none"
             else:
-                ev_type = "employment"
                 verb_line = extract_verbatim_sentence_for_requirement(c_name, profile, prefer_employment_only=True)
-                final_ev = verb_line or "Evidenced in employment history"
+                ev_type = "employment"
+                if verb_line:
+                    _proj_corpus = " ".join(
+                        str(getattr(pp, "title", "")) + " " + str(getattr(pp, "description", ""))
+                        for pp in (getattr(profile, "projects", []) or [])
+                        if not isinstance(pp, str)
+                    ).lower()
+                    if verb_line.lower() in _proj_corpus:
+                        ev_type = "project"
+                final_ev = verb_line or "Evidenced on CV"
                 prof_sig = "used"
 
             aligned_nice_to_have.append(RequirementMatch(

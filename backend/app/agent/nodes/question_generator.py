@@ -28,7 +28,28 @@ async def question_generator_node(state: RecruitmentState) -> dict:
     
     roles_str = ", ".join([str(r) for r in profile.previous_roles]) if profile.previous_roles else "None specified"
     skills_str = ", ".join(profile.skills) if profile.skills else "None specified"
-    projects_str = "\n  - ".join(profile.projects) if profile.projects else "None specified"
+    if profile.projects:
+        proj_lines = []
+        for p in profile.projects:
+            if isinstance(p, str):
+                proj_lines.append(p)
+            else:
+                p_title = getattr(p, "title", str(p))
+                p_org = getattr(p, "organization", None)
+                p_skills = ", ".join(getattr(p, "skills_used", []) or [])
+                header = p_title
+                if p_org:
+                    header += f" ({p_org})"
+                if p_skills:
+                    header += f" [Tools: {p_skills}]"
+                p_bullets = getattr(p, "bullets", []) or []
+                bullet_texts = [getattr(b, "text", "") for b in p_bullets[:2] if getattr(b, "text", "")]
+                if bullet_texts:
+                    header += " — " + "; ".join(bullet_texts)
+                proj_lines.append(header)
+        projects_str = "\n  - ".join(proj_lines)
+    else:
+        projects_str = "None specified"
     achievements_str = "\n  - ".join(profile.key_achievements) if profile.key_achievements else "None specified"
     education_str = ", ".join(profile.education) if profile.education else "None specified"
     other_str = profile.other_info or "None"
@@ -114,7 +135,7 @@ Generate 3 targeted, anchor-grounded interview questions for this specific candi
                 logger.warning(f"[Question Gen] All {max_retries} attempts failed. Falling back to resume-anchored default questions.")
                 role_ref = str(profile.previous_roles[0]) if profile.previous_roles else "your recent role"
                 skill_ref = profile.skills[0] if profile.skills else "your core technology"
-                project_ref = profile.projects[0] if profile.projects else "your key project"
+                project_ref = str(profile.projects[0]) if profile.projects else "your key project"
                 questions = [
                     InterviewQuestion(
                         question=f"In your role at {role_ref}, you used {skill_ref} to deliver projects. How did you handle architectural trade-offs and technical challenges?",

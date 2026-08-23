@@ -3,6 +3,16 @@ export type CampaignStatus = "active" | "completed" | "paused";
 export type CandidateStage = "pending" | "screening" | "screening_hold" | "shortlisted" | "invited" | "interviewing" | "interview_completed" | "review" | "finalized" | "complete" | "rejected";
 export type Recommendation = "shortlist" | "reject" | "pending" | "hold" | "approve" | "override";
 
+export interface ProjectRecord {
+  id?: string;
+  title: string;
+  organization?: string;
+  skills_used?: string[];
+  description?: string;
+  url?: string;
+  bullets?: { id: string; text: string }[];
+}
+
 export interface Campaign {
   id: string;
   title: string;

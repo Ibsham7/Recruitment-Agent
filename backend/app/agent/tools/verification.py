@@ -283,11 +283,21 @@ def classify_evidence_source(
         if isinstance(p, str):
             proj_parts.append(p)
         elif isinstance(p, dict):
-            proj_parts.append(f"{p.get('title', '')} {p.get('name', '')} {p.get('description', '')}")
+            proj_parts.append(f"{p.get('title', '')} {p.get('name', '')} {p.get('description', '')} {p.get('organization', '')} {' '.join([str(s) for s in (p.get('skills_used', []) or [])])}")
+            for b in (p.get("bullets", []) or []):
+                b_text = b.get("text", "") if isinstance(b, dict) else str(b)
+                if b_text:
+                    proj_parts.append(b_text)
         else:
             p_t = getattr(p, "title", None) or getattr(p, "name", None) or str(p)
             p_d = getattr(p, "description", "")
-            proj_parts.append(f"{p_t} {p_d}")
+            p_org = getattr(p, "organization", "") or ""
+            p_skills = " ".join([str(s) for s in (getattr(p, "skills_used", []) or [])])
+            proj_parts.append(f"{p_t} {p_d} {p_org} {p_skills}")
+            for b in (getattr(p, "bullets", []) or []):
+                b_text = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
+                if b_text:
+                    proj_parts.append(b_text)
     for a in achievements:
         proj_parts.append(str(a))
     projects_norm = normalize_text(" ".join(proj_parts))

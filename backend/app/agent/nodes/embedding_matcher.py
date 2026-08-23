@@ -73,8 +73,8 @@ async def embedding_matcher_node(state: RecruitmentState) -> dict:
         f"Skills: {', '.join(profile.skills)}. "
         f"Experience: {profile.total_experience_years} years. "
         f"Roles: {', '.join([str(r) for r in profile.previous_roles])}. "
-        f"Education: {', '.join(getattr(profile, 'education', []))}. "
-        f"Projects: {', '.join(getattr(profile, 'projects', []))}. "
+        f"Education: {', '.join([str(e) for e in getattr(profile, 'education', [])])}. "
+        f"Projects: {', '.join([str(p) for p in getattr(profile, 'projects', [])])}. "
         f"Other Info: {getattr(profile, 'other_info', '')}."
     )
     

@@ -30,11 +30,20 @@ def reconcile_candidate_skills(candidate_profile: Any) -> dict[str, Any]:
     skills_declared = getattr(candidate_profile, "skills_declared", []) or getattr(candidate_profile, "skills", []) or []
     roles = getattr(candidate_profile, "previous_roles", []) or []
 
-    # Build bullet map
+    # Build bullet map from previous roles and projects
     bullet_map = {}
     for role in roles:
         bullets = getattr(role, "bullets", []) or []
         for b in bullets:
+            b_id = getattr(b, "id", None)
+            b_text = getattr(b, "text", "")
+            if b_id and b_text:
+                bullet_map[b_id] = b_text.lower()
+
+    proj_list = getattr(candidate_profile, "projects", []) or []
+    for proj in proj_list:
+        p_bullets = getattr(proj, "bullets", []) or []
+        for b in p_bullets:
             b_id = getattr(b, "id", None)
             b_text = getattr(b, "text", "")
             if b_id and b_text:

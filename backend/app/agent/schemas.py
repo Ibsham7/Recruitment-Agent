@@ -37,6 +37,21 @@ class WorkExperienceRole(BaseModel):
             return f"{self.title} at {self.company}"
         return self.title
 
+class ProjectRecord(BaseModel):
+    """Structured project, portfolio, campaign, publication, or initiative record."""
+    id: Optional[str] = Field(default=None, description="Project ID, e.g. 'P1', 'P2'")
+    title: str = Field(description="Title or name of project, campaign, publication, or initiative")
+    organization: Optional[str] = Field(default=None, description="Client, institution, or context (e.g. 'Open Source', 'Academic Lab')")
+    skills_used: list[str] = Field(default_factory=list, description="Key skills, tools, or technologies used")
+    description: Optional[str] = Field(default="", description="Brief summary of objectives and deliverables")
+    url: Optional[str] = Field(default=None, description="Repository URL, live demo, publication DOI, or portfolio link")
+    bullets: list[ExperienceBullet] = Field(default_factory=list, description="Verbatim bullet points with IDs (e.g., 'P1.1', 'P1.2')")
+
+    def __str__(self) -> str:
+        if self.organization:
+            return f"{self.title} ({self.organization})"
+        return self.title
+
 class CandidateProfileOutput(BaseModel):
     """Output of the CV Parser LLM (omits raw_cv_text to save tokens)."""
     name: str = Field(validation_alias=AliasChoices("name", "candidate_name", "full_name"))
@@ -50,7 +65,7 @@ class CandidateProfileOutput(BaseModel):
     skills_declared: list[str] = Field(default_factory=list, description="Skills listed in the candidate's Skills section ONLY. Self-reported claims.")
     previous_roles: list[WorkExperienceRole] = Field(default_factory=list, description="Structured work experience history")
     key_achievements: list[str] = Field(default_factory=list, description="Notable accomplishments")
-    projects: list[str] = Field(default_factory=list, description="Notable projects")
+    projects: list[ProjectRecord] = Field(default_factory=list, description="Structured project, portfolio, campaign, or initiative records")
     other_info: Optional[str] = Field(default="", description="Any other relevant info from the CV")
     parse_flags: list[str] = Field(default_factory=list, description="Flags raised during parsing")
 
@@ -118,6 +133,30 @@ class CandidateProfileOutput(BaseModel):
                     converted.append(WorkExperienceRole(**item))
                 elif isinstance(item, WorkExperienceRole):
                     converted.append(item)
+            return converted
+        return v
+
+    @field_validator("projects", mode="before")
+    @classmethod
+    def convert_projects(cls, v):
+        """Resilient converter: handles legacy str, dict, and ProjectRecord inputs."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            converted = []
+            for item in v:
+                if isinstance(item, str):
+                    converted.append(ProjectRecord(title=item))
+                elif isinstance(item, dict):
+                    if "name" in item and "title" not in item:
+                        item["title"] = item.pop("name")
+                    if not item.get("title"):
+                        item["title"] = item.get("description", "Untitled Project") or "Untitled Project"
+                    converted.append(ProjectRecord(**{k: val for k, val in item.items() if k in ProjectRecord.model_fields}))
+                elif isinstance(item, ProjectRecord):
+                    converted.append(item)
+                else:
+                    converted.append(ProjectRecord(title=str(item)))
             return converted
         return v
 

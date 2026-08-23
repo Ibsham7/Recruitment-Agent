@@ -740,11 +740,15 @@ def _compute_evidence_trajectory(candidate_profile: Any, skills_score: float, ev
         if isinstance(p, str):
             projects_corpus_parts.append(p)
         elif isinstance(p, dict):
-            projects_corpus_parts.append(f"{p.get('title', '')} {p.get('name', '')} {p.get('description', '')}")
+            p_skills = " ".join([str(s) for s in (p.get("skills_used", []) or [])])
+            p_bullets = " ".join([b.get("text", "") if isinstance(b, dict) else str(b) for b in (p.get("bullets", []) or [])])
+            projects_corpus_parts.append(f"{p.get('title', '')} {p.get('name', '')} {p.get('description', '')} {p_skills} {p_bullets}")
         else:
             p_t = getattr(p, "title", None) or getattr(p, "name", None) or str(p)
             p_d = getattr(p, "description", "")
-            projects_corpus_parts.append(f"{p_t} {p_d}")
+            p_skills = " ".join([str(s) for s in (getattr(p, "skills_used", []) or [])])
+            p_bullets = " ".join([getattr(b, "text", "") for b in (getattr(p, "bullets", []) or [])])
+            projects_corpus_parts.append(f"{p_t} {p_d} {p_skills} {p_bullets}")
     for a in achievements:
         projects_corpus_parts.append(str(a))
 

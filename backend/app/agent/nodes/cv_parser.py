@@ -6,7 +6,7 @@ import hashlib
 import base64
 from pypdf import PdfReader
 from app.agent.config import get_model, MODELS
-from app.agent.schemas import CandidateProfile, CandidateProfileOutput
+from app.agent.schemas import CandidateProfile, CandidateProfileOutput, ProjectRecord
 from app.agent.state import RecruitmentState
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.agent.prompts import CV_PARSER_SYSTEM
@@ -122,9 +122,24 @@ def reconstruct_raw_text_from_profile(profile_data: dict) -> str:
         for p in projects:
             if isinstance(p, dict):
                 p_name = p.get("title") or p.get("name") or ""
+                p_org = p.get("organization", "")
                 p_desc = p.get("description", "")
-                if p_name or p_desc:
-                    lines.append(f"- {p_name}: {p_desc}".strip(" :"))
+                p_skills = ", ".join([str(s) for s in (p.get("skills_used", []) or [])])
+                header = p_name
+                if p_org:
+                    header += f" ({p_org})"
+                if header:
+                    lines.append(header)
+                if p_desc:
+                    lines.append(f"  {p_desc}")
+                if p_skills:
+                    lines.append(f"  Skills: {p_skills}")
+                for b in (p.get("bullets", []) or []):
+                    b_text = b.get("text", "") if isinstance(b, dict) else str(b)
+                    if b_text:
+                        lines.append(f"  - {b_text}")
+            elif isinstance(p, str) and p.strip():
+                lines.append(f"- {p}")
 
     education = profile_data.get("education", [])
     if education:
@@ -359,47 +374,54 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
             resume = None
 
     if resume and resume.structuredProfile:
-        logger.info("[CV Parser] Found global resume cache via hash.")
         profile_data = json.loads(resume.structuredProfile) if isinstance(resume.structuredProfile, str) else resume.structuredProfile
         
-        if not profile_data.get("raw_cv_text") or (str(profile_data.get("raw_cv_text")).strip().startswith("{") and "previous_roles" in str(profile_data.get("raw_cv_text"))):
-            profile_data["raw_cv_text"] = reconstruct_raw_text_from_profile(profile_data)
-
-        # Dynamically recalculate tenure & calculation summary against live current date
-        from app.agent.tools.timeline import calculate_total_experience_years, generate_experience_calculation_summary
-        llm_exp = profile_data.get("total_experience_years", 0.0)
-        profile_data["total_experience_years"] = calculate_total_experience_years(
-            profile_data.get("previous_roles", []),
-            fallback_years=float(llm_exp) if llm_exp else 0.0
-        )
-        profile_data["experience_calculation"] = generate_experience_calculation_summary(
-            profile_data.get("previous_roles", [])
-        )
-        candidate_profile = CandidateProfile(**profile_data)
+        # Check if cached profile has legacy flat strings in projects
+        cached_projects = profile_data.get("projects", [])
+        is_legacy = bool(cached_projects and any(isinstance(p, str) or (isinstance(p, dict) and not p.get("bullets")) for p in cached_projects))
         
-        # Link candidate to existing resume & update extracted name
-        if "candidate_id" in state and not state["candidate_id"].startswith("candidate_") and prisma.is_connected():
-            try:
-                update_data = {
-                    "resumeId": resume.id,
-                    "totalExperienceYears": candidate_profile.total_experience_years,
-                    "currentRole": candidate_profile.current_role_resolved,
-                }
-                if candidate_profile.name and candidate_profile.name not in ["Unknown Candidate", "Processing Candidate..."]:
-                    update_data["name"] = candidate_profile.name
-                await prisma.candidate.update(
-                    where={"id": state["candidate_id"]},
-                    data=update_data
-                )
-            except Exception as e:
-                logger.warning(f"[CV Parser] Could not link resume to candidate: {e}")
-                
-        return {
-            "candidate_profile": candidate_profile,
-            "pipeline_status": "running",
-            "log": ["CV parsed from global hash cache"],
-            "total_cost": total_cost
-        }
+        if is_legacy:
+            logger.info("[CV Parser] Found legacy resume cache (flat project strings without bullets). Re-parsing with structured deliverable extractor.")
+        else:
+            logger.info("[CV Parser] Found global resume cache via hash.")
+            if not profile_data.get("raw_cv_text") or (str(profile_data.get("raw_cv_text")).strip().startswith("{") and "previous_roles" in str(profile_data.get("raw_cv_text"))):
+                profile_data["raw_cv_text"] = reconstruct_raw_text_from_profile(profile_data)
+
+            # Dynamically recalculate tenure & calculation summary against live current date
+            from app.agent.tools.timeline import calculate_total_experience_years, generate_experience_calculation_summary
+            llm_exp = profile_data.get("total_experience_years", 0.0)
+            profile_data["total_experience_years"] = calculate_total_experience_years(
+                profile_data.get("previous_roles", []),
+                fallback_years=float(llm_exp) if llm_exp else 0.0
+            )
+            profile_data["experience_calculation"] = generate_experience_calculation_summary(
+                profile_data.get("previous_roles", [])
+            )
+            candidate_profile = CandidateProfile(**profile_data)
+            
+            # Link candidate to existing resume & update extracted name
+            if "candidate_id" in state and not state["candidate_id"].startswith("candidate_") and prisma.is_connected():
+                try:
+                    update_data = {
+                        "resumeId": resume.id,
+                        "totalExperienceYears": candidate_profile.total_experience_years,
+                        "currentRole": candidate_profile.current_role_resolved,
+                    }
+                    if candidate_profile.name and candidate_profile.name not in ["Unknown Candidate", "Processing Candidate..."]:
+                        update_data["name"] = candidate_profile.name
+                    await prisma.candidate.update(
+                        where={"id": state["candidate_id"]},
+                        data=update_data
+                    )
+                except Exception as e:
+                    logger.warning(f"[CV Parser] Could not link resume to candidate: {e}")
+                    
+            return {
+                "candidate_profile": candidate_profile,
+                "pipeline_status": "running",
+                "log": ["CV parsed from global hash cache"],
+                "total_cost": total_cost
+            }
 
     stage_tokens = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
     today_str = date.today().isoformat()
@@ -540,6 +562,29 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                     parse_flags.append("skills_reclassified")
             else:
                 bullets_to_keep.append(b)
+    
+    # Ensure project IDs and project bullet IDs exist
+    proj_idx = 1
+    for proj in (candidate_profile.projects or []):
+        if not getattr(proj, "id", None):
+            proj.id = f"P{proj_idx}"
+        proj_idx += 1
+
+        proj_bullets_to_keep = []
+        pb_idx = 1
+        for b in (getattr(proj, "bullets", []) or []):
+            if not getattr(b, "id", None):
+                b.id = f"{proj.id}.{pb_idx}"
+            pb_idx += 1
+
+            if looks_like_skill_list(b.text):
+                new_skills = [s.strip() for s in b.text.split(",") if s.strip()]
+                skills_declared.extend(new_skills)
+                if "skills_reclassified" not in parse_flags:
+                    parse_flags.append("skills_reclassified")
+            else:
+                proj_bullets_to_keep.append(b)
+
     candidate_profile.skills_declared = list(set(skills_declared))
 
     # Propagate security scan flags if threats were detected
@@ -553,6 +598,7 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
     # Create or update global Resume record if DB is connected
     if prisma.is_connected():
         try:
+            profile_dump_json = json.dumps(candidate_profile.model_dump(), sort_keys=True)
             if DISABLE_SHA256_CACHE:
                 new_resume = await prisma.resume.upsert(
                     where={"fileHash": file_hash},
@@ -560,11 +606,11 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                         "create": {
                             "fileHash": file_hash,
                             "rawCvText": raw_text,
-                            "structuredProfile": json.dumps(profile_data, sort_keys=True)
+                            "structuredProfile": profile_dump_json
                         },
                         "update": {
                             "rawCvText": raw_text,
-                            "structuredProfile": json.dumps(profile_data, sort_keys=True)
+                            "structuredProfile": profile_dump_json
                         }
                     }
                 )
@@ -573,11 +619,18 @@ async def cv_parser_node(state: RecruitmentState) -> dict:
                 except Exception:
                     pass
             else:
-                new_resume = await prisma.resume.create(
+                new_resume = await prisma.resume.upsert(
+                    where={"fileHash": file_hash},
                     data={
-                        "fileHash": file_hash,
-                        "rawCvText": raw_text,
-                        "structuredProfile": json.dumps(profile_data, sort_keys=True)
+                        "create": {
+                            "fileHash": file_hash,
+                            "rawCvText": raw_text,
+                            "structuredProfile": profile_dump_json
+                        },
+                        "update": {
+                            "rawCvText": raw_text,
+                            "structuredProfile": profile_dump_json
+                        }
                     }
                 )
             
