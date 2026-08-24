@@ -9,37 +9,67 @@ interface StatsSectionProps {
 
 export function StatsSection({ theme: t }: StatsSectionProps) {
   return (
-    <section className="relative z-20 w-full px-4 sm:px-8 lg:px-12 py-16" style={{ background: hexToRgba(t.bgSurface, t.isDark ? 0.70 : 0.55), borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}`, borderBottom: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.55)}` }}>
+    <section
+      className="relative z-20 w-full px-3.5 sm:px-8 lg:px-12 py-10 sm:py-16"
+      style={{
+        background: hexToRgba(t.bgSurface, t.isDark ? 0.75 : 0.60),
+        borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.60)}`,
+        borderBottom: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.60)}`,
+      }}
+    >
       <motion.div
         initial="hidden"
         whileInView="show"
-        viewport={{ once: false, amount: 0.1 }}
+        viewport={{ once: true, amount: 0.1 }}
         variants={{
-          hidden: { transition: { staggerChildren: 0.1, staggerDirection: -1 } },
-          show: { transition: { staggerChildren: 0.1, staggerDirection: 1 } }
+          hidden: { transition: { staggerChildren: 0.08, staggerDirection: -1 } },
+          show: { transition: { staggerChildren: 0.08, staggerDirection: 1 } },
         }}
-        className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-8 text-center"
+        className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 lg:gap-8 text-center"
       >
         {landingStats.map((s) => (
           <motion.div
             key={s.value}
             variants={{
-              hidden: { opacity: 0, scale: 0.95, transition: { duration: 0.4, ease: "easeIn" } },
-              show: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: "easeOut" } }
+              hidden: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.35, ease: "easeIn" } },
+              show: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
             }}
-            className="flex flex-col items-center justify-center p-6 sm:p-8 rounded-2xl border transition-all duration-300 hover:scale-[1.02]"
+            className="group relative flex flex-col items-center justify-center p-3.5 min-[375px]:p-5 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl border transition-all duration-300 hover:scale-[1.02] active:scale-[0.99] overflow-hidden"
             style={{
-              background: hexToRgba(t.bgCard, t.isDark ? 0.14 : 0.60),
-              borderColor: hexToRgba(t.txtBody, t.isDark ? 0.10 : 0.12),
+              background: hexToRgba(t.bgCard, t.isDark ? 0.18 : 0.65),
+              borderColor: hexToRgba(t.txtBody, t.isDark ? 0.12 : 0.15),
               backdropFilter: "blur(12px)",
-              boxShadow: t.isDark ? "0 4px 20px rgba(0,0,0,0.2)" : "0 4px 20px rgba(0,0,0,0.03)"
+              boxShadow: t.isDark ? "0 4px 20px rgba(0,0,0,0.25)" : "0 4px 20px rgba(0,0,0,0.03)",
             }}
           >
-            <div style={{ fontFamily: "'Fraunces',serif", fontSize: "clamp(2.4rem, 4vw, 3.4rem)", fontWeight: 600, color: t.numHero, lineHeight: 1.1 }}>{s.value}</div>
-            <div className="text-xs sm:text-sm font-medium mt-3 leading-relaxed max-w-[220px]" style={{ color: t.txtSecondary }}>{s.label.replace("\n", " ")}</div>
+            {/* Ambient hover top highlight line */}
+            <div
+              className="absolute inset-x-0 top-0 h-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              style={{
+                background: `linear-gradient(90deg, transparent, ${t.accentPrimary}, transparent)`,
+              }}
+            />
+
+            <div
+              className="text-2xl min-[360px]:text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight"
+              style={{
+                fontFamily: "'Fraunces', serif",
+                color: t.numHero,
+                lineHeight: 1.15,
+              }}
+            >
+              {s.value}
+            </div>
+            <div
+              className="text-[11px] min-[360px]:text-xs sm:text-sm font-medium mt-1.5 sm:mt-3 leading-snug sm:leading-relaxed max-w-[220px] mx-auto text-balance"
+              style={{ color: t.txtSecondary }}
+            >
+              {s.label.replace("\n", " ")}
+            </div>
           </motion.div>
         ))}
       </motion.div>
     </section>
   );
 }
+

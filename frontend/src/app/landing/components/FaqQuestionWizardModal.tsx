@@ -247,7 +247,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6"
       style={{
         background: hexToRgba("#000000", 0.70),
         backdropFilter: "blur(8px)",
@@ -260,7 +260,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
-        className="w-full max-w-2xl h-[88vh] max-h-[720px] rounded-3xl border shadow-2xl flex flex-col overflow-hidden relative"
+        className="w-full max-w-2xl h-[94vh] sm:h-[88vh] max-h-[720px] rounded-2xl sm:rounded-3xl border shadow-2xl flex flex-col overflow-hidden relative"
         style={{
           background: t.isDark ? "#12131a" : "#ffffff",
           borderColor: hexToRgba(t.accentPrimary, 0.3),
@@ -270,16 +270,16 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
       >
         {/* ── STICKY HEADER & FIXED CONTROLS ───────────────────────────────── */}
         <div 
-          className="shrink-0 z-10 px-6 py-4 border-b flex items-center justify-between"
+          className="shrink-0 z-10 px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between gap-2"
           style={{
             background: hexToRgba(t.bgCard, t.isDark ? 0.95 : 0.98),
             borderColor: hexToRgba(t.txtBody, 0.10),
             backdropFilter: "blur(12px)"
           }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <div 
-              className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shadow-sm"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-bold text-xs shadow-sm shrink-0"
               style={{
                 background: hexToRgba(t.accentPrimary, 0.15),
                 color: t.accentPrimary,
@@ -288,21 +288,23 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
             >
               <HelpCircle size={18} />
             </div>
-            <div>
-              <h3 className="text-base font-bold leading-tight" style={{ color: t.txtPrimary }}>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-bold leading-tight truncate" style={{ color: t.txtPrimary }}>
                 Ask Architecture & Workflow Specialist
               </h3>
-              <p className="text-xs" style={{ color: t.txtSecondary }}>
+              <p className="text-[11px] sm:text-xs truncate" style={{ color: t.txtSecondary }}>
                 Step {step} of 5: {getStepTitle(step)}
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={handleClose}
-            className="p-2 rounded-xl transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+            className="w-10 h-10 min-w-[40px] sm:min-w-[44px] rounded-xl flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10 shrink-0"
             style={{ color: t.txtGhost }}
             title="Close dialog (Esc)"
+            aria-label="Close dialog"
           >
             <X size={18} />
           </button>
@@ -320,7 +322,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
         </div>
 
         {/* ── INDEPENDENT SCROLL BODY ───────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 space-y-4 sm:space-y-6 overscroll-contain">
           
           {errorMessage && (
             <div 
@@ -331,8 +333,8 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                 color: "#ef4444"
               }}
             >
-              <HelpCircle size={16} />
-              <span>{errorMessage}</span>
+              <HelpCircle size={16} className="shrink-0" />
+              <span className="break-words">{errorMessage}</span>
             </div>
           )}
 
@@ -341,22 +343,22 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center justify-center text-center py-8 space-y-5"
+              className="flex flex-col items-center justify-center text-center py-6 sm:py-8 space-y-4 sm:space-y-5 px-2"
             >
               <div 
-                className="w-16 h-16 rounded-full flex items-center justify-center text-emerald-500 bg-emerald-500/10 border border-emerald-500/30 shadow-lg"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-emerald-500 bg-emerald-500/10 border border-emerald-500/30 shadow-lg shrink-0"
               >
-                <Check size={32} />
+                <Check size={30} />
               </div>
 
               <div className="space-y-2 max-w-md">
-                <span className="text-[10px] font-mono font-semibold uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                <span className="text-[10px] font-mono font-semibold uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 inline-block">
                   Question Stored Successfully
                 </span>
-                <h4 className="text-xl font-bold" style={{ color: t.txtPrimary }}>
+                <h4 className="text-lg sm:text-xl font-bold break-words" style={{ color: t.txtPrimary }}>
                   Inquiry Ticket #{submissionId}
                 </h4>
-                <p className="text-xs leading-relaxed" style={{ color: t.txtSecondary }}>
+                <p className="text-xs leading-relaxed break-words" style={{ color: t.txtSecondary }}>
                   Thank you, <strong style={{ color: t.txtPrimary }}>{name}</strong>! Your question regarding{" "}
                   <strong style={{ color: t.accentPrimary }}>{category}</strong> has been saved to our database.
                   Our team will review your context and reach out via <strong className="capitalize">{preferredContact}</strong>.
@@ -364,30 +366,31 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
               </div>
 
               <div 
-                className="w-full max-w-md p-4 rounded-2xl border text-left text-xs space-y-2"
+                className="w-full max-w-md p-3.5 sm:p-4 rounded-2xl border text-left text-xs space-y-2"
                 style={{
                   background: hexToRgba(t.bgCard, t.isDark ? 0.25 : 0.60),
                   borderColor: hexToRgba(t.txtBody, 0.10)
                 }}
               >
-                <div className="flex justify-between text-slate-400">
-                  <span>Category:</span>
-                  <span className="font-semibold" style={{ color: t.txtPrimary }}>{category}</span>
+                <div className="flex justify-between text-slate-400 gap-2">
+                  <span className="shrink-0">Category:</span>
+                  <span className="font-semibold text-right truncate" style={{ color: t.txtPrimary }}>{category}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Urgency:</span>
-                  <span className="font-semibold uppercase" style={{ color: t.txtPrimary }}>{urgency}</span>
+                <div className="flex justify-between text-slate-400 gap-2">
+                  <span className="shrink-0">Urgency:</span>
+                  <span className="font-semibold uppercase text-right truncate" style={{ color: t.txtPrimary }}>{urgency}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Contact Email:</span>
-                  <span className="font-semibold" style={{ color: t.txtPrimary }}>{email}</span>
+                <div className="flex justify-between text-slate-400 gap-2">
+                  <span className="shrink-0">Contact Email:</span>
+                  <span className="font-semibold text-right truncate" style={{ color: t.txtPrimary }}>{email}</span>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 pt-2 w-full sm:w-auto justify-center">
                 <button
+                  type="button"
                   onClick={resetForm}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all"
+                  className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center justify-center"
                   style={{
                     background: hexToRgba(t.txtBody, 0.05),
                     borderColor: hexToRgba(t.txtBody, 0.12),
@@ -397,8 +400,9 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                   Ask Another Question
                 </button>
                 <button
+                  type="button"
                   onClick={handleClose}
-                  className="px-5 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-105"
+                  className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-105 flex items-center justify-center"
                   style={{
                     background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`,
                     color: t.accentText,
@@ -419,15 +423,15 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                   className="space-y-4"
                 >
                   <div>
-                    <h4 className="text-base font-bold" style={{ color: t.txtPrimary }}>
+                    <h4 className="text-sm sm:text-base font-bold" style={{ color: t.txtPrimary }}>
                       1. Select Your Inquiry Domain
                     </h4>
-                    <p className="text-xs" style={{ color: t.txtSecondary }}>
+                    <p className="text-xs mt-0.5" style={{ color: t.txtSecondary }}>
                       Choose the primary topic area you'd like to explore or ask about.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 gap-2.5 sm:gap-3">
                     {CATEGORIES.map((cat) => {
                       const Icon = cat.icon;
                       const isSelected = category === cat.id;
@@ -435,8 +439,9 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                       return (
                         <button
                           key={cat.id}
+                          type="button"
                           onClick={() => setCategory(cat.id)}
-                          className="w-full text-left p-4 rounded-2xl border transition-all duration-200 flex items-start gap-3.5 group cursor-pointer"
+                          className="w-full min-h-[44px] text-left p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-200 flex items-start gap-3 group cursor-pointer"
                           style={{
                             background: isSelected 
                               ? hexToRgba(t.accentPrimary, 0.12) 
@@ -448,27 +453,27 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                           }}
                         >
                           <div 
-                            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
                             style={{
                               background: isSelected ? t.accentPrimary : hexToRgba(t.txtBody, 0.06),
                               color: isSelected ? t.accentText : t.txtSecondary
                             }}
                           >
-                            <Icon size={20} />
+                            <Icon size={18} />
                           </div>
 
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-semibold" style={{ color: t.txtPrimary }}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs sm:text-sm font-semibold truncate" style={{ color: t.txtPrimary }}>
                                 {cat.title}
                               </span>
                               {isSelected && (
-                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs" style={{ background: t.accentPrimary, color: t.accentText }}>
+                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0" style={{ background: t.accentPrimary, color: t.accentText }}>
                                   ✓
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs mt-1" style={{ color: t.txtSecondary }}>
+                            <p className="text-[11px] sm:text-xs mt-0.5 leading-snug break-words" style={{ color: t.txtSecondary }}>
                               {cat.desc}
                             </p>
                           </div>
@@ -487,11 +492,11 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                   className="space-y-4"
                 >
                   <div>
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-base font-bold" style={{ color: t.txtPrimary }}>
-                        2. Search & Research Knowledge Base
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="text-sm sm:text-base font-bold truncate" style={{ color: t.txtPrimary }}>
+                        2. Search Knowledge Base
                       </h4>
-                      <span className="text-[10px] font-mono font-semibold uppercase px-2.5 py-0.5 rounded-full" style={{ background: hexToRgba(t.accentBadge, 0.15), color: t.accentBadge }}>
+                      <span className="text-[10px] font-mono font-semibold uppercase px-2.5 py-0.5 rounded-full shrink-0 truncate max-w-[150px]" style={{ background: hexToRgba(t.accentBadge, 0.15), color: t.accentBadge }}>
                         {category}
                       </span>
                     </div>
@@ -502,25 +507,28 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
 
                   {/* Live Search Bar */}
                   <div 
-                    className="relative flex items-center p-1.5 rounded-2xl border"
+                    className="relative flex items-center p-1 sm:p-1.5 min-h-[44px] rounded-xl sm:rounded-2xl border"
                     style={{
                       background: hexToRgba(t.bgCard, t.isDark ? 0.20 : 0.60),
                       borderColor: hexToRgba(t.accentPrimary, 0.30)
                     }}
                   >
-                    <Search size={16} className="ml-3" style={{ color: t.txtGhost }} />
+                    <Search size={16} className="ml-3 shrink-0" style={{ color: t.txtGhost }} />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder={`Search ${category} topics, specs, privacy...`}
-                      className="w-full px-3 py-2 bg-transparent text-xs outline-none"
+                      className="w-full px-3 py-2 min-h-[40px] bg-transparent text-xs sm:text-sm outline-none"
                       style={{ color: t.txtPrimary }}
                     />
                     {searchQuery && (
                       <button 
+                        type="button"
                         onClick={() => setSearchQuery("")}
-                        className="mr-2 p-1 rounded-full text-xs opacity-60 hover:opacity-100"
+                        className="mr-2 w-8 h-8 flex items-center justify-center rounded-full text-xs opacity-60 hover:opacity-100 shrink-0"
+                        title="Clear search"
+                        aria-label="Clear search"
                       >
                         <X size={14} />
                       </button>
@@ -530,31 +538,33 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                   {/* Solved by KB Banner */}
                   {solvedByKb ? (
                     <div 
-                      className="p-5 rounded-2xl border text-center space-y-3"
+                      className="p-4 sm:p-5 rounded-2xl border text-center space-y-3"
                       style={{
                         background: hexToRgba("#10b981", 0.10),
                         borderColor: hexToRgba("#10b981", 0.30),
                       }}
                     >
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto text-emerald-400 bg-emerald-500/20">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto text-emerald-400 bg-emerald-500/20 shrink-0">
                         <CheckCircle2 size={22} />
                       </div>
                       <h5 className="text-sm font-bold text-emerald-400">
                         Glad that answered your question!
                       </h5>
-                      <p className="text-xs" style={{ color: t.txtSecondary }}>
+                      <p className="text-xs break-words" style={{ color: t.txtSecondary }}>
                         You can close this wizard or continue if you still want to send a custom context inquiry.
                       </p>
-                      <div className="flex justify-center gap-3">
+                      <div className="flex flex-col sm:flex-row justify-center gap-2.5 sm:gap-3">
                         <button
+                          type="button"
                           onClick={handleClose}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-500"
+                          className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-500 flex items-center justify-center"
                         >
                           Close Wizard
                         </button>
                         <button
+                          type="button"
                           onClick={() => setSolvedByKb(false)}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold border"
+                          className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold border flex items-center justify-center"
                           style={{ borderColor: hexToRgba(t.txtBody, 0.2), color: t.txtPrimary }}
                         >
                           I Still Need More Help →
@@ -572,20 +582,21 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                         {searchResults.map((item) => (
                           <div
                             key={item.id}
-                            className="p-4 rounded-2xl border transition-all space-y-2"
+                            className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border transition-all space-y-2"
                             style={{
                               background: hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.40),
                               borderColor: hexToRgba(t.txtBody, 0.08),
                             }}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <h5 className="text-xs font-bold leading-snug" style={{ color: t.txtPrimary }}>
-                                <BookOpen size={13} className="inline mr-1.5" style={{ color: t.accentPrimary }} />
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <h5 className="text-xs font-bold leading-snug break-words flex-1" style={{ color: t.txtPrimary }}>
+                                <BookOpen size={13} className="inline mr-1.5 shrink-0" style={{ color: t.accentPrimary }} />
                                 {item.title}
                               </h5>
                               <button
+                                type="button"
                                 onClick={() => setSolvedByKb(true)}
-                                className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all hover:scale-105"
+                                className="self-start sm:self-auto shrink-0 px-3 py-1.5 min-h-[36px] rounded-lg text-[10px] sm:text-xs font-semibold border transition-all hover:scale-105 flex items-center justify-center"
                                 style={{
                                   background: hexToRgba(t.accentPrimary, 0.12),
                                   borderColor: hexToRgba(t.accentPrimary, 0.25),
@@ -596,7 +607,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                               </button>
                             </div>
 
-                            <p className="text-xs leading-relaxed" style={{ color: t.txtSecondary }}>
+                            <p className="text-xs leading-relaxed break-words" style={{ color: t.txtSecondary }}>
                               {item.snippet}
                             </p>
 
@@ -643,10 +654,10 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                   className="space-y-4"
                 >
                   <div>
-                    <h4 className="text-base font-bold" style={{ color: t.txtPrimary }}>
+                    <h4 className="text-sm sm:text-base font-bold" style={{ color: t.txtPrimary }}>
                       3. Compose Your Question & Technical Context
                     </h4>
-                    <p className="text-xs" style={{ color: t.txtSecondary }}>
+                    <p className="text-xs mt-0.5" style={{ color: t.txtSecondary }}>
                       Provide specific details about your workflow, requirements, or architecture setup.
                     </p>
                   </div>
@@ -662,7 +673,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                       value={question}
                       onChange={(e) => setQuestion(e.target.value)}
                       placeholder="e.g. How does the candidate scoring engine handle non-standard resume formats?"
-                      className="w-full p-3 rounded-xl border text-xs bg-transparent outline-none transition-colors"
+                      className="w-full p-3 min-h-[44px] rounded-xl border text-xs sm:text-sm bg-transparent outline-none transition-colors"
                       style={{
                         borderColor: hexToRgba(t.txtBody, 0.15),
                         color: t.txtPrimary
@@ -681,7 +692,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                       value={contextDetails}
                       onChange={(e) => setContextDetails(e.target.value)}
                       placeholder="Describe your target hiring volume, current ATS, candidate volume, or specific compliance constraints..."
-                      className="w-full p-3 rounded-xl border text-xs bg-transparent outline-none transition-colors resize-none"
+                      className="w-full p-3 rounded-xl border text-xs sm:text-sm bg-transparent outline-none transition-colors resize-none"
                       style={{
                         borderColor: hexToRgba(t.txtBody, 0.15),
                         color: t.txtPrimary
@@ -694,7 +705,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                     <label className="text-xs font-semibold" style={{ color: t.txtPrimary }}>
                       Estimated Hiring Volume
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {VOLUME_OPTIONS.map((vol) => {
                         const isSelected = candidateVolume === vol;
                         return (
@@ -702,7 +713,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                             key={vol}
                             type="button"
                             onClick={() => setCandidateVolume(vol)}
-                            className="p-2.5 rounded-xl border text-[11px] font-medium transition-all text-center"
+                            className="min-h-[44px] p-2.5 sm:p-3 rounded-xl border text-xs font-medium transition-all text-center flex items-center justify-center"
                             style={{
                               background: isSelected ? hexToRgba(t.accentPrimary, 0.15) : "transparent",
                               borderColor: isSelected ? t.accentPrimary : hexToRgba(t.txtBody, 0.10),
@@ -722,7 +733,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                       <Clock size={14} style={{ color: t.accentPrimary }} />
                       Deployment Timeline / Urgency
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {URGENCY_LEVELS.map((u) => {
                         const isSelected = urgency === u.id;
                         return (
@@ -730,16 +741,16 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                             key={u.id}
                             type="button"
                             onClick={() => setUrgency(u.id)}
-                            className="p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all"
+                            className="min-h-[44px] p-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all"
                             style={{
                               background: isSelected ? hexToRgba(u.color, 0.15) : "transparent",
                               borderColor: isSelected ? u.color : hexToRgba(t.txtBody, 0.10),
                               color: isSelected ? u.color : t.txtSecondary
                             }}
                           >
-                            <span>{u.label}</span>
+                            <span className="truncate">{u.label}</span>
                             <span 
-                              className="w-2.5 h-2.5 rounded-full shrink-0 ml-1"
+                              className="w-2.5 h-2.5 rounded-full shrink-0 ml-2"
                               style={{ background: u.color }}
                             />
                           </button>
@@ -758,10 +769,10 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                   className="space-y-4"
                 >
                   <div>
-                    <h4 className="text-base font-bold" style={{ color: t.txtPrimary }}>
+                    <h4 className="text-sm sm:text-base font-bold" style={{ color: t.txtPrimary }}>
                       4. Your Contact Details & Follow-up Preferences
                     </h4>
-                    <p className="text-xs" style={{ color: t.txtSecondary }}>
+                    <p className="text-xs mt-0.5" style={{ color: t.txtSecondary }}>
                       Where should our architecture team send your answer or technical analysis?
                     </p>
                   </div>
@@ -777,7 +788,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Sarah Jenkins"
-                        className="w-full p-2.5 rounded-xl border text-xs bg-transparent outline-none"
+                        className="w-full p-2.5 sm:p-3 min-h-[44px] rounded-xl border text-xs sm:text-sm bg-transparent outline-none"
                         style={{ borderColor: hexToRgba(t.txtBody, 0.15), color: t.txtPrimary }}
                       />
                     </div>
@@ -792,7 +803,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="sarah@company.com"
-                        className="w-full p-2.5 rounded-xl border text-xs bg-transparent outline-none"
+                        className="w-full p-2.5 sm:p-3 min-h-[44px] rounded-xl border text-xs sm:text-sm bg-transparent outline-none"
                         style={{ borderColor: hexToRgba(t.txtBody, 0.15), color: t.txtPrimary }}
                       />
                     </div>
@@ -807,7 +818,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                         value={company}
                         onChange={(e) => setCompany(e.target.value)}
                         placeholder="Acme Talent Solutions"
-                        className="w-full p-2.5 rounded-xl border text-xs bg-transparent outline-none"
+                        className="w-full p-2.5 sm:p-3 min-h-[44px] rounded-xl border text-xs sm:text-sm bg-transparent outline-none"
                         style={{ borderColor: hexToRgba(t.txtBody, 0.15), color: t.txtPrimary }}
                       />
                     </div>
@@ -822,7 +833,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                         value={role}
                         onChange={(e) => setRole(e.target.value)}
                         placeholder="Head of Talent Acquisition"
-                        className="w-full p-2.5 rounded-xl border text-xs bg-transparent outline-none"
+                        className="w-full p-2.5 sm:p-3 min-h-[44px] rounded-xl border text-xs sm:text-sm bg-transparent outline-none"
                         style={{ borderColor: hexToRgba(t.txtBody, 0.15), color: t.txtPrimary }}
                       />
                     </div>
@@ -833,7 +844,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                     <label className="text-xs font-semibold" style={{ color: t.txtPrimary }}>
                       Preferred Response Format
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {[
                         { id: "email", label: "Email Brief", icon: Mail },
                         { id: "call", label: "Live Demo Call", icon: Video },
@@ -846,14 +857,14 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                             key={item.id}
                             type="button"
                             onClick={() => setPreferredContact(item.id)}
-                            className="p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all"
+                            className="min-h-[44px] p-3 rounded-xl border text-xs font-medium flex flex-row sm:flex-col items-center justify-center gap-2 transition-all"
                             style={{
                               background: isSelected ? hexToRgba(t.accentPrimary, 0.15) : "transparent",
                               borderColor: isSelected ? t.accentPrimary : hexToRgba(t.txtBody, 0.10),
                               color: isSelected ? t.accentPrimary : t.txtSecondary
                             }}
                           >
-                            <Icon size={16} />
+                            <Icon size={16} className="shrink-0" />
                             <span>{item.label}</span>
                           </button>
                         );
@@ -871,31 +882,31 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                   className="space-y-4"
                 >
                   <div>
-                    <h4 className="text-base font-bold" style={{ color: t.txtPrimary }}>
+                    <h4 className="text-sm sm:text-base font-bold" style={{ color: t.txtPrimary }}>
                       5. Review & Confirm Submission
                     </h4>
-                    <p className="text-xs" style={{ color: t.txtSecondary }}>
+                    <p className="text-xs mt-0.5" style={{ color: t.txtSecondary }}>
                       Review your inquiry summary before storing it in our database.
                     </p>
                   </div>
 
                   <div 
-                    className="p-5 rounded-2xl border space-y-3.5 text-xs"
+                    className="p-4 sm:p-5 rounded-xl sm:rounded-2xl border space-y-3.5 text-xs"
                     style={{
                       background: hexToRgba(t.bgCard, t.isDark ? 0.20 : 0.60),
                       borderColor: hexToRgba(t.accentPrimary, 0.25)
                     }}
                   >
-                    <div className="flex justify-between items-center pb-2 border-b" style={{ borderColor: hexToRgba(t.txtBody, 0.10) }}>
-                      <span className="font-semibold text-slate-400">Inquiry Domain:</span>
-                      <span className="font-bold px-2.5 py-0.5 rounded-full text-[10px] uppercase font-mono" style={{ background: hexToRgba(t.accentBadge, 0.15), color: t.accentBadge }}>
+                    <div className="flex justify-between items-center pb-2 border-b gap-2" style={{ borderColor: hexToRgba(t.txtBody, 0.10) }}>
+                      <span className="font-semibold text-slate-400 shrink-0">Inquiry Domain:</span>
+                      <span className="font-bold px-2.5 py-0.5 rounded-full text-[10px] uppercase font-mono truncate" style={{ background: hexToRgba(t.accentBadge, 0.15), color: t.accentBadge }}>
                         {category}
                       </span>
                     </div>
 
                     <div className="space-y-1">
                       <span className="font-semibold text-slate-400">Question:</span>
-                      <p className="font-medium p-2.5 rounded-xl border" style={{ background: hexToRgba(t.txtBody, 0.03), borderColor: hexToRgba(t.txtBody, 0.08), color: t.txtPrimary }}>
+                      <p className="font-medium p-2.5 rounded-xl border break-words" style={{ background: hexToRgba(t.txtBody, 0.03), borderColor: hexToRgba(t.txtBody, 0.08), color: t.txtPrimary }}>
                         "{question}"
                       </p>
                     </div>
@@ -903,21 +914,19 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                     {contextDetails && (
                       <div className="space-y-1">
                         <span className="font-semibold text-slate-400">Workflow Context:</span>
-                        <p className="text-slate-300 italic">
+                        <p className="text-slate-300 italic break-words">
                           {contextDetails}
                         </p>
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-2 pt-1 text-slate-400">
-                      <div>Contact: <strong style={{ color: t.txtPrimary }}>{name}</strong> ({email})</div>
-                      <div>Company: <strong style={{ color: t.txtPrimary }}>{company || "N/A"}</strong></div>
-                      <div>Volume: <strong style={{ color: t.txtPrimary }}>{candidateVolume}</strong></div>
-                      <div>Urgency: <strong className="uppercase" style={{ color: t.txtPrimary }}>{urgency}</strong></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-slate-400">
+                      <div className="truncate">Contact: <strong style={{ color: t.txtPrimary }}>{name}</strong> ({email})</div>
+                      <div className="truncate">Company: <strong style={{ color: t.txtPrimary }}>{company || "N/A"}</strong></div>
+                      <div className="truncate">Volume: <strong style={{ color: t.txtPrimary }}>{candidateVolume}</strong></div>
+                      <div className="truncate">Urgency: <strong className="uppercase" style={{ color: t.txtPrimary }}>{urgency}</strong></div>
                     </div>
                   </div>
-
-
                 </motion.div>
               )}
             </>
@@ -927,7 +936,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
         {/* ── STICKY ACTION FOOTER ────────────────────────────────────────── */}
         {!isSubmitted && (
           <div 
-            className="shrink-0 z-10 px-6 py-4 border-t flex items-center justify-between"
+            className="shrink-0 z-10 px-4 sm:px-6 py-3 sm:py-4 border-t flex items-center justify-between gap-2"
             style={{
               background: hexToRgba(t.bgCard, t.isDark ? 0.95 : 0.98),
               borderColor: hexToRgba(t.txtBody, 0.10)
@@ -937,14 +946,14 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
               <button
                 type="button"
                 onClick={() => { setErrorMessage(""); setStep(step - 1); }}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all"
+                className="min-h-[44px] px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all"
                 style={{
                   background: hexToRgba(t.txtBody, 0.05),
                   borderColor: hexToRgba(t.txtBody, 0.10),
                   color: t.txtSecondary
                 }}
               >
-                <ChevronLeft size={16} /> Back
+                <ChevronLeft size={16} /> <span>Back</span>
               </button>
             ) : <div />}
 
@@ -964,21 +973,21 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                     setErrorMessage("");
                     setStep(step + 1);
                   }}
-                  className="px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105"
+                  className="min-h-[44px] px-4 sm:px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all hover:scale-105"
                   style={{
                     background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`,
                     color: t.accentText,
                     boxShadow: `0 4px 14px ${hexToRgba(t.accentPrimary, 0.35)}`
                   }}
                 >
-                  Continue <ChevronRight size={16} />
+                  <span>Continue</span> <ChevronRight size={16} />
                 </button>
               ) : (
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleSubmit}
-                  className="px-6 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-50"
+                  className="min-h-[44px] px-5 sm:px-6 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:scale-105 disabled:opacity-50"
                   style={{
                     background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`,
                     color: t.accentText,
@@ -988,11 +997,11 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                   {isSubmitting ? (
                     <>
                       <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                      Saving Question...
+                      <span>Saving Question...</span>
                     </>
                   ) : (
                     <>
-                      Submit Question <Send size={15} />
+                      <span>Submit Question</span> <Send size={15} />
                     </>
                   )}
                 </button>
