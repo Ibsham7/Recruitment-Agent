@@ -184,6 +184,7 @@ export interface Candidate {
   transcript?: any[];
   aiGeneratedLikelihoodScore?: number;
   antiCheatFlags?: AntiCheatFlag[];
+  antiCheatMetadata?: AntiCheatMetadata;
   // Telemetry & Cost Breakdown
   apiCost?: number;
   costBreakdown?: Record<string, any>;
@@ -213,3 +214,88 @@ export interface Theme {
   progressFill: string;
   darkVariant?: Partial<Omit<Theme, "darkVariant" | "name" | "isDark">>;
 }
+
+// ── BILLING, RATE LIMITING & ADMIN TYPES ─────────────────────────────────────
+
+export type PlanType = "free" | "paid";
+
+export interface UserProfile {
+  id: string;
+  userId: string;
+  email: string;
+  plan: PlanType;
+  creditBalance: number;
+  totalCvsProcessed: number;
+  totalCampaignsCreated: number;
+  totalInterviewsSent: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreditRequest {
+  id: string;
+  userId: string;
+  amount: number;
+  screenshotUrl: string;
+  status: "pending" | "approved" | "rejected";
+  rejectionReason?: string | null;
+  creditsAllocated?: number | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  user?: UserProfile;
+}
+
+export interface CreditTransaction {
+  id: string;
+  userId: string;
+  type: "purchase" | "debit_campaign" | "debit_cv" | "debit_invite" | "debit_evaluation" | "refund" | "admin_adjustment";
+  credits: number;
+  description: string;
+  relatedEntityId?: string | null;
+  createdAt: string;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  planBreakdown: {
+    free: number;
+    paid: number;
+  };
+  totalCvsProcessed: number;
+  totalCampaignsCreated: number;
+  totalInterviewsSent: number;
+  totalCreditsAllocated: number;
+  totalRevenue: number;
+  pendingRequestsCount: number;
+}
+
+export interface UserProfileResponse {
+  profile: UserProfile;
+  isAdmin: boolean;
+}
+
+export interface PresignedPaymentUrlResponse {
+  uploadUrl: string;
+  fileUrl: string;
+  objectKey: string;
+}
+
+export interface AdminApproveRequestResponse {
+  status: "success";
+  creditsAllocated: number;
+  newBalance: number;
+}
+
+export interface AdminRejectRequestResponse {
+  status: "success";
+  status_name: "rejected";
+  rejectionReason: string;
+}
+
+export interface AdminCreditAdjustmentResponse {
+  status: "success";
+  newBalance: number;
+  plan: PlanType;
+}
+

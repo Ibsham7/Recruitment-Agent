@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
-import { ChevronLeft, Briefcase, BarChart2, Users, Settings, LogOut, ArrowLeft, SlidersHorizontal, Bell, Plus, Mail } from "lucide-react";
+import { ChevronLeft, Briefcase, BarChart2, Users, Settings, LogOut, ArrowLeft, SlidersHorizontal, Bell, Plus, Mail, CreditCard, ShieldCheck } from "lucide-react";
 import { Theme } from "../lib/types";
 import { getGlass, hexToRgba } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
@@ -14,12 +14,14 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
   const [editorOpen, setEditorOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
 
   const G = getGlass(theme);
 
   // In a real app, this would be dynamic
-  const title = location.pathname.includes("/interviews") ? "Interview Management" :
+  const title = location.pathname.includes("/admin") ? "Admin Portal" :
+    location.pathname.includes("/interviews") ? "Interview Management" :
+    location.pathname.includes("/billing") ? "Billing & Subscription" :
     location.pathname.includes("/dashboard") ? "Campaigns" :
     location.pathname.includes("/setup") ? "New Campaign" :
       location.pathname.includes("/candidate") ? "Candidate Review" :
@@ -67,6 +69,8 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
           {[
             { icon: <Briefcase size={15} />, label: "Campaigns", active: location.pathname.includes("/dashboard") || location.pathname.includes("/pipeline") || location.pathname.includes("/candidate") || location.pathname.includes("/setup"), fn: () => navigate("/dashboard") },
             { icon: <Mail size={15} />, label: "Interviews", active: location.pathname.includes("/interviews"), fn: () => navigate("/interviews") },
+            { icon: <CreditCard size={15} />, label: "Billing", active: location.pathname.includes("/billing"), fn: () => navigate("/billing") },
+            ...(isAdmin ? [{ icon: <ShieldCheck size={15} />, label: "Admin Panel", active: location.pathname.includes("/admin"), fn: () => navigate("/admin") }] : []),
             { icon: <BarChart2 size={15} />, label: "Analytics", active: location.pathname.includes("/analytics"), fn: () => navigate("/notfound") },
             { icon: <Users size={15} />, label: "Candidates", active: location.pathname.includes("/candidates"), fn: () => navigate("/notfound") },
             { icon: <Settings size={15} />, label: "Settings", active: location.pathname.includes("/settings"), fn: () => navigate("/notfound") },
@@ -90,8 +94,54 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
           ))}
         </nav>
 
-        {/* User */}
+        {/* User & Plan/Credit Badge */}
         <div className="px-2 py-3 flex-shrink-0" style={{ borderTop: `1px solid ${hexToRgba(theme.bgCard, theme.isDark ? 0.10 : 0.50)}` }}>
+          {/* Plan & Credit Quick Pill */}
+          <div
+            onClick={() => navigate("/billing")}
+            title={collapsed ? `${profile?.plan === 'paid' ? 'Paid Plan' : 'Free Plan'} · ${profile?.creditBalance ?? 0} Credits` : undefined}
+            className="w-full mb-2 flex items-center rounded-xl cursor-pointer transition-all hover:opacity-90"
+            style={{
+              padding: collapsed ? "6px 0" : "6px 10px",
+              gap: collapsed ? 0 : "8px",
+              justifyContent: collapsed ? "center" : "space-between",
+              background: profile?.plan === "paid"
+                ? hexToRgba(theme.accentBadge, 0.12)
+                : hexToRgba(theme.bgCard, theme.isDark ? 0.15 : 0.6),
+              border: `1px solid ${profile?.plan === "paid" ? hexToRgba(theme.accentBadge, 0.3) : hexToRgba(theme.txtMuted, 0.2)}`,
+            }}
+          >
+            {collapsed ? (
+              <div
+                className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[10px]"
+                style={{
+                  color: profile?.plan === "paid" ? theme.accentBadge : theme.txtMuted,
+                  background: profile?.plan === "paid" ? hexToRgba(theme.accentBadge, 0.2) : hexToRgba(theme.txtMuted, 0.15),
+                }}
+              >
+                {profile?.plan === "paid" ? "P" : "F"}
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                    style={{
+                      background: profile?.plan === "paid" ? theme.accentBadge : hexToRgba(theme.txtMuted, 0.2),
+                      color: profile?.plan === "paid" ? "#ffffff" : theme.txtSecondary,
+                    }}
+                  >
+                    {profile?.plan === "paid" ? "Paid" : "Free"}
+                  </span>
+                  <span className="text-[11px] font-semibold truncate" style={{ color: theme.txtPrimary }}>
+                    {profile?.creditBalance ?? 0} Credits
+                  </span>
+                </div>
+                <CreditCard size={12} className="flex-shrink-0" style={{ color: profile?.plan === "paid" ? theme.accentBadge : theme.txtMuted }} />
+              </>
+            )}
+          </div>
+
           <div className="flex items-center py-2 px-1 rounded-xl"
             style={{ gap: collapsed ? 0 : "10px", justifyContent: collapsed ? "center" : "flex-start" }}>
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 uppercase"

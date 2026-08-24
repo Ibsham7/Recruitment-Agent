@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { X, FileText, Code2, Download, CheckCircle2, Sparkles, FolderArchive } from "lucide-react";
+import { X, FileText, Code2, Download, CheckCircle2, FolderArchive } from "lucide-react";
 import { Campaign, Candidate, Theme } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { generateCampaignMarkdownReport, generateCampaignJsonData, downloadFile } from "../../../lib/exportUtils";
@@ -251,7 +251,7 @@ export function ExportCampaignModal({ isOpen, onClose, campaign, candidates, the
                 border: `1px solid ${hexToRgba(t.accentBadge, 0.3)}`,
               }}
             >
-              <Sparkles size={14} /> Download Both
+              <Download size={14} /> Download Both
             </button>
           </div>
         </div>

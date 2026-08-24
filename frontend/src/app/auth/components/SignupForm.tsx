@@ -24,6 +24,8 @@ export interface SignupFormProps {
   loading: boolean;
   error: string;
   setError: (val: string) => void;
+  success?: string;
+  setSuccess?: (val: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   onSwitchMode: (mode: "login" | "signup") => void;
 }
@@ -47,6 +49,8 @@ export function SignupForm({
   loading,
   error,
   setError,
+  success,
+  setSuccess,
   onSubmit,
   onSwitchMode,
 }: SignupFormProps) {
@@ -130,7 +134,7 @@ export function SignupForm({
         </label>
       </div>
 
-      <ErrorContainer theme={t} error={error} />
+      <ErrorContainer theme={t} error={error} success={success} />
 
       <button
         type="submit"
@@ -159,6 +163,7 @@ export function SignupForm({
           type="button"
           onClick={() => {
             setError("");
+            setSuccess?.("");
             onSwitchMode("login");
           }}
           style={{ color: t.accentPrimary, background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "11px", fontWeight: 600 }}

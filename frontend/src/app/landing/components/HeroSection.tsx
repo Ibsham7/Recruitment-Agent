@@ -1,5 +1,4 @@
 import { motion } from "motion/react";
-import { Sparkles } from "lucide-react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
 import { ShapeGrid } from "../../../components/common/ShapeGrid";
@@ -40,7 +39,7 @@ export function HeroSection({ theme: t, onEnter, gridBorder, gridHover }: HeroSe
       >
         <div className="text-[11px] font-semibold uppercase tracking-widest mb-6 px-3.5 py-1.5 rounded-full flex items-center gap-2"
           style={{ color: t.accentBadge, background: hexToRgba(t.accentBadge, 0.10), border: `1px solid ${hexToRgba(t.accentBadge, 0.22)}`, fontFamily: "'DM Mono',monospace" }}>
-          <Sparkles size={13} /> Multi-Tier AI Recruiting Engine
+          Multi-Tier AI Recruiting Engine
         </div>
         <h1 
           className="flex flex-col items-center text-center"

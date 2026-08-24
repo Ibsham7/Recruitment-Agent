@@ -11,6 +11,7 @@ export interface BrandingHeaderProps {
   onSwitch: (m: "login" | "signup") => void;
   onBack: () => void;
   setError?: (err: string) => void;
+  setSuccess?: (msg: string) => void;
 }
 
 export function BrandingHeader({
@@ -19,6 +20,7 @@ export function BrandingHeader({
   onSwitch,
   onBack,
   setError,
+  setSuccess,
 }: BrandingHeaderProps) {
   return (
     <>
@@ -31,8 +33,8 @@ export function BrandingHeader({
         hoveredPillTextColor={t.bgPage}
         items={[
           { label: "← Home",   onClick: onBack },
-          { label: "Sign In",  onClick: () => { setError?.(""); onSwitch("login"); },  active: mode === "login" },
-          { label: "Sign Up",  onClick: () => { setError?.(""); onSwitch("signup"); }, active: mode === "signup" },
+          { label: "Sign In",  onClick: () => { setError?.(""); setSuccess?.(""); onSwitch("login"); },  active: mode === "login" },
+          { label: "Sign Up",  onClick: () => { setError?.(""); setSuccess?.(""); onSwitch("signup"); }, active: mode === "signup" },
         ]}
       />
 
@@ -50,7 +52,7 @@ export function BrandingHeader({
         style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.14 : 0.50), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.22 : 0.72)}` }}>
         {(["login", "signup"] as const).map((m) => (
           <button key={m} type="button"
-            onClick={() => { setError?.(""); onSwitch(m); }}
+            onClick={() => { setError?.(""); setSuccess?.(""); onSwitch(m); }}
             className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
             style={{
               background: mode === m

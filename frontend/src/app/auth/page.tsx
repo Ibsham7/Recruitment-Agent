@@ -17,12 +17,14 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const isLogin = mode === "login";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
     if (!isLogin && password !== confirm) {
       setError("Passwords do not match.");
@@ -62,7 +64,9 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
         });
         if (signUpError) throw signUpError;
         // Depending on settings, email confirmation might be required
-        setError("Account created successfully. You can now sign in.");
+        setSuccess("Account created successfully. You can now sign in.");
+        setPassword("");
+        setConfirm("");
         setMode("login");
       }
     } catch (err: any) {
@@ -72,7 +76,11 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
     }
   };
 
-  const onSwitch = (m: "login" | "signup") => setMode(m);
+  const onSwitch = (m: "login" | "signup") => {
+    setError("");
+    setSuccess("");
+    setMode(m);
+  };
   const onBack = () => navigate("/");
 
   return (
@@ -84,6 +92,7 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
           onSwitch={onSwitch}
           onBack={onBack}
           setError={setError}
+          setSuccess={setSuccess}
         />
 
         {isLogin ? (
@@ -98,6 +107,8 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
             loading={loading}
             error={error}
             setError={setError}
+            success={success}
+            setSuccess={setSuccess}
             onSubmit={handleSubmit}
             onSwitchMode={onSwitch}
           />
@@ -121,6 +132,8 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
             loading={loading}
             error={error}
             setError={setError}
+            success={success}
+            setSuccess={setSuccess}
             onSubmit={handleSubmit}
             onSwitchMode={onSwitch}
           />

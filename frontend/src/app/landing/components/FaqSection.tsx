@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
-  Sparkles, 
   Search, 
   X, 
   ChevronsUpDown, 
@@ -65,7 +64,7 @@ export function FaqSection({ theme: t, onEnter: _onEnter }: FaqSectionProps) {
       >
         <div className="text-[10px] font-semibold uppercase tracking-widest mb-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full"
           style={{ color: t.accentBadge, background: hexToRgba(t.accentBadge, 0.10), border: `1px solid ${hexToRgba(t.accentBadge, 0.22)}`, fontFamily: "'DM Mono',monospace" }}>
-          <Sparkles size={13} /> Architecture & Guidance FAQ
+          Architecture & Guidance FAQ
         </div>
         <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15 }}>
           Frequently Asked Questions

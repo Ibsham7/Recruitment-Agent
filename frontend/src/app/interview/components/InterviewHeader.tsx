@@ -1,6 +1,6 @@
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
-import { Sparkles, Moon, Sun, CheckCircle2, Circle } from "lucide-react";
+import { Moon, Sun, CheckCircle2, Circle } from "lucide-react";
 
 export interface InterviewHeaderProps {
   theme: Theme;
@@ -96,7 +96,7 @@ export function InterviewHeader({
           border: `1px solid ${hexToRgba(t.accentPrimary, 0.25)}`,
         }}
       >
-        <Sparkles size={12} /> {campaignTitle}
+        {campaignTitle}
       </div>
       <h1
         className="text-3xl font-semibold mb-2"

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent } from "motion/react";
-import { Sparkles, Play, Pause, Maximize2, Lock, ChevronRight, X } from "lucide-react";
+import { Play, Pause, Maximize2, Lock, ChevronRight, X } from "lucide-react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
 import { landingSteps } from "../landingData";
@@ -81,7 +81,7 @@ export function ProcessSection({ theme: t, onEnter, processSectionRef }: Process
         >
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full"
             style={{ color: t.accentBadge, background: hexToRgba(t.accentBadge, 0.10), border: `1px solid ${hexToRgba(t.accentBadge, 0.20)}`, fontFamily: "'DM Mono',monospace" }}>
-            <Sparkles size={12} /> Interactive Scrollmation & Product Workflow
+            Interactive Scrollmation & Product Workflow
           </div>
           <h2 style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary, fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, lineHeight: 1.15 }}>
             From job post to shortlist. Powered by AI.
@@ -381,7 +381,6 @@ export function ProcessSection({ theme: t, onEnter, processSectionRef }: Process
                   style={{ background: t.bgSurface, borderColor: hexToRgba(t.txtPrimary, 0.10) }}
                 >
                   <div className="flex items-center gap-2">
-                    <Sparkles size={16} style={{ color: t.accentPrimary }} />
                     <span className="text-sm font-semibold" style={{ color: t.txtPrimary }}>
                       {landingSteps[activeStep].title} — Full Screenshot View
                     </span>

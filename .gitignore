@@ -5,7 +5,7 @@
 .venv/
 node_modules/
 *.md
-!README.md
+!/README.md
 .env*
 __pycache__/
 *.pyc
@@ -13,11 +13,12 @@ __pycache__/
 backend/log.txt
 frontend/dist
 .agents/
+teamwork_projects/
 
 # Testing & Test Scripts
 .pytest_cache/
-**/test_*.py
-test_*.py
+/backend/test_*.py
+/test_*.py
 test/
 test pdfs/
 test.pdf
@@ -26,7 +27,6 @@ backend/outputs/
 backend/fetch_evals.py
 backend/get_models.py
 backend/migrate_strictness.py
-backend/reset_db.py
 backend/temp_migrate.py
 backend/test_ocr.py
 backend/test_pg.py

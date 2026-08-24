@@ -5,6 +5,8 @@ import { hexToRgba } from "../../lib/theme";
 import { apiFetch } from "../../lib/api";
 import { queryClient } from "../queryClient";
 import { CAMPAIGNS_QUERY_KEY } from "../../lib/hooks/useCampaigns";
+import { useAuth } from "../../lib/AuthContext";
+import { UpgradeModal } from "../dashboard/components/UpgradeModal";
 import { 
   UploadTask, 
   HardFilter, 
@@ -22,6 +24,7 @@ import FiltersModal from "./components/FiltersModal";
 
 export default function SetupPage({ theme: t }: { theme: Theme }) {
   const navigate = useNavigate();
+  const { profile, refreshProfile } = useAuth();
 
   const [campaignId] = useState(() => crypto.randomUUID());
   const [step, setStep] = useState(1);
@@ -37,6 +40,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
   const [strictness, setStrictness] = useState<"lenient" | "moderate" | "strict">("moderate");
   const [hardFilters, setHardFilters] = useState<HardFilter[]>([]);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const runWithConcurrencyLimit = async <T, R>(
@@ -158,6 +162,27 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
       return;
     }
 
+    // Pre-flight quota & credit validation before R2 uploads
+    if (profile?.plan === 'free') {
+      if ((profile.totalCampaignsCreated ?? 0) >= 5) {
+        alert("Free plan limit reached: maximum 5 campaigns allowed. Please upgrade to a paid plan.");
+        setShowUpgradeModal(true);
+        return;
+      }
+      if ((profile.totalCvsProcessed ?? 0) + validCurrentTasks.length > 100) {
+        alert(`Free plan limit exceeded: maximum 100 CVs allowed (current: ${profile.totalCvsProcessed ?? 0}, requested: ${validCurrentTasks.length}). Please upgrade to a paid plan.`);
+        setShowUpgradeModal(true);
+        return;
+      }
+    } else if (profile) {
+      const requiredCredits = 1 + validCurrentTasks.length;
+      if ((profile.creditBalance ?? 0) < requiredCredits) {
+        alert(`Insufficient credit balance. Required: ${requiredCredits} credits (1 for campaign + ${validCurrentTasks.length} for CVs), available: ${profile.creditBalance ?? 0} credits. Please purchase more credits.`);
+        setShowUpgradeModal(true);
+        return;
+      }
+    }
+
     setUploading(true);
     
     try {
@@ -209,11 +234,17 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
 
       if (!res.ok) {
         setUploading(false);
-        alert("Failed to launch campaign. Please check backend logs.");
+        const errJson = await res.json().catch(() => ({}));
+        const detailMsg = errJson.detail || "Failed to launch campaign. Please check backend logs.";
+        alert(detailMsg);
+        if (res.status === 402) {
+          setShowUpgradeModal(true);
+        }
         return;
       }
 
       const data = await res.json();
+      await refreshProfile();
       queryClient.invalidateQueries({ queryKey: [CAMPAIGNS_QUERY_KEY] });
       navigate(`/pipeline/${data.campaignId}`);
     } catch (err: any) {
@@ -277,6 +308,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               hardFilters={hardFilters}
               setShowFiltersModal={setShowFiltersModal}
               onContinue={() => setStep(2)}
+              profile={profile}
+              onOpenUpgradeModal={() => setShowUpgradeModal(true)}
             />
 
             <Step1Sidebar 
@@ -285,6 +318,8 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               wordCount={jd.trim() ? jd.trim().split(/\s+/).length : 0}
               strictness={strictness}
               hardFilters={hardFilters}
+              profile={profile}
+              onOpenUpgradeModal={() => setShowUpgradeModal(true)}
             />
           </div>
         )}
@@ -300,11 +335,15 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
               setStep={setStep}
               onComplete={onComplete}
               uploadToR2WithProgress={uploadToR2WithProgress}
+              profile={profile}
+              onOpenUpgradeModal={() => setShowUpgradeModal(true)}
             />
 
             <Step2Sidebar 
               theme={t}
               uploadTasks={uploadTasks}
+              profile={profile}
+              onOpenUpgradeModal={() => setShowUpgradeModal(true)}
             />
           </div>
         )}
@@ -317,6 +356,16 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
         setShowFiltersModal={setShowFiltersModal}
         hardFilters={hardFilters}
         setHardFilters={setHardFilters}
+      />
+
+      {/* Upgrade / Top Up Credits Modal */}
+      <UpgradeModal
+        theme={t}
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        onSuccess={async () => {
+          await refreshProfile();
+        }}
       />
     </div>
   );

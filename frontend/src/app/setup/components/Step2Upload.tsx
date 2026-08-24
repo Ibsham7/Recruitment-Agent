@@ -6,9 +6,10 @@ import {
   CheckCircle, 
   RefreshCw, 
   ArrowLeft, 
-  Loader2 
+  Loader2,
+  CreditCard
 } from "lucide-react";
-import { Theme } from "../../../lib/types";
+import { Theme, UserProfile } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { UploadTask, validateFile, formatFileSize } from "./types";
 
@@ -20,6 +21,8 @@ interface Step2UploadProps {
   setStep: (step: number) => void;
   onComplete: () => void;
   uploadToR2WithProgress: (taskId: string, file: File) => Promise<string>;
+  profile?: UserProfile | null;
+  onOpenUpgradeModal?: () => void;
 }
 
 export default function Step2Upload({
@@ -29,7 +32,9 @@ export default function Step2Upload({
   uploading,
   setStep,
   onComplete,
-  uploadToR2WithProgress
+  uploadToR2WithProgress,
+  profile,
+  onOpenUpgradeModal
 }: Step2UploadProps) {
   const G = getGlass(t);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,6 +79,20 @@ export default function Step2Upload({
   const problematicTasks = uploadTasks.filter(t => t.status === 'error' || t.file.size === 0);
   const retryableTasks = uploadTasks.filter(t => t.status === 'error' && t.file.size > 0);
   const validTasks = uploadTasks.filter(t => t.status !== 'error' && t.file.size > 0);
+
+  const isFree = profile?.plan === "free";
+  const requiredCredits = 1 + validTasks.length;
+
+  // Free Tier Checks
+  const freeCampaignsExceeded = isFree && (profile?.totalCampaignsCreated ?? 0) >= 5;
+  const freeCvsExceeded = isFree && ((profile?.totalCvsProcessed ?? 0) + validTasks.length > 100);
+  const isFreeBlocked = freeCampaignsExceeded || freeCvsExceeded;
+
+  // Paid Tier Checks
+  const isInsufficientCredits = !isFree && ((profile?.creditBalance ?? 0) < requiredCredits);
+  const deficit = Math.max(0, requiredCredits - (profile?.creditBalance ?? 0));
+
+  const isLaunchBlocked = isFreeBlocked || isInsufficientCredits;
 
   const handleRetryAllFailed = () => {
     retryableTasks.forEach(t => {
@@ -181,6 +200,55 @@ export default function Step2Upload({
               <span>Remove {problematicTasks.length === 1 ? 'Problematic CV' : 'All Problematic CVs'}</span>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Quota / Credit Balance Shortfall Warning Banner */}
+      {validTasks.length > 0 && isLaunchBlocked && (
+        <div 
+          className="rounded-2xl p-4 sm:p-5 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all shadow-md"
+          style={{ background: hexToRgba('#ef4444', 0.12), borderColor: hexToRgba('#ef4444', 0.4) }}
+        >
+          <div className="flex items-center gap-3">
+            <div 
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: hexToRgba('#ef4444', 0.2), color: '#ef4444' }}
+            >
+              <AlertTriangle size={22} />
+            </div>
+            <div>
+              <div className="text-xs font-extrabold text-red-500 flex items-center gap-1.5">
+                <span>
+                  {freeCampaignsExceeded 
+                    ? "Free Plan Limit Reached (5/5 Campaigns Created)"
+                    : freeCvsExceeded 
+                    ? "Free CV Processing Limit Exceeded (>100 CVs)"
+                    : `Insufficient Credit Balance (${profile?.creditBalance ?? 0} Credits Available)`}
+                </span>
+              </div>
+              <div className="text-[11px] text-red-400/90 mt-0.5 font-medium">
+                {freeCampaignsExceeded
+                  ? "You have reached the free tier campaign limit. Upgrade to a paid plan ($10 for 1,000 credits) to launch."
+                  : freeCvsExceeded
+                  ? `Queuing ${validTasks.length} CVs exceeds your remaining limit of ${Math.max(0, 100 - (profile?.totalCvsProcessed ?? 0))} CVs. Upgrade to proceed.`
+                  : `Required: ${requiredCredits} credits (1 campaign + ${validTasks.length} CVs), available: ${profile?.creditBalance ?? 0} credits (Deficit: ${deficit} credits). Top up credits to launch.`}
+              </div>
+            </div>
+          </div>
+
+          {onOpenUpgradeModal && (
+            <button
+              type="button"
+              onClick={onOpenUpgradeModal}
+              className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 shrink-0 self-end sm:self-auto"
+              style={{ 
+                background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`, 
+                color: t.accentText 
+              }}
+            >
+              <span>{isFree ? "Upgrade Plan" : `Top Up ${deficit} Credits`}</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -296,31 +364,54 @@ export default function Step2Upload({
           <span>Back to Details</span>
         </button>
 
-        <button 
-          onClick={onComplete} 
-          disabled={validTasks.length === 0 || uploading} 
-          className="flex-1 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.005]"
-          style={{ 
-            background: validTasks.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})` : hexToRgba(t.bgCard, 0.2), 
-            color: validTasks.length > 0 ? t.accentText : t.txtGhost, 
-            boxShadow: validTasks.length > 0 ? `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` : "none", 
-            cursor: validTasks.length > 0 && !uploading ? "pointer" : "not-allowed" 
-          }}
-        >
-          {uploading ? (
-            uploadTasks.some(t => t.status !== 'success') ? (
-              <><Loader2 size={16} className="animate-spin" /> Uploading Candidate Resumes...</>
+        {validTasks.length > 0 && isLaunchBlocked ? (
+          <button 
+            type="button"
+            onClick={onOpenUpgradeModal} 
+            disabled={uploading}
+            className="flex-1 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.005]"
+            style={{ 
+              background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`, 
+              color: t.accentText, 
+              boxShadow: `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}`,
+              cursor: "pointer"
+            }}
+          >
+            <span>
+              {freeCampaignsExceeded
+                ? "Upgrade Plan to Launch (Free Limit Reached)"
+                : freeCvsExceeded
+                ? "Upgrade Plan to Launch (CV Cap Exceeded)"
+                : `Top Up Credits to Launch (Shortfall: ${deficit} Credits)`}
+            </span>
+          </button>
+        ) : (
+          <button 
+            onClick={onComplete} 
+            disabled={validTasks.length === 0 || uploading} 
+            className="flex-1 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.005]"
+            style={{ 
+              background: validTasks.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})` : hexToRgba(t.bgCard, 0.2), 
+              color: validTasks.length > 0 ? t.accentText : t.txtGhost, 
+              boxShadow: validTasks.length > 0 ? `0 4px 20px ${hexToRgba(t.accentPrimary, 0.35)}` : "none", 
+              cursor: validTasks.length > 0 && !uploading ? "pointer" : "not-allowed" 
+            }}
+          >
+            {uploading ? (
+              uploadTasks.some(t => t.status !== 'success') ? (
+                <><Loader2 size={16} className="animate-spin" /> Uploading Candidate Resumes...</>
+              ) : (
+                <><Loader2 size={16} className="animate-spin" /> Launching Campaign...</>
+              )
+            ) : problematicTasks.length > 0 && validTasks.length === 0 ? (
+              "Remove Problematic Files to Proceed"
+            ) : problematicTasks.length > 0 ? (
+              `Launch AI Campaign (${validTasks.length} Valid ${validTasks.length === 1 ? 'CV' : 'CVs'}${!isFree ? ` · ${requiredCredits} Credits` : ''})`
             ) : (
-              <><Loader2 size={16} className="animate-spin" /> Launching Campaign...</>
-            )
-          ) : problematicTasks.length > 0 && validTasks.length === 0 ? (
-            "Remove Problematic Files to Proceed"
-          ) : problematicTasks.length > 0 ? (
-            `Launch AI Campaign (${validTasks.length} Valid ${validTasks.length === 1 ? 'CV' : 'CVs'})`
-          ) : (
-            "Launch AI Campaign"
-          )}
-        </button>
+              `Launch AI Campaign${!isFree && validTasks.length > 0 ? ` (${requiredCredits} Credits · ${validTasks.length} CVs)` : ''}`
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

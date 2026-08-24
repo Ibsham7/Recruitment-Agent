@@ -1,10 +1,10 @@
 import jwt
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import httpx
 import time
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 from app.core.logging import logger
 
 security = HTTPBearer()
@@ -81,5 +81,38 @@ async def verify_jwt(credentials: HTTPAuthorizationCredentials = Security(securi
         except httpx.RequestError as req_err:
             logger.error(f"[Auth] Supabase GoTrue verification failed: {req_err}")
             raise HTTPException(status_code=500, detail="Auth verification failed")
+
+def get_admin_emails() -> List[str]:
+    """Retrieve cleaned lowercase list of admin emails from environment."""
+    raw = os.getenv("ADMIN_EMAILS", "")
+    if not raw:
+        return []
+    return [e.strip().lower() for e in raw.split(",") if e.strip()]
+
+def is_admin_email(email: Optional[str]) -> bool:
+    """Check if an email address is in the ADMIN_EMAILS allowlist."""
+    if not email or not isinstance(email, str):
+        return False
+    admin_emails = get_admin_emails()
+    return email.strip().lower() in admin_emails
+
+def is_admin_user(user: dict) -> bool:
+    """Extract email from JWT payload or metadata and verify admin status."""
+    if not isinstance(user, dict):
+        return False
+    email = user.get("email")
+    if not email and isinstance(user.get("user_metadata"), dict):
+        email = user["user_metadata"].get("email")
+    return is_admin_email(email)
+
+async def require_admin(user: dict = Depends(verify_jwt)) -> dict:
+    """
+    FastAPI dependency guard that ensures the caller has admin privileges.
+    Raises HTTP 403 Forbidden if user is not authorized or ADMIN_EMAILS is empty.
+    """
+    if not is_admin_user(user):
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    return user
+
 
 

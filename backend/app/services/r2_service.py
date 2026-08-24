@@ -93,6 +93,49 @@ def generate_presigned_upload_url(
         "objectKey": object_key
     }
 
+def generate_presigned_payment_screenshot_url(
+    user_id: str,
+    filename: str,
+    content_type: str = "image/png"
+) -> Dict[str, str]:
+    """
+    Generates a secure presigned PUT URL strictly scoped under payment-screenshots/{user_id}/
+    for proof-of-payment image uploads to Cloudflare R2.
+    """
+    if not user_id or not isinstance(user_id, str):
+        raise ValueError("Valid user_id is required for payment screenshot upload URL.")
+
+    s3_client = get_r2_client()
+    bucket_name = os.getenv("R2_BUCKET_NAME", "recruitment-cvs")
+    public_base_url = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
+
+    if not public_base_url:
+        raise ValueError("Missing R2_PUBLIC_URL environment variable.")
+
+    clean_name = filename.replace(" ", "_").strip() or "payment_screenshot.png"
+    file_id = str(uuid.uuid4())
+    clean_user_id = user_id.strip()
+    object_key = f"payment-screenshots/{clean_user_id}/{file_id}_{clean_name}"
+
+    presigned_url = s3_client.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": bucket_name,
+            "Key": object_key,
+            "ContentType": content_type or "image/png"
+        },
+        ExpiresIn=3600  # 1 hour expiry
+    )
+
+    public_url = f"{public_base_url}/{object_key}"
+
+    logger.info(f"[R2 Service] Presigned payment screenshot PUT URL generated for user '{clean_user_id}' -> key '{object_key}'")
+    return {
+        "uploadUrl": presigned_url,
+        "fileUrl": public_url,
+        "objectKey": object_key
+    }
+
 def extract_object_key_from_url(file_url: str) -> Optional[str]:
     """Extracts object key from a full public R2 URL."""
     if not file_url or not isinstance(file_url, str):

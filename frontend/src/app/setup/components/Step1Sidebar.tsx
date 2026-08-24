@@ -1,6 +1,7 @@
-import { Theme } from "../../../lib/types";
+import { Theme, UserProfile } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { HardFilter } from "./types";
+import { CreditCard, ShieldAlert } from "lucide-react";
 
 interface Step1SidebarProps {
   theme: Theme;
@@ -8,6 +9,8 @@ interface Step1SidebarProps {
   wordCount: number;
   strictness: string;
   hardFilters: HardFilter[];
+  profile?: UserProfile | null;
+  onOpenUpgradeModal?: () => void;
 }
 
 export default function Step1Sidebar({
@@ -15,12 +18,118 @@ export default function Step1Sidebar({
   title,
   wordCount,
   strictness,
-  hardFilters = []
+  hardFilters = [],
+  profile,
+  onOpenUpgradeModal
 }: Step1SidebarProps) {
   const G = getGlass(t);
 
+  const isFree = profile?.plan === "free";
+  const campaignsCount = profile?.totalCampaignsCreated ?? 0;
+  const cvsCount = profile?.totalCvsProcessed ?? 0;
+  const isFreeExhausted = isFree && campaignsCount >= 5;
+
   return (
     <div className="lg:col-span-5 xl:col-span-4 space-y-6">
+      {/* Account Quota & Tier Card */}
+      <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
+        <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
+          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
+            Account Tier & Quota
+          </h3>
+          <span 
+            className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+            style={{ 
+              background: !isFree ? t.accentBadge : hexToRgba(t.txtMuted, 0.2), 
+              color: !isFree ? '#ffffff' : t.txtSecondary 
+            }}
+          >
+            {!isFree ? "Paid Tier" : "Free Tier"}
+          </span>
+        </div>
+
+        <div className="space-y-3 text-xs">
+          {isFree ? (
+            <>
+              <div className="p-3 rounded-xl border space-y-1.5" style={{ background: hexToRgba(t.bgPage, 0.4), borderColor: hexToRgba(t.txtGhost, 0.15) }}>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.txtMuted }}>Lifetime Campaigns</span>
+                  <span className="font-bold text-xs" style={{ color: campaignsCount >= 5 ? t.numNeg : t.txtPrimary }}>
+                    {campaignsCount} / 5
+                  </span>
+                </div>
+                <div className="w-full bg-black/20 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all" 
+                    style={{ 
+                      width: `${Math.min(100, (campaignsCount / 5) * 100)}%`,
+                      background: campaignsCount >= 5 ? t.numNeg : t.accentPrimary
+                    }} 
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border space-y-1.5" style={{ background: hexToRgba(t.bgPage, 0.4), borderColor: hexToRgba(t.txtGhost, 0.15) }}>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.txtMuted }}>Lifetime CVs Processed</span>
+                  <span className="font-bold text-xs" style={{ color: cvsCount >= 100 ? t.numNeg : t.txtPrimary }}>
+                    {cvsCount} / 100
+                  </span>
+                </div>
+                <div className="w-full bg-black/20 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all" 
+                    style={{ 
+                      width: `${Math.min(100, (cvsCount / 100) * 100)}%`,
+                      background: cvsCount >= 100 ? t.numNeg : t.accentPrimary
+                    }} 
+                  />
+                </div>
+              </div>
+
+              {onOpenUpgradeModal && (
+                <button
+                  type="button"
+                  onClick={onOpenUpgradeModal}
+                  className="w-full py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
+                  style={{
+                    background: isFreeExhausted ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})` : hexToRgba(t.accentPrimary, 0.15),
+                    color: isFreeExhausted ? t.accentText : t.accentPrimary,
+                  }}
+                >
+                  <span>{isFreeExhausted ? "Upgrade Plan to Launch" : "Upgrade to Paid Credits ($10)"}</span>
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="p-3 rounded-xl border flex items-center justify-between" style={{ background: hexToRgba(t.bgPage, 0.4), borderColor: hexToRgba(t.txtGhost, 0.15) }}>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.txtMuted }}>Available Balance</div>
+                  <div className="font-bold text-base mt-0.5" style={{ color: (profile?.creditBalance ?? 0) > 0 ? t.numPos : t.numNeg }}>
+                    {profile?.creditBalance ?? 0} Credits
+                  </div>
+                </div>
+                <CreditCard size={20} style={{ color: t.accentBadge }} />
+              </div>
+
+              {onOpenUpgradeModal && (
+                <button
+                  type="button"
+                  onClick={onOpenUpgradeModal}
+                  className="w-full py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
+                  style={{
+                    background: hexToRgba(t.accentBadge, 0.18),
+                    color: t.accentBadge,
+                  }}
+                >
+                  <span>Top Up Credits ($1 = 100)</span>
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
       {/* Live Campaign Preview Card */}
       <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
         <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>

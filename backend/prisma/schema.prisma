@@ -149,4 +149,55 @@ model FaqQuestion {
   @@index([createdAt])
 }
 
+model UserProfile {
+  id                    String              @id @default(uuid())
+  userId                String              @unique
+  email                 String
+  plan                  String              @default("free") // "free" | "paid"
+  creditBalance         Int                 @default(0)
+  totalCvsProcessed     Int                 @default(0)
+  totalCampaignsCreated Int                 @default(0)
+  totalInterviewsSent   Int                 @default(0)
+  creditRequests        CreditRequest[]
+  creditTransactions    CreditTransaction[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
+  @@index([userId])
+  @@index([email])
+  @@index([plan])
+}
+
+model CreditRequest {
+  id               String      @id @default(uuid())
+  userId           String
+  amount           Float
+  screenshotUrl    String
+  status           String      @default("pending") // "pending" | "approved" | "rejected"
+  rejectionReason  String?
+  creditsAllocated Int         @default(0)
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  user             UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CreditTransaction {
+  id              String      @id @default(uuid())
+  userId          String
+  type            String      // "purchase" | "debit_campaign" | "debit_cv" | "debit_invite" | "debit_evaluation" | "refund" | "admin_adjustment"
+  credits         Int
+  description     String
+  relatedEntityId String?
+  user            UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  createdAt       DateTime    @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}

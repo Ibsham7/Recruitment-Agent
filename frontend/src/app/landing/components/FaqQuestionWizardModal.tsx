@@ -5,7 +5,6 @@ import {
   ChevronRight, 
   ChevronLeft, 
   Search, 
-  Sparkles, 
   HelpCircle, 
   CheckCircle2, 
   ShieldCheck, 
@@ -287,7 +286,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
                 border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}`
               }}
             >
-              <Sparkles size={18} />
+              <HelpCircle size={18} />
             </div>
             <div>
               <h3 className="text-base font-bold leading-tight" style={{ color: t.txtPrimary }}>

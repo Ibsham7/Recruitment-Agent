@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Theme } from "../../lib/types";
 import { hexToRgba, hexToRgb } from "../../lib/theme";
 import { apiFetch } from "../../lib/api";
-import { Sparkles, Sliders, Loader2, Send } from "lucide-react";
+import { Sliders, Loader2, Send } from "lucide-react";
 import { GlobalSpotlight } from "../../components/common/MagicBento";
 
 import { queryClient } from "../queryClient";
@@ -205,7 +205,7 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: t.accentPrimary }}>
-            <Sparkles size={14} /> Technical Candidate Evaluation Engine
+            Technical Candidate Evaluation Engine
           </div>
           <h1 className="text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
             Candidate Interview Portal

@@ -115,6 +115,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.routers import user as user_router, admin as admin_router
+app.include_router(user_router.router)
+app.include_router(admin_router.router)
+
 @app.get("/health", tags=["System"])
 @app.get("/api/health", tags=["System"])
 async def health_check():
@@ -175,8 +179,29 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
             allow_empty=True
         ) or None
 
+    user_id = str(user.get("sub") or user.get("id") or "")
+    user_email = user.get("email") or ""
+    if not user_email and isinstance(user.get("user_metadata"), dict):
+        user_email = user["user_metadata"].get("email") or ""
+
+    import uuid
+    campaign_id = (campaign.id or "").strip() or str(uuid.uuid4())
+
+    valid_resumes = [r for r in campaign.resumes if r and isinstance(r, str) and r.strip()]
+    num_resumes = len(valid_resumes)
+
+    from app.services.billing_service import validate_and_deduct_campaign_creation
+    await validate_and_deduct_campaign_creation(
+        user_id=user_id,
+        email=str(user_email),
+        num_resumes=num_resumes,
+        campaign_title=campaign.title,
+        campaign_id=campaign_id
+    )
+
     campaign_data = {
-        "userId": user.get("sub"),
+        "id": campaign_id,
+        "userId": user_id,
         "title": campaign.title,
         "jobDescription": clean_jd,
         "hardFiltersConfig": Json(campaign.hardFiltersConfig) if campaign.hardFiltersConfig is not None else None,
@@ -184,8 +209,6 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
         "interviewConfig": clean_interview_config,
         "evaluationStrictness": campaign.strictness
     }
-    if campaign.id and campaign.id.strip():
-        campaign_data["id"] = campaign.id.strip()
 
     new_campaign = await prisma.campaign.create(data=campaign_data)
     
@@ -568,6 +591,22 @@ async def send_interview_invitations(req: SendInvitationsRequest, user: dict = D
     candidates = await prisma.candidate.find_many(
         where={"id": {"in": req.candidateIds}},
         include={"campaign": True}
+    )
+
+    valid_candidates = [cand for cand in candidates if cand.email]
+    if not valid_candidates:
+        raise HTTPException(status_code=400, detail="No candidates with valid email address found")
+
+    user_id = str(user.get("sub") or user.get("id") or "")
+    user_email = user.get("email") or ""
+    if not user_email and isinstance(user.get("user_metadata"), dict):
+        user_email = user["user_metadata"].get("email") or ""
+
+    from app.services.billing_service import validate_and_deduct_interview_invitations
+    await validate_and_deduct_interview_invitations(
+        user_id=user_id,
+        email=str(user_email),
+        num_candidates=len(valid_candidates)
     )
     
     email_tasks = []

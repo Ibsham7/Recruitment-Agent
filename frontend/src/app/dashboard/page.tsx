@@ -2,17 +2,16 @@ import { useRef, useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { Theme, CampaignStatus } from "../../lib/types";
 import { hexToRgb, getGlass } from "../../lib/theme";
-import { apiFetch } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import { GlobalSpotlight } from "../../components/common/MagicBento";
 
 import { useCampaigns } from "../../lib/hooks/useCampaigns";
 import {
-  ExtendedCampaign,
   DashboardMetrics,
   DashboardToolbar,
   DashboardErrorBanner,
   CampaignGrid,
+  UsageBanner,
 } from "./components";
 
 export default function DashboardPage({ theme: t }: { theme: Theme }) {
@@ -125,6 +124,9 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
       style={{ background: t.bgPage }}
     >
       <GlobalSpotlight gridRef={gridRef} glowColor={glow} spotlightRadius={300} isDark={t.isDark} />
+
+      {/* Quota & Billing Usage Banner */}
+      <UsageBanner theme={t} />
 
       {/* Top Metric Cards */}
       <DashboardMetrics

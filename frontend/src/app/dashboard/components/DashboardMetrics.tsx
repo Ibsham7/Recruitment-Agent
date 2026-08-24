@@ -1,5 +1,5 @@
 import React from "react";
-import { Briefcase, Users, Award, Sparkles } from "lucide-react";
+import { Briefcase, Users, Award, Target } from "lucide-react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { ParticleCard } from "../../../components/common/MagicBento";
@@ -63,7 +63,7 @@ export const DashboardMetrics = React.memo(
         label: "Avg. Match Score",  
         value: globalAvgMatch !== null ? `${globalAvgMatch}%` : "--%", 
         sub: globalAvgMatch !== null ? "Computed across evaluations" : "Awaiting evaluations",
-        icon: <Sparkles size={16} className="text-amber-500" />
+        icon: <Target size={16} className="text-amber-500" />
       },
     ];
 

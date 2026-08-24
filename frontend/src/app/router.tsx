@@ -14,6 +14,8 @@ const PipelinePage = lazy(() => import("./pipeline/page"));
 const CandidatePage = lazy(() => import("./candidate/page"));
 const InterviewPage = lazy(() => import("./interview/page"));
 const InterviewsPage = lazy(() => import("./interviews/page"));
+const BillingPage = lazy(() => import("./billing/page"));
+const AdminPage = lazy(() => import("./admin/page"));
 const PrivacyPage = lazy(() => import("./privacy/page"));
 const TermsPage = lazy(() => import("./terms/page"));
 const NotFoundPage = lazy(() => import("./not-found"));
@@ -44,6 +46,31 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (isLoading) return null;
 
   return session ? <>{children}</> : null;
+}
+
+function AdminRoute({ children, theme }: { children: React.ReactNode; theme: Theme }) {
+  const { session, isAdmin, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!session) {
+        navigate("/auth", { replace: true });
+      } else if (!isAdmin) {
+        navigate("/dashboard", { replace: true });
+      }
+    }
+  }, [session, isAdmin, isLoading, navigate]);
+
+  if (isLoading) {
+    return <PageLoader theme={theme} />;
+  }
+
+  if (!session || !isAdmin) {
+    return null;
+  }
+
+  return <>{children}</>;
 }
 
 export function AppRouter() {
@@ -125,6 +152,26 @@ export function AppRouter() {
             <Suspense fallback={<PageLoader theme={theme} />}>
               <InterviewsPage theme={theme} />
             </Suspense>
+          ),
+        },
+        {
+          path: "billing",
+          errorElement: <RouteErrorPage theme={theme} />,
+          element: (
+            <Suspense fallback={<PageLoader theme={theme} />}>
+              <BillingPage theme={theme} />
+            </Suspense>
+          ),
+        },
+        {
+          path: "admin",
+          errorElement: <RouteErrorPage theme={theme} />,
+          element: (
+            <AdminRoute theme={theme}>
+              <Suspense fallback={<PageLoader theme={theme} />}>
+                <AdminPage theme={theme} />
+              </Suspense>
+            </AdminRoute>
           ),
         },
         {

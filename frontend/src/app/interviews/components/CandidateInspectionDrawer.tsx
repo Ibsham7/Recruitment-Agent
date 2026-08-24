@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
-import { Sparkles, X, Brain, ThumbsUp, ThumbsDown, MessageSquare, Loader2 } from "lucide-react";
+import { X, Brain, ThumbsUp, ThumbsDown, MessageSquare, Loader2 } from "lucide-react";
 import { InterviewCandidate } from "../types";
 import { getCandidateDisplayName } from "../../../lib/candidate";
 
@@ -66,7 +66,7 @@ export function CandidateInspectionDrawer({
         >
           <div>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-1" style={{ color: t.accentPrimary }}>
-              <Sparkles size={14} /> Technical Evaluation Inspection
+              Technical Evaluation Inspection
             </div>
             <div className="flex items-center gap-3">
               <h2 id="eval-modal-title" className="text-xl md:text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>

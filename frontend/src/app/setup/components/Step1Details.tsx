@@ -1,6 +1,6 @@
 import React from "react";
-import { RotateCcw, Plus, ArrowRight } from "lucide-react";
-import { Theme } from "../../../lib/types";
+import { RotateCcw, Plus, ArrowRight, AlertTriangle } from "lucide-react";
+import { Theme, UserProfile } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { HardFilter, DEFAULT_TITLE, DEFAULT_JD, getPenaltyInfo } from "./types";
 
@@ -15,6 +15,8 @@ interface Step1DetailsProps {
   hardFilters: HardFilter[];
   setShowFiltersModal: (show: boolean) => void;
   onContinue: () => void;
+  profile?: UserProfile | null;
+  onOpenUpgradeModal?: () => void;
 }
 
 export default function Step1Details({
@@ -27,7 +29,9 @@ export default function Step1Details({
   setStrictness,
   hardFilters = [],
   setShowFiltersModal,
-  onContinue
+  onContinue,
+  profile,
+  onOpenUpgradeModal
 }: Step1DetailsProps) {
   const G = getGlass(t);
 
@@ -42,8 +46,52 @@ export default function Step1Details({
     transition: "all 0.2s ease"
   };
 
+  const isFreeLimitReached = profile?.plan === "free" && (profile?.totalCampaignsCreated ?? 0) >= 5;
+
   return (
     <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+      {/* Free Plan Campaign Quota Limit Warning */}
+      {isFreeLimitReached && (
+        <div 
+          className="rounded-2xl p-4 sm:p-5 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md"
+          style={{ 
+            background: hexToRgba('#ef4444', 0.12), 
+            borderColor: hexToRgba('#ef4444', 0.4) 
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div 
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: hexToRgba('#ef4444', 0.2), color: '#ef4444' }}
+            >
+              <AlertTriangle size={22} />
+            </div>
+            <div>
+              <div className="text-xs font-extrabold text-red-500 flex items-center gap-1.5">
+                <span>Free Plan Limit Reached ({profile?.totalCampaignsCreated ?? 5}/5 Campaigns Created)</span>
+              </div>
+              <div className="text-[11px] text-red-400/90 mt-0.5 font-medium">
+                You have reached the free tier limit of 5 lifetime campaigns. Upgrade to a paid plan ($10 for 1,000 credits) to launch new campaigns.
+              </div>
+            </div>
+          </div>
+
+          {onOpenUpgradeModal && (
+            <button
+              type="button"
+              onClick={onOpenUpgradeModal}
+              className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 shrink-0 self-end sm:self-auto"
+              style={{ 
+                background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`, 
+                color: t.accentText 
+              }}
+            >
+              <span>Upgrade Plan</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Main Form Box */}
       <div className="rounded-2xl p-5 sm:p-6 space-y-6" style={G.card}>
         {/* Job Title Input */}

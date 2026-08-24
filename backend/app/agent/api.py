@@ -558,6 +558,19 @@ async def _run_evaluator_background(candidate_id: str, candidate: Any, transcrip
                 }
             )
 
+            # Deduct evaluation credits for paid tier users
+            user_id = candidate.campaign.userId if (candidate.campaign and candidate.campaign.userId) else None
+            if user_id:
+                try:
+                    from app.services.billing_service import deduct_evaluation_credits
+                    await deduct_evaluation_credits(
+                        user_id=user_id,
+                        candidate_id=candidate_id,
+                        candidate_name=candidate.name or "Candidate"
+                    )
+                except Exception as bill_err:
+                    print(f"[Billing] Error deducting evaluation credits for candidate {candidate_id}: {bill_err}")
+
     except Exception as e:
         print(f"[Interview] Evaluator background task failed for {candidate_id}: {e}")
 

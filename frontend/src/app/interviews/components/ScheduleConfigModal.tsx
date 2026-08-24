@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
-import { Sliders, X, Sparkles, Loader2 } from "lucide-react";
+import { Sliders, X, Loader2 } from "lucide-react";
 import { CampaignItem, PRESET_FOCUS_TEMPLATES } from "../types";
 
 export interface ScheduleConfigModalProps {
@@ -176,7 +176,6 @@ export function ScheduleConfigModal({
 
           {/* Information Note */}
           <div className="p-4 rounded-xl text-xs flex items-start gap-3" style={{ background: hexToRgba(t.accentPrimary, 0.08), border: `1px solid ${hexToRgba(t.accentPrimary, 0.2)}` }}>
-            <Sparkles size={16} className="shrink-0 mt-0.5" style={{ color: t.accentPrimary }} />
             <p style={{ color: t.txtSecondary }}>
               When candidates belonging to this campaign initiate their technical interview, the AI Question Generator will prioritize these focus areas and custom topics.
             </p>

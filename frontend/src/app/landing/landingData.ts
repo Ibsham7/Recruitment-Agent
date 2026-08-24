@@ -16,7 +16,6 @@ import {
   ShieldAlert,
   CalendarClock,
   MessageSquareCode,
-  Sparkles,
   FileSearch
 } from "lucide-react";
 
@@ -222,7 +221,7 @@ export const landingDeckFeatures: LandingDeckFeature[] = [
     id: "adaptive-probing",
     number: "06",
     category: "Adaptive AI",
-    icon: Sparkles,
+    icon: MessageSquareCode,
     title: "Adaptive Real-Time Probing",
     pillTitle: "06 Adaptive Probing",
     description: "Our conversational state machine evaluates answer completeness on the fly. If a candidate's answer is brief or vague, an intelligent follow-up probe is triggered instantly.",

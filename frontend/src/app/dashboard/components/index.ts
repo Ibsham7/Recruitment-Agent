@@ -5,3 +5,5 @@ export * from "./DashboardToolbar";
 export * from "./CampaignGrid";
 export * from "./DashboardEmptyState";
 export * from "./DashboardErrorBanner";
+export * from "./UsageBanner";
+export * from "./UpgradeModal";
