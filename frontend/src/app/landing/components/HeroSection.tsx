@@ -108,7 +108,7 @@ export function HeroSection({ theme: t, onEnter, gridBorder, gridHover }: HeroSe
           className="text-sm sm:text-base leading-relaxed mb-8 sm:mb-10 max-w-xl px-1 sm:px-0 text-balance" 
           style={{ color: t.txtSecondary }}
         >
-          hireagent automates CV screening using zero-cost Python filters and vector matching, conducts AI technical interviews, and delivers ranked candidate scorecards.
+          From 500 applicants to your top 5 finalists in minutes. Screen resumes, run AI technical interviews, and rank top talent on complete autopilot.
         </p>
         
         {/* Primary CTA button with >= 44x44px touch target */}

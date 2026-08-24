@@ -12,7 +12,8 @@ import {
   PricingSection,
   FaqSection,
   CtaSection,
-  LandingFooter
+  LandingFooter,
+  LandingScrollbar
 } from "./components";
 
 const logoLightImg = "/logo-light.webp";
@@ -29,6 +30,8 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
 
   return (
     <div className="relative w-full overflow-x-clip" style={{ background: t.bgPage, color: t.txtBody, minHeight: "100vh" }}>
+      <LandingScrollbar theme={t} />
+
       <TargetCursor
         cursorColor="#ffffff"
         cursorColorOnTarget={t.accentPrimary}

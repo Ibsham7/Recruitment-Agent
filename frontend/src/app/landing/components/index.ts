@@ -8,4 +8,5 @@ export { FaqQuestionWizardModal } from "./FaqQuestionWizardModal";
 export { PricingSection } from "./PricingSection";
 export { CtaSection } from "./CtaSection";
 export { LandingFooter } from "./LandingFooter";
+export { LandingScrollbar } from "./LandingScrollbar";
 
