@@ -79,7 +79,7 @@ export function UsageBanner({ theme: t }: UsageBannerProps) {
             </div>
 
             <h3 className="text-sm font-semibold" style={{ color: t.txtPrimary }}>
-              {isFree ? "Lifetime Free Quota Usage" : "Credit Balance & Resource Usage"}
+              {isFree ? "Free Starter Quota Usage" : "Credit Balance & Resource Usage"}
             </h3>
             <p className="text-xs max-w-md" style={{ color: t.txtMuted }}>
               {isFree

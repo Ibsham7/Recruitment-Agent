@@ -65,9 +65,9 @@ def test_coerce_model_helper():
     assert coerced_spec.role_title == "Senior Backend Engineer"
     assert coerced_spec.required_years == 4.0
 
-@pytest.mark.asyncio
-async def test_hard_filters_node_with_dict_state():
+def test_hard_filters_node_with_dict_state():
     """Verify hard_filters_node handles dict candidate_profile without AttributeError."""
+    import asyncio
     from app.agent.nodes.hard_filters import hard_filters_node
     
     dict_state: RecruitmentState = {
@@ -103,7 +103,7 @@ async def test_hard_filters_node_with_dict_state():
         "stage_costs": {}
     }
     
-    res = await hard_filters_node(dict_state)
+    res = asyncio.run(hard_filters_node(dict_state))
     assert "log" in res
     assert res.get("pipeline_status") != "rejected"
 

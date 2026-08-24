@@ -8,27 +8,27 @@ export function CreditPricingGuide({ theme: t }: { theme: Theme }) {
   const units = [
     {
       icon: <Layers size={14} className="text-blue-400" />,
-      title: "Campaign Creation",
+      title: "Job Campaign Setup",
       cost: "1 Credit",
-      desc: "Base infrastructure cost per campaign setup",
+      desc: "Set up a new role and configure screening criteria",
     },
     {
       icon: <FileText size={14} className="text-emerald-400" />,
-      title: "CV Parsing & Screening",
-      cost: "1 Credit / CV",
-      desc: "Deep multi-stage extraction and scoring",
+      title: "Resume Screening",
+      cost: "1 Credit / Resume",
+      desc: "Scan, evaluate, and score candidate resumes against the job",
     },
     {
       icon: <Send size={14} className="text-purple-400" />,
       title: "Interview Invitation",
       cost: "1 Credit / Email",
-      desc: "Candidate invitation and access code dispatch",
+      desc: "Send personalized online interview links to shortlisted candidates",
     },
     {
       icon: <UserCheck size={14} className="text-amber-400" />,
       title: "AI Interview Evaluation",
-      cost: "2 Credits / Eval",
-      desc: "Anti-cheat audit, transcripts, & final rating",
+      cost: "2 Credits / Candidate",
+      desc: "Review candidate answers, generate scorecards, and detect cheating",
     },
   ];
 

@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="obsidian">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hireagent - Credit-Based Pricing Architecture & Component Options</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Fraunces, Inter, DM Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ========================================================================= */
+    /* 1. DESIGN TOKENS & SYSTEM PALETTES (Exact Theme Match)                    */
+    /* ========================================================================= */
+    :root, [data-theme="obsidian"] {
+      --bg-page: #07070E;
+      --bg-surface: #0E0E1C;
+      --bg-surface-elevated: #151528;
+      --bg-card: rgba(255, 255, 255, 0.035);
+      --border-card: rgba(255, 255, 255, 0.09);
+      --border-hover: rgba(0, 255, 122, 0.4);
+      --txt-primary: #F4F4FF;
+      --txt-body: #A6A6C5;
+      --txt-secondary: #74749E;
+      --txt-muted: #4C4C74;
+      --txt-ghost: #28284A;
+      --accent-badge: #00FF7A;
+      --accent-primary: #00CC60;
+      --accent-text: #000A08;
+      --accent-glow: rgba(0, 255, 122, 0.16);
+      --num-pos: #00E572;
+      --num-pos-bg: rgba(0, 229, 114, 0.12);
+      --num-pos-border: rgba(0, 229, 114, 0.28);
+      --num-mid: #FFB800;
+      --num-mid-bg: rgba(255, 184, 0, 0.12);
+      --num-mid-border: rgba(255, 184, 0, 0.28);
+      --num-neg: #FF4757;
+      --num-neg-bg: rgba(255, 71, 87, 0.14);
+      --num-neg-border: rgba(255, 71, 87, 0.32);
+      --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="ivory"] {
+      --bg-page: #F8F5EF;
+      --bg-surface: #EDE8DD;
+      --bg-surface-elevated: #E2DDD0;
+      --bg-card: rgba(255, 255, 255, 0.90);
+      --border-card: rgba(0, 0, 0, 0.10);
+      --border-hover: rgba(176, 24, 48, 0.35);
+      --txt-primary: #0A0A14;
+      --txt-body: #2C2C3E;
+      --txt-secondary: #58586E;
+      --txt-muted: #88889C;
+      --txt-ghost: #A8A8B5;
+      --accent-badge: #B01830;
+      --accent-primary: #0A0A14;
+      --accent-text: #F8F5EF;
+      --accent-glow: rgba(176, 24, 48, 0.12);
+      --num-pos: #157A38;
+      --num-pos-bg: rgba(21, 122, 56, 0.10);
+      --num-pos-border: rgba(21, 122, 56, 0.25);
+      --num-mid: #9E6200;
+      --num-mid-bg: rgba(158, 98, 0, 0.10);
+      --num-mid-border: rgba(158, 98, 0, 0.25);
+      --num-neg: #B01830;
+      --num-neg-bg: rgba(176, 24, 48, 0.10);
+      --num-neg-border: rgba(176, 24, 48, 0.25);
+      --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 16px 40px rgba(0, 0, 0, 0.09);
+    }
+
+    [data-theme="plum"] {
+      --bg-page: #0C0614;
+      --bg-surface: #150A24;
+      --bg-surface-elevated: #201036;
+      --bg-card: rgba(200, 160, 255, 0.045);
+      --border-card: rgba(200, 160, 255, 0.12);
+      --border-hover: rgba(204, 120, 255, 0.45);
+      --txt-primary: #F4EEFF;
+      --txt-body: #BD9FE8;
+      --txt-secondary: #8369B0;
+      --txt-muted: #58447E;
+      --txt-ghost: #382858;
+      --accent-badge: #CC78FF;
+      --accent-primary: #9030D8;
+      --accent-text: #FFFFFF;
+      --accent-glow: rgba(204, 120, 255, 0.20);
+      --num-pos: #5CD685;
+      --num-pos-bg: rgba(92, 214, 133, 0.12);
+      --num-pos-border: rgba(92, 214, 133, 0.28);
+      --num-mid: #FFB347;
+      --num-mid-bg: rgba(255, 179, 71, 0.12);
+      --num-mid-border: rgba(255, 179, 71, 0.28);
+      --num-neg: #FF5A82;
+      --num-neg-bg: rgba(255, 90, 130, 0.14);
+      --num-neg-border: rgba(255, 90, 130, 0.32);
+      --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(200, 160, 255, 0.10);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.65);
+    }
+
+    [data-theme="copper"] {
+      --bg-page: #0B1017;
+      --bg-surface: #121A26;
+      --bg-surface-elevated: #192537;
+      --bg-card: rgba(255, 255, 255, 0.038);
+      --border-card: rgba(255, 255, 255, 0.10);
+      --border-hover: rgba(224, 120, 64, 0.45);
+      --txt-primary: #E2EBF5;
+      --txt-body: #9CB2CC;
+      --txt-secondary: #627C99;
+      --txt-muted: #3D526A;
+      --txt-ghost: #243040;
+      --accent-badge: #E07840;
+      --accent-primary: #D06030;
+      --accent-text: #FFFFFF;
+      --accent-glow: rgba(224, 120, 64, 0.18);
+      --num-pos: #48C774;
+      --num-pos-bg: rgba(72, 199, 116, 0.12);
+      --num-pos-border: rgba(72, 199, 116, 0.28);
+      --num-mid: #E0A030;
+      --num-mid-bg: rgba(224, 160, 48, 0.12);
+      --num-mid-border: rgba(224, 160, 48, 0.28);
+      --num-neg: #E05050;
+      --num-neg-bg: rgba(224, 80, 80, 0.14);
+      --num-neg-border: rgba(224, 80, 80, 0.32);
+      --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="paper"] {
+      --bg-page: #F8F8F7;
+      --bg-surface: #D8E0D1;
+      --bg-surface-elevated: #E8E6CE;
+      --bg-card: rgba(232, 230, 206, 0.65);
+      --border-card: rgba(149, 93, 15, 0.18);
+      --border-hover: rgba(136, 10, 34, 0.4);
+      --txt-primary: #955D0F;
+      --txt-body: #121221;
+      --txt-secondary: #44445A;
+      --txt-muted: #747480;
+      --txt-ghost: #CA974E;
+      --accent-badge: #880A22;
+      --accent-primary: #000080;
+      --accent-text: #FFFFFF;
+      --accent-glow: rgba(136, 10, 34, 0.14);
+      --num-pos: #18582E;
+      --num-pos-bg: rgba(24, 88, 46, 0.10);
+      --num-pos-border: rgba(24, 88, 46, 0.25);
+      --num-mid: #784410;
+      --num-mid-bg: rgba(120, 68, 16, 0.10);
+      --num-mid-border: rgba(120, 68, 16, 0.25);
+      --num-neg: #880A22;
+      --num-neg-bg: rgba(136, 10, 34, 0.10);
+      --num-neg-border: rgba(136, 10, 34, 0.25);
+      --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 16px 40px rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="cobalt"] {
+      --bg-page: #02080F;
+      --bg-surface: #04101C;
+      --bg-surface-elevated: #091C30;
+      --bg-card: rgba(255, 255, 255, 0.035);
+      --border-card: rgba(0, 184, 255, 0.15);
+      --border-hover: rgba(0, 184, 255, 0.45);
+      --txt-primary: #A8CFF0;
+      --txt-body: #6090B8;
+      --txt-secondary: #386888;
+      --txt-muted: #204860;
+      --txt-ghost: #103040;
+      --accent-badge: #00B8FF;
+      --accent-primary: #0080CC;
+      --accent-text: #FFFFFF;
+      --accent-glow: rgba(0, 184, 255, 0.18);
+      --num-pos: #00D870;
+      --num-pos-bg: rgba(0, 216, 112, 0.12);
+      --num-pos-border: rgba(0, 216, 112, 0.28);
+      --num-mid: #FFB020;
+      --num-mid-bg: rgba(255, 176, 32, 0.12);
+      --num-mid-border: rgba(255, 176, 32, 0.28);
+      --num-neg: #FF4060;
+      --num-neg-bg: rgba(255, 64, 96, 0.14);
+      --num-neg-border: rgba(255, 64, 96, 0.32);
+      --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(0, 184, 255, 0.10);
+      --shadow-viewport: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Core Styles */
+    body {
+      background-color: var(--bg-page);
+      color: var(--txt-body);
+      font-family: 'Inter', sans-serif;
+      transition: background-color 0.35s ease, color 0.35s ease;
+      min-height: 100vh;
+    }
+
+    .font-serif-brand { font-family: 'Fraunces', serif; }
+    .font-mono-code { font-family: 'DM Mono', monospace; }
+
+    /* Glass Panels */
+    .glass-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-card);
+      box-shadow: var(--shadow-card);
+    }
+
+    .glass-surface-elevated {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-card);
+    }
+
+    .tone-pos { color: var(--num-pos); background: var(--num-pos-bg); border-color: var(--num-pos-border); }
+    .tone-mid { color: var(--num-mid); background: var(--num-mid-bg); border-color: var(--num-mid-border); }
+    .tone-neg { color: var(--num-neg); background: var(--num-neg-bg); border-color: var(--num-neg-border); }
+    .tone-accent { color: var(--accent-badge); background: var(--accent-glow); border-color: var(--border-card); }
+
+    /* Custom Sliders */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 22px;
+      width: 22px;
+      border-radius: 50%;
+      background: var(--accent-badge);
+      cursor: pointer;
+      box-shadow: 0 0 14px var(--accent-badge);
+      margin-top: -8px;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="overflow-x-hidden selection:bg-emerald-500/30 selection:text-white">
+
+  <!-- ========================================================================= -->
+  <!-- TOP TOOLBAR: Theme Switcher & Design Option Selector                      -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-50 w-full border-b backdrop-blur-xl transition-all duration-300"
+          style="background: var(--bg-page); border-color: var(--border-card);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shadow-md"
+             style="background: var(--accent-badge); color: var(--accent-text);">
+          HA
+        </div>
+        <div>
+          <div class="text-xs font-mono-code uppercase font-semibold flex items-center gap-1.5" style="color: var(--txt-primary);">
+            <span>hireagent</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold tone-accent border">PRICING DESIGN LAB</span>
+          </div>
+          <p class="text-[11px]" style="color: var(--txt-muted);">Credit-Based Pricing Components ($1 = 100 Credits)</p>
+        </div>
+      </div>
+
+      <!-- Center: Option Selector Tabs -->
+      <div class="flex items-center gap-1 p-1 rounded-2xl border glass-panel" style="background: var(--bg-surface);">
+        <button onclick="switchOption(1)" id="opt-btn-1"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-mono-code transition-all font-semibold flex items-center gap-1.5"
+                style="background: var(--accent-glow); color: var(--accent-badge); border: 1px solid var(--accent-badge);">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          <span>Option 1: Asymmetric Engine</span>
+        </button>
+        <button onclick="switchOption(2)" id="opt-btn-2"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-mono-code transition-all font-semibold flex items-center gap-1.5 opacity-70 hover:opacity-100"
+                style="color: var(--txt-secondary);">
+          <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+          <span>Option 2: Holographic Console</span>
+        </button>
+        <button onclick="switchOption(3)" id="opt-btn-3"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-mono-code transition-all font-semibold flex items-center gap-1.5 opacity-70 hover:opacity-100"
+                style="color: var(--txt-secondary);">
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+          <span>Option 3: Modular Dual-Engine</span>
+        </button>
+      </div>
+
+      <!-- Right: Theme Switcher -->
+      <div class="flex items-center gap-2">
+        <span class="text-[11px] font-mono-code hidden sm:inline" style="color: var(--txt-muted);">Theme:</span>
+        <div class="flex items-center gap-1 p-1 rounded-xl border glass-panel">
+          <button onclick="setTheme('obsidian')" title="Obsidian Dark" class="w-6 h-6 rounded-lg bg-[#07070E] border border-white/20 hover:scale-110 transition-transform active:scale-95"></button>
+          <button onclick="setTheme('ivory')" title="Ivory Light" class="w-6 h-6 rounded-lg bg-[#F8F5EF] border border-black/20 hover:scale-110 transition-transform active:scale-95"></button>
+          <button onclick="setTheme('plum')" title="Plum Noir" class="w-6 h-6 rounded-lg bg-[#0C0614] border border-purple-500/40 hover:scale-110 transition-transform active:scale-95"></button>
+          <button onclick="setTheme('copper')" title="Copper Slate" class="w-6 h-6 rounded-lg bg-[#0B1017] border border-orange-500/40 hover:scale-110 transition-transform active:scale-95"></button>
+          <button onclick="setTheme('paper')" title="Paper & Ink" class="w-6 h-6 rounded-lg bg-[#F8F8F7] border border-yellow-700/40 hover:scale-110 transition-transform active:scale-95"></button>
+          <button onclick="setTheme('cobalt')" title="Cobalt Night" class="w-6 h-6 rounded-lg bg-[#02080F] border border-cyan-500/40 hover:scale-110 transition-transform active:scale-95"></button>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+
+  <!-- ========================================================================= -->
+  <!-- MAIN DISPLAY WRAPPER                                                      -->
+  <!-- ========================================================================= -->
+  <main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+
+    <!-- Design Option Header Context Banner -->
+    <div id="option-badge-banner" class="mb-10 text-center">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono-code uppercase font-semibold mb-3 tone-accent border">
+        <i data-lucide="zap" class="w-3.5 h-3.5 animate-bounce"></i>
+        <span id="opt-banner-tag">OPTION 1 OF 3 // THE ASYMMETRIC CREDIT ENGINE</span>
+      </div>
+      <h1 id="opt-banner-title" class="font-serif-brand text-3xl sm:text-4xl lg:text-5xl font-semibold mb-3" style="color: var(--txt-primary);">
+        Pay only for the compute you use.
+      </h1>
+      <p id="opt-banner-desc" class="max-w-2xl mx-auto text-xs sm:text-sm leading-relaxed" style="color: var(--txt-secondary);">
+        No $299/mo subscription lock-ins. No per-seat penalties. Free starter tier + transparent $1 = 100 Credits compute vault.
+      </p>
+    </div>
+
+
+    <!-- ======================================================================= -->
+    <!-- OPTION 1: THE ASYMMETRIC CREDIT ENGINE & CAPACITY RUNWAY (Recommended) -->
+    <!-- ======================================================================= -->
+    <section id="pricing-option-1" class="space-y-12 block transition-all duration-500">
+      
+      <!-- Upper Hero Grid: Asymmetric 2-Card Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        
+        <!-- LEFT POD: Free Starter Allowance (Col Span 5) -->
+        <div class="lg:col-span-5 rounded-3xl p-6 sm:p-8 flex flex-col justify-between glass-panel border relative overflow-hidden group hover:border-[var(--border-hover)] transition-all">
+          <div class="space-y-6">
+            <!-- Header Tag -->
+            <div class="flex items-center justify-between">
+              <span class="px-3 py-1 rounded-full text-[11px] font-mono-code font-bold uppercase tracking-wider flex items-center gap-1.5"
+                    style="background: rgba(255,255,255,0.06); color: var(--txt-secondary); border: 1px solid var(--border-card);">
+                <i data-lucide="gift" class="w-3.5 h-3.5"></i>
+                Free Starter Tier
+              </span>
+              <span class="text-xs font-mono-code font-bold" style="color: var(--num-pos);">
+                $0.00 / 1-YEAR ACCESS
+              </span>
+            </div>
+
+            <!-- Price Hero -->
+            <div>
+              <div class="font-serif-brand text-4xl sm:text-5xl font-bold tracking-tight" style="color: var(--txt-primary);">
+                $0 <span class="text-sm font-sans font-normal opacity-70">/ no credit card</span>
+              </div>
+              <p class="text-xs sm:text-sm mt-2 leading-relaxed" style="color: var(--txt-secondary);">
+                Every account includes a generous free starter allowance to run live recruiting campaigns and experience true zero-hallucination screening.
+              </p>
+            </div>
+
+            <!-- Quota Allowance Meter Chips -->
+            <div class="space-y-3 pt-2">
+              <div class="p-3.5 rounded-2xl border glass-surface-elevated space-y-1.5">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-medium flex items-center gap-2" style="color: var(--txt-primary);">
+                    <i data-lucide="layers" class="w-3.5 h-3.5 text-blue-400"></i>
+                    Campaigns Allowance
+                  </span>
+                  <span class="font-mono-code font-bold" style="color: var(--num-pos);">5 Campaigns</span>
+                </div>
+                <div class="w-full h-1.5 rounded-full overflow-hidden bg-black/20">
+                  <div class="h-full rounded-full" style="width: 100%; background: var(--accent-badge);"></div>
+                </div>
+                <div class="text-[10px]" style="color: var(--txt-muted);">Create job openings and configure screening criteria</div>
+              </div>
+
+              <div class="p-3.5 rounded-2xl border glass-surface-elevated space-y-1.5">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-medium flex items-center gap-2" style="color: var(--txt-primary);">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    CV Screening & Ingestion
+                  </span>
+                  <span class="font-mono-code font-bold" style="color: var(--num-pos);">100 Resumes</span>
+                </div>
+                <div class="w-full h-1.5 rounded-full overflow-hidden bg-black/20">
+                  <div class="h-full rounded-full" style="width: 100%; background: var(--accent-badge);"></div>
+                </div>
+                <div class="text-[10px]" style="color: var(--txt-muted);">Upload, score, and rank candidate resumes with quote evidence</div>
+              </div>
+
+              <div class="p-3.5 rounded-2xl border glass-surface-elevated space-y-1.5">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-medium flex items-center gap-2" style="color: var(--txt-primary);">
+                    <i data-lucide="user-check" class="w-3.5 h-3.5 text-purple-400"></i>
+                    AI Interview Evaluations
+                  </span>
+                  <span class="font-mono-code font-bold" style="color: var(--num-pos);">5 Candidates</span>
+                </div>
+                <div class="w-full h-1.5 rounded-full overflow-hidden bg-black/20">
+                  <div class="h-full rounded-full" style="width: 100%; background: var(--accent-badge);"></div>
+                </div>
+                <div class="text-[10px]" style="color: var(--txt-muted);">Adaptive interview questions, cheating detection & scorecards</div>
+              </div>
+            </div>
+
+            <!-- Features Checklist -->
+            <div class="pt-2 border-t space-y-2 text-xs" style="borderColor: var(--border-card); color: var(--txt-secondary);">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                <span>Supports PDF, Word (DOCX), and scanned resumes</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                <span>Built-in anti-cheat and copy-paste detection</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                <span>1-Year validity — access full screening features for 12 months</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Free CTA Button -->
+          <div class="pt-6">
+            <button class="w-full py-3.5 rounded-2xl text-xs font-bold font-mono-code uppercase tracking-wider border transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                    style="background: var(--bg-surface); border-color: var(--border-card); color: var(--txt-primary);">
+              <span>Start Free Pipeline</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- RIGHT COMMAND HUB: Paid Pro Credit Vault (Col Span 7) -->
+        <div class="lg:col-span-7 rounded-3xl p-6 sm:p-8 flex flex-col justify-between glass-panel border relative overflow-hidden group shadow-2xl"
+             style="border-color: var(--border-hover); box-shadow: 0 0 40px var(--accent-glow);">
+          
+          <!-- Top Tag & Exchange Rate Pill -->
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div class="flex items-center gap-2">
+              <span class="px-3.5 py-1.5 rounded-full text-xs font-mono-code font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md"
+                    style="background: var(--accent-badge); color: var(--accent-text);">
+                <i data-lucide="zap" class="w-3.5 h-3.5 fill-current"></i>
+                Pay-As-You-Go Credit Vault
+              </span>
+              <span class="text-xs font-mono-code font-semibold px-2.5 py-1 rounded-lg border tone-accent">
+                $1.00 = 100 CREDITS
+              </span>
+            </div>
+
+            <div class="flex items-center gap-1 text-[11px] font-mono-code font-bold" style="color: var(--num-pos);">
+              <i data-lucide="shield-check" class="w-4 h-4"></i>
+              <span>1-YEAR CREDIT VALIDITY</span>
+            </div>
+          </div>
+
+          <!-- Interactive Pack Selector & Live Calculator -->
+          <div class="space-y-6">
+            <div>
+              <div class="text-xs font-mono-code uppercase font-semibold tracking-wider mb-1" style="color: var(--txt-muted);">
+                Select Top-Up Size or Drag Custom Slider
+              </div>
+              
+              <!-- Quick Top-Up Preset Buttons -->
+              <div class="grid grid-cols-3 sm:grid-cols-4 gap-2.5 mt-3">
+                <button onclick="setOpt1Amount(10)" id="opt1-btn-10"
+                        class="p-3 rounded-2xl border text-center transition-all hover:scale-105 active:scale-95 glass-surface-elevated font-mono-code"
+                        style="border-color: var(--accent-badge); background: var(--accent-glow);">
+                  <div class="text-base font-extrabold" style="color: var(--txt-primary);">$10</div>
+                  <div class="text-[11px] font-bold" style="color: var(--accent-badge);">1,000 Cr</div>
+                  <div class="text-[9px] opacity-70" style="color: var(--txt-muted);">Starter Pack</div>
+                </button>
+
+                <button onclick="setOpt1Amount(20)" id="opt1-btn-20"
+                        class="p-3 rounded-2xl border text-center transition-all hover:scale-105 active:scale-95 glass-surface-elevated font-mono-code"
+                        style="border-color: var(--border-card);">
+                  <div class="text-base font-extrabold" style="color: var(--txt-primary);">$20</div>
+                  <div class="text-[11px] font-bold" style="color: var(--accent-badge);">2,000 Cr</div>
+                  <div class="text-[9px] opacity-70" style="color: var(--txt-muted);">Growth Pack</div>
+                </button>
+
+                <button onclick="setOpt1Amount(50)" id="opt1-btn-50"
+                        class="p-3 rounded-2xl border text-center transition-all hover:scale-105 active:scale-95 glass-surface-elevated font-mono-code"
+                        style="border-color: var(--border-card);">
+                  <div class="text-base font-extrabold" style="color: var(--txt-primary);">$50</div>
+                  <div class="text-[11px] font-bold" style="color: var(--accent-badge);">5,000 Cr</div>
+                  <div class="text-[9px] opacity-70" style="color: var(--txt-muted);">Scale Blitz</div>
+                </button>
+
+                <button onclick="setOpt1Amount(100)" id="opt1-btn-100"
+                        class="p-3 rounded-2xl border text-center transition-all hover:scale-105 active:scale-95 glass-surface-elevated font-mono-code col-span-3 sm:col-span-1"
+                        style="border-color: var(--border-card);">
+                  <div class="text-base font-extrabold" style="color: var(--txt-primary);">$100</div>
+                  <div class="text-[11px] font-bold" style="color: var(--accent-badge);">10,000 Cr</div>
+                  <div class="text-[9px] opacity-70" style="color: var(--txt-muted);">High Volume</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Dynamic Slider Control -->
+            <div class="p-4 rounded-2xl border glass-surface-elevated space-y-3">
+              <div class="flex items-center justify-between text-xs font-mono-code">
+                <span style="color: var(--txt-secondary);">Custom Amount Slider:</span>
+                <span class="font-bold text-sm" style="color: var(--accent-badge);">
+                  <span id="opt1-usd-val">$10</span> USD = <span id="opt1-cr-val">1,000</span> Credits
+                </span>
+              </div>
+              <input type="range" id="opt1-slider" min="5" max="200" step="5" value="10"
+                     oninput="onOpt1SliderChange(this.value)" class="w-full">
+              <div class="flex justify-between text-[10px] font-mono-code" style="color: var(--txt-muted);">
+                <span>$5 (500 Cr)</span>
+                <span>$50 (5,000 Cr)</span>
+                <span>$100 (10,000 Cr)</span>
+                <span>$200 (20,000 Cr)</span>
+              </div>
+            </div>
+
+            <!-- Real-Time AI Capacity Runway Forecast -->
+            <div class="p-5 rounded-2xl border space-y-3" style="background: var(--bg-surface); border-color: var(--border-card);">
+              <div class="flex items-center justify-between text-xs font-mono-code font-bold">
+                <span class="flex items-center gap-1.5" style="color: var(--txt-primary);">
+                  <i data-lucide="cpu" class="w-4 h-4 text-emerald-400"></i>
+                  What this deposit unlocks for your hiring:
+                </span>
+                <span class="text-[10px] px-2 py-0.5 rounded font-bold tone-pos border">ACTIVE CAPACITY</span>
+              </div>
+
+              <!-- Capacity 3-Box Grid -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="p-3 rounded-xl border glass-surface-elevated text-center">
+                  <div class="text-[10px] font-mono-code uppercase" style="color: var(--txt-muted);">Resume Screenings</div>
+                  <div id="opt1-cv-cap" class="text-xl font-bold font-mono-code my-0.5" style="color: var(--num-pos);">1,000</div>
+                  <div class="text-[10px]" style="color: var(--txt-secondary);">1 Credit / Resume</div>
+                </div>
+
+                <div class="p-3 rounded-xl border glass-surface-elevated text-center">
+                  <div class="text-[10px] font-mono-code uppercase" style="color: var(--txt-muted);">AI Interviews</div>
+                  <div id="opt1-eval-cap" class="text-xl font-bold font-mono-code my-0.5" style="color: var(--accent-badge);">500</div>
+                  <div class="text-[10px]" style="color: var(--txt-secondary);">2 Credits / Candidate</div>
+                </div>
+
+                <div class="p-3 rounded-xl border glass-surface-elevated text-center">
+                  <div class="text-[10px] font-mono-code uppercase" style="color: var(--txt-muted);">Campaign Portals</div>
+                  <div id="opt1-camp-cap" class="text-xl font-bold font-mono-code my-0.5" style="color: var(--txt-primary);">1,000</div>
+                  <div class="text-[10px]" style="color: var(--txt-secondary);">1 Credit / Job Role</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Paid Pro CTA Button -->
+          <div class="pt-6">
+            <button class="w-full py-4 rounded-2xl text-sm font-bold font-mono-code uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shadow-xl"
+                    style="background: linear-gradient(135deg, var(--accent-badge), var(--accent-primary)); color: var(--accent-text); box-shadow: 0 6px 24px var(--accent-glow);">
+              <i data-lucide="coins" class="w-4 h-4"></i>
+              <span>Deposit <span id="opt1-btn-usd">$10</span> & Activate Pro Credits</span>
+              <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+            </button>
+            <div class="flex items-center justify-center gap-4 mt-3 text-[11px] font-mono-code" style="color: var(--txt-muted);">
+              <span>✓ Instant Top-Up</span>
+              <span>✓ 1-Year Credit Validity</span>
+              <span>✓ Zero Cancellation Hassle</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Unit Economics Micro-Cards (Bottom Strip) -->
+      <div class="rounded-3xl p-6 sm:p-8 border glass-panel space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-4" style="border-color: var(--border-card);">
+          <div>
+            <h3 class="text-base font-bold font-serif-brand" style="color: var(--txt-primary);">
+              Simple, Transparent Pricing
+            </h3>
+            <p class="text-xs mt-0.5" style="color: var(--txt-secondary);">
+              Only pay for what you use ($10 gives you 1,000 Credits). No monthly subscriptions or hidden fees.
+            </p>
+          </div>
+          <div class="flex items-center gap-1.5 text-xs font-mono-code font-semibold tone-accent px-3 py-1 rounded-full border shrink-0">
+            <i data-lucide="coins" class="w-3.5 h-3.5"></i>
+            <span>Pay Per Action</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+          
+          <div class="p-4 rounded-2xl border glass-surface-elevated space-y-2 transition-all hover:scale-[1.02]">
+            <div class="flex items-center justify-between">
+              <div class="p-2 rounded-xl" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+              </div>
+              <span class="text-xs font-mono-code font-bold px-2 py-0.5 rounded border" style="color: var(--accent-badge); border-color: var(--border-card);">
+                1 Credit ($0.01)
+              </span>
+            </div>
+            <div class="text-xs font-bold font-mono-code" style="color: var(--txt-primary);">Job Campaign Setup</div>
+            <div class="text-[11px] leading-relaxed" style="color: var(--txt-secondary);">
+              Set up a new role and configure your screening criteria.
+            </div>
+          </div>
+
+          <div class="p-4 rounded-2xl border glass-surface-elevated space-y-2 transition-all hover:scale-[1.02]">
+            <div class="flex items-center justify-between">
+              <div class="p-2 rounded-xl" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+                <i data-lucide="file-search" class="w-4 h-4"></i>
+              </div>
+              <span class="text-xs font-mono-code font-bold px-2 py-0.5 rounded border" style="color: var(--accent-badge); border-color: var(--border-card);">
+                1 Credit ($0.01) / CV
+              </span>
+            </div>
+            <div class="text-xs font-bold font-mono-code" style="color: var(--txt-primary);">Resume Screening</div>
+            <div class="text-[11px] leading-relaxed" style="color: var(--txt-secondary);">
+              Scan, evaluate, and score candidate resumes against job requirements.
+            </div>
+          </div>
+
+          <div class="p-4 rounded-2xl border glass-surface-elevated space-y-2 transition-all hover:scale-[1.02]">
+            <div class="flex items-center justify-between">
+              <div class="p-2 rounded-xl" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">
+                <i data-lucide="send" class="w-4 h-4"></i>
+              </div>
+              <span class="text-xs font-mono-code font-bold px-2 py-0.5 rounded border" style="color: var(--accent-badge); border-color: var(--border-card);">
+                1 Credit ($0.01) / Email
+              </span>
+            </div>
+            <div class="text-xs font-bold font-mono-code" style="color: var(--txt-primary);">Interview Invitation</div>
+            <div class="text-[11px] leading-relaxed" style="color: var(--txt-secondary);">
+              Send personalized online interview links to shortlisted candidates.
+            </div>
+          </div>
+
+          <div class="p-4 rounded-2xl border glass-surface-elevated space-y-2 transition-all hover:scale-[1.02]">
+            <div class="flex items-center justify-between">
+              <div class="p-2 rounded-xl" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+                <i data-lucide="user-check" class="w-4 h-4"></i>
+              </div>
+              <span class="text-xs font-mono-code font-bold px-2 py-0.5 rounded border" style="color: var(--accent-badge); border-color: var(--border-card);">
+                2 Credits ($0.02) / Eval
+              </span>
+            </div>
+            <div class="text-xs font-bold font-mono-code" style="color: var(--txt-primary);">AI Interview Evaluation</div>
+            <div class="text-[11px] leading-relaxed" style="color: var(--txt-secondary);">
+              Review candidate answers, generate scorecards, and detect cheating.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ======================================================================= -->
+    <!-- OPTION 2: HOLOGRAPHIC PIPELINE SIMULATOR & ROI CONSOLE                  -->
+    <!-- ======================================================================= -->
+    <section id="pricing-option-2" class="space-y-8 hidden transition-all duration-500">
+      
+      <!-- Terminal Console Frame -->
+      <div class="rounded-3xl p-6 sm:p-10 border glass-panel relative overflow-hidden shadow-2xl"
+           style="border-color: var(--border-hover);">
+        
+        <!-- Terminal Header Bar -->
+        <div class="flex items-center justify-between pb-4 mb-6 border-b text-xs font-mono-code" style="border-color: var(--border-card);">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-red-500"></span>
+            <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+            <span class="w-3 h-3 rounded-full bg-green-500"></span>
+            <span class="ml-2 font-bold" style="color: var(--txt-primary);">recruiter_pipeline_simulator.exe // credit_engine</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold tone-pos border">ENGINE ONLINE</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          
+          <!-- Left: Sliders & Parameter Configuration (Col Span 7) -->
+          <div class="lg:col-span-7 space-y-6">
+            <div>
+              <h2 class="font-serif-brand text-2xl sm:text-3xl font-bold mb-2" style="color: var(--txt-primary);">
+                Simulate Your Hiring Throughput
+              </h2>
+              <p class="text-xs sm:text-sm" style="color: var(--txt-secondary);">
+                Adjust your expected monthly resume volume and interview shortlist count to see exact credit costs and cost reduction vs traditional recruiters.
+              </p>
+            </div>
+
+            <!-- Slider 1: Resumes per month -->
+            <div class="p-4 rounded-2xl border glass-surface-elevated space-y-2">
+              <div class="flex justify-between items-center text-xs font-mono-code">
+                <span class="font-bold" style="color: var(--txt-primary);">Monthly Applications / Resumes Ingested:</span>
+                <span id="opt2-resumes-label" class="text-base font-extrabold" style="color: var(--accent-badge);">300 Resumes</span>
+              </div>
+              <input type="range" id="opt2-resumes-slider" min="50" max="3000" step="50" value="300"
+                     oninput="updateOpt2Simulator()" class="w-full">
+              <div class="flex justify-between text-[10px] font-mono-code" style="color: var(--txt-muted);">
+                <span>50 CVs</span>
+                <span>500 CVs</span>
+                <span>1,500 CVs</span>
+                <span>3,000 CVs</span>
+              </div>
+            </div>
+
+            <!-- Slider 2: Candidates Shortlisted for Interview -->
+            <div class="p-4 rounded-2xl border glass-surface-elevated space-y-2">
+              <div class="flex justify-between items-center text-xs font-mono-code">
+                <span class="font-bold" style="color: var(--txt-primary);">Candidates Invited to AI Written Interview:</span>
+                <span id="opt2-interviews-label" class="text-base font-extrabold" style="color: var(--num-pos);">25 Candidates</span>
+              </div>
+              <input type="range" id="opt2-interviews-slider" min="5" max="250" step="5" value="25"
+                     oninput="updateOpt2Simulator()" class="w-full">
+              <div class="flex justify-between text-[10px] font-mono-code" style="color: var(--txt-muted);">
+                <span>5 Evals</span>
+                <span>50 Evals</span>
+                <span>150 Evals</span>
+                <span>250 Evals</span>
+              </div>
+            </div>
+
+            <!-- Telemetry Stream Logs -->
+            <div class="p-3.5 rounded-xl border font-mono-code text-[11px] space-y-1" style="background: rgba(0,0,0,0.35); border-color: var(--border-card);">
+              <div class="flex justify-between text-emerald-400">
+                <span>[compute] CV Extraction (300 × 1 Cr):</span>
+                <span id="opt2-log-cv">300 Credits</span>
+              </div>
+              <div class="flex justify-between text-purple-400">
+                <span>[compute] Interview Dispatch + Grading (25 × 3 Cr):</span>
+                <span id="opt2-log-interview">75 Credits</span>
+              </div>
+              <div class="flex justify-between text-blue-400">
+                <span>[compute] Pipeline Infrastructure:</span>
+                <span>2 Campaigns (2 Cr)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Live Cost Comparison & ROI Matrix (Col Span 5) -->
+          <div class="lg:col-span-5 p-6 rounded-3xl border flex flex-col justify-between space-y-6"
+               style="background: var(--bg-surface); border-color: var(--border-card);">
+            
+            <div class="space-y-4">
+              <div class="text-xs font-mono-code uppercase tracking-wider font-bold" style="color: var(--txt-muted);">
+                Total Compute Required
+              </div>
+
+              <div class="flex items-baseline gap-2">
+                <div id="opt2-total-credits" class="font-serif-brand text-4xl sm:text-5xl font-extrabold" style="color: var(--accent-badge);">
+                  377
+                </div>
+                <span class="text-lg font-bold font-mono-code" style="color: var(--txt-primary);">Credits</span>
+                <span id="opt2-total-usd" class="text-sm font-mono-code px-2 py-0.5 rounded tone-pos font-bold">
+                  ≈ $3.77 USD
+                </span>
+              </div>
+
+              <!-- Cost Savings Comparison Bars -->
+              <div class="space-y-3 pt-3 border-t" style="border-color: var(--border-card);">
+                <div class="space-y-1 text-xs">
+                  <div class="flex justify-between font-mono-code">
+                    <span style="color: var(--txt-secondary);">hireagent Compute Cost:</span>
+                    <span id="opt2-bar-ha-val" class="font-bold" style="color: var(--num-pos);">$3.77</span>
+                  </div>
+                  <div class="w-full h-2 rounded-full bg-black/20 overflow-hidden">
+                    <div class="h-full rounded-full bg-emerald-500" style="width: 4%;"></div>
+                  </div>
+                </div>
+
+                <div class="space-y-1 text-xs">
+                  <div class="flex justify-between font-mono-code">
+                    <span style="color: var(--txt-secondary);">Legacy ATS Per-Seat Model:</span>
+                    <span class="font-bold" style="color: var(--txt-muted);">$250.00 / mo</span>
+                  </div>
+                  <div class="w-full h-2 rounded-full bg-black/20 overflow-hidden">
+                    <div class="h-full rounded-full bg-yellow-500/60" style="width: 50%;"></div>
+                  </div>
+                </div>
+
+                <div class="space-y-1 text-xs">
+                  <div class="flex justify-between font-mono-code">
+                    <span style="color: var(--txt-secondary);">External Headhunter Agency (20% fee):</span>
+                    <span class="font-bold" style="color: var(--num-neg);">$4,500.00</span>
+                  </div>
+                  <div class="w-full h-2 rounded-full bg-black/20 overflow-hidden">
+                    <div class="h-full rounded-full bg-red-500/60" style="width: 100%;"></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Action Button -->
+            <button class="w-full py-3.5 rounded-2xl text-xs font-mono-code font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                    style="background: var(--accent-badge); color: var(--accent-text);">
+              <span>Deposit & Launch for $<span id="opt2-btn-usd">3.77</span></span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ======================================================================= -->
+    <!-- OPTION 3: MODULAR DUAL-ENGINE CARDS WITH TABBED CALCULATOR              -->
+    <!-- ======================================================================= -->
+    <section id="pricing-option-3" class="space-y-8 hidden transition-all duration-500">
+      
+      <!-- Center Tab Toggle (Cards vs Full Economics Table) -->
+      <div class="flex justify-center mb-6">
+        <div class="inline-flex p-1 rounded-2xl border glass-panel font-mono-code text-xs">
+          <button onclick="setOpt3Tab('cards')" id="opt3-tab-cards"
+                  class="px-4 py-2 rounded-xl font-bold transition-all"
+                  style="background: var(--accent-badge); color: var(--accent-text);">
+            Plans & Top-Up Packs
+          </button>
+          <button onclick="setOpt3Tab('matrix')" id="opt3-tab-matrix"
+                  class="px-4 py-2 rounded-xl transition-all"
+                  style="color: var(--txt-secondary);">
+            Full Compute Rate Matrix
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab View 1: 3-Card Grid (Free, Growth $20, Scale $50) -->
+      <div id="opt3-view-cards" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+        
+        <!-- Card 1: Lifetime Free -->
+        <div class="rounded-3xl p-6 sm:p-8 border glass-panel flex flex-col justify-between space-y-6">
+          <div class="space-y-4">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-mono-code font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border tone-accent">
+                Free Quota
+              </span>
+              <span class="text-xs font-mono-code" style="color: var(--txt-muted);">$0 / 1-year access</span>
+            </div>
+            <div class="font-serif-brand text-3xl font-bold" style="color: var(--txt-primary);">$0</div>
+            <p class="text-xs leading-relaxed" style="color: var(--txt-secondary);">
+              Perfect for hiring managers testing their first automated pipeline.
+            </p>
+            <ul class="space-y-2.5 text-xs pt-2 border-t" style="border-color: var(--border-card); color: var(--txt-secondary);">
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> 5 Active Campaigns</li>
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> 100 CV Parses & Screenings</li>
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> 5 AI Written Interviews</li>
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> 4-Tier Verbatim Evidence</li>
+            </ul>
+          </div>
+          <button class="w-full py-3 rounded-xl border text-xs font-mono-code font-bold uppercase tracking-wider transition-all hover:scale-105"
+                  style="border-color: var(--border-card); color: var(--txt-primary);">
+            Start Free
+          </button>
+        </div>
+
+        <!-- Card 2: Growth Top-Up (Popular) -->
+        <div class="rounded-3xl p-6 sm:p-8 border glass-panel flex flex-col justify-between space-y-6 relative"
+             style="border-color: var(--border-hover); box-shadow: 0 0 30px var(--accent-glow);">
+          <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[10px] font-mono-code font-bold uppercase tracking-widest shadow-md"
+               style="background: var(--accent-badge); color: var(--accent-text);">
+            MOST POPULAR TOP-UP
+          </div>
+          <div class="space-y-4">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-mono-code font-bold uppercase tracking-wider px-2.5 py-1 rounded-full tone-pos border">
+                Pro Growth Pack
+              </span>
+              <span class="text-xs font-mono-code font-bold" style="color: var(--accent-badge);">2,000 Credits</span>
+            </div>
+            <div class="font-serif-brand text-3xl font-bold" style="color: var(--txt-primary);">$20 <span class="text-xs font-sans font-normal opacity-70">one-time</span></div>
+            <p class="text-xs leading-relaxed" style="color: var(--txt-secondary);">
+              Ideal for scaling engineering teams hiring for 2-4 roles.
+            </p>
+            <ul class="space-y-2.5 text-xs pt-2 border-t" style="border-color: var(--border-card); color: var(--txt-secondary);">
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> 2,000 CV Screenings (or 1,000 Interviews)</li>
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Unlimited Campaigns ($0.01 / setup)</li>
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Full Anti-Cheat Telemetry Audit</li>
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> 1-Year Credit Validity</li>
+            </ul>
+          </div>
+          <button class="w-full py-3.5 rounded-xl text-xs font-mono-code font-bold uppercase tracking-wider transition-all hover:scale-105"
+                  style="background: var(--accent-badge); color: var(--accent-text);">
+            Buy 2,000 Credits ($20)
+          </button>
+        </div>
+
+        <!-- Card 3: Scale Blitz Top-Up -->
+        <div class="rounded-3xl p-6 sm:p-8 border glass-panel flex flex-col justify-between space-y-6">
+          <div class="space-y-4">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-mono-code font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border tone-accent">
+                Scale Blitz Pack
+              </span>
+              <span class="text-xs font-mono-code font-bold" style="color: var(--num-pos);">5,000 Credits</span>
+            </div>
+            <div class="font-serif-brand text-3xl font-bold" style="color: var(--txt-primary);">$50 <span class="text-xs font-sans font-normal opacity-70">one-time</span></div>
+            <p class="text-xs leading-relaxed" style="color: var(--txt-secondary);">
+              High-volume recruitment for fast-growing startups and agencies.
+            </p>
+            <ul class="space-y-2.5 text-xs pt-2 border-t" style="border-color: var(--border-card); color: var(--txt-secondary);">
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> 5,000 CV Screenings Capacity</li>
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Up to 2,500 Claude Sonnet Evaluations</li>
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Priority Multimodal OCR Queue</li>
+              <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Multi-Seat Team Access Included</li>
+            </ul>
+          </div>
+          <button class="w-full py-3 rounded-xl border text-xs font-mono-code font-bold uppercase tracking-wider transition-all hover:scale-105"
+                  style="border-color: var(--border-card); color: var(--txt-primary);">
+            Buy 5,000 Credits ($50)
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Tab View 2: Full Economics Table -->
+      <div id="opt3-view-matrix" class="hidden rounded-3xl p-6 border glass-panel overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs font-mono-code">
+          <thead>
+            <tr class="border-b" style="border-color: var(--border-card); color: var(--txt-muted);">
+              <th class="pb-3 font-semibold">ACTION / FEATURE</th>
+              <th class="pb-3 font-semibold">UNIT COST (CREDITS)</th>
+              <th class="pb-3 font-semibold">USD EQUIVALENT</th>
+              <th class="pb-3 font-semibold">FREE TIER LIMIT</th>
+              <th class="pb-3 font-semibold">PAID TIER LIMIT</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y" style="border-color: var(--border-card); color: var(--txt-secondary);">
+            <tr>
+              <td class="py-3 font-bold" style="color: var(--txt-primary);">Job Campaign Setup</td>
+              <td class="py-3" style="color: var(--accent-badge);">1 Credit</td>
+              <td class="py-3">$0.01</td>
+              <td class="py-3">5 Campaigns</td>
+              <td class="py-3 font-bold" style="color: var(--num-pos);">Unlimited</td>
+            </tr>
+            <tr>
+              <td class="py-3 font-bold" style="color: var(--txt-primary);">Resume Screening</td>
+              <td class="py-3" style="color: var(--accent-badge);">1 Credit / Resume</td>
+              <td class="py-3">$0.01</td>
+              <td class="py-3">100 Resumes</td>
+              <td class="py-3 font-bold" style="color: var(--num-pos);">Unlimited</td>
+            </tr>
+            <tr>
+              <td class="py-3 font-bold" style="color: var(--txt-primary);">Candidate Interview Invitation</td>
+              <td class="py-3" style="color: var(--accent-badge);">1 Credit / Email</td>
+              <td class="py-3">$0.01</td>
+              <td class="py-3">5 Dispatches</td>
+              <td class="py-3 font-bold" style="color: var(--num-pos);">Unlimited</td>
+            </tr>
+            <tr>
+              <td class="py-3 font-bold" style="color: var(--txt-primary);">AI Interview Evaluation</td>
+              <td class="py-3" style="color: var(--accent-badge);">2 Credits / Candidate</td>
+              <td class="py-3">$0.02</td>
+              <td class="py-3">5 Interviews</td>
+              <td class="py-3 font-bold" style="color: var(--num-pos);">Unlimited</td>
+            </tr>
+            <tr>
+              <td class="py-3 font-bold" style="color: var(--txt-primary);">Anti-Cheat Risk Detection</td>
+              <td class="py-3" style="color: var(--num-pos);">Included Free</td>
+              <td class="py-3">$0.00</td>
+              <td class="py-3">Included</td>
+              <td class="py-3 font-bold" style="color: var(--num-pos);">Included</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT LOGIC & INTERACTION ENGINE                                     -->
+  <!-- ========================================================================= -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Theme Switcher Function
+    function setTheme(themeName) {
+      document.documentElement.setAttribute("data-theme", themeName);
+    }
+
+    // Design Option Switcher
+    function switchOption(optNumber) {
+      // Hide all options
+      document.getElementById("pricing-option-1").classList.add("hidden");
+      document.getElementById("pricing-option-2").classList.add("hidden");
+      document.getElementById("pricing-option-3").classList.add("hidden");
+
+      // Reset Tab Styles
+      for (let i = 1; i <= 3; i++) {
+        const btn = document.getElementById(`opt-btn-${i}`);
+        btn.classList.add("opacity-70");
+        btn.style.background = "transparent";
+        btn.style.border = "1px solid transparent";
+        btn.style.color = "var(--txt-secondary)";
+      }
+
+      // Activate selected
+      const activeBtn = document.getElementById(`opt-btn-${optNumber}`);
+      activeBtn.classList.remove("opacity-70");
+      activeBtn.style.background = "var(--accent-glow)";
+      activeBtn.style.border = "1px solid var(--accent-badge)";
+      activeBtn.style.color = "var(--accent-badge)";
+
+      const bannerTag = document.getElementById("opt-banner-tag");
+      const bannerTitle = document.getElementById("opt-banner-title");
+      const bannerDesc = document.getElementById("opt-banner-desc");
+
+      if (optNumber === 1) {
+        document.getElementById("pricing-option-1").classList.remove("hidden");
+        bannerTag.innerText = "OPTION 1 OF 3 // THE ASYMMETRIC CREDIT ENGINE";
+        bannerTitle.innerText = "Pay only for the compute you use.";
+        bannerDesc.innerText = "No $299/mo subscription lock-ins. No per-seat penalties. Free lifetime tier + transparent $1 = 100 Credits compute vault.";
+      } else if (optNumber === 2) {
+        document.getElementById("pricing-option-2").classList.remove("hidden");
+        bannerTag.innerText = "OPTION 2 OF 3 // HOLOGRAPHIC PIPELINE SIMULATOR";
+        bannerTitle.innerText = "Simulate your hiring compute in real time.";
+        bannerDesc.innerText = "Adjust monthly applicant volume & interviews to calculate exact credit costs and 99% cost savings vs headhunter fees.";
+      } else if (optNumber === 3) {
+        document.getElementById("pricing-option-3").classList.remove("hidden");
+        bannerTag.innerText = "OPTION 3 OF 3 // MODULAR DUAL-ENGINE & MATRIX";
+        bannerTitle.innerText = "Structured top-up packs & full compute matrix.";
+        bannerDesc.innerText = "Clean modular cards for rapid tier selection with an interactive unit-economic compute rate table.";
+      }
+
+      lucide.createIcons();
+    }
+
+    // OPTION 1 CALCULATOR LOGIC
+    function setOpt1Amount(usdAmount) {
+      document.getElementById("opt1-slider").value = usdAmount;
+      onOpt1SliderChange(usdAmount);
+
+      // Highlight preset button
+      const presets = [10, 20, 50, 100];
+      presets.forEach(p => {
+        const b = document.getElementById(`opt1-btn-${p}`);
+        if (b) {
+          if (p === usdAmount) {
+            b.style.borderColor = "var(--accent-badge)";
+            b.style.background = "var(--accent-glow)";
+          } else {
+            b.style.borderColor = "var(--border-card)";
+            b.style.background = "var(--bg-surface-elevated)";
+          }
+        }
+      });
+    }
+
+    function onOpt1SliderChange(usdValue) {
+      const usd = parseInt(usdValue, 10);
+      const credits = usd * 100;
+
+      document.getElementById("opt1-usd-val").innerText = `$${usd}`;
+      document.getElementById("opt1-cr-val").innerText = credits.toLocaleString();
+      document.getElementById("opt1-btn-usd").innerText = `$${usd}`;
+
+      // Capacity calculations
+      document.getElementById("opt1-cv-cap").innerText = credits.toLocaleString();
+      document.getElementById("opt1-eval-cap").innerText = Math.floor(credits / 2).toLocaleString();
+      document.getElementById("opt1-camp-cap").innerText = credits.toLocaleString();
+    }
+
+    // OPTION 2 SIMULATOR LOGIC
+    function updateOpt2Simulator() {
+      const resumes = parseInt(document.getElementById("opt2-resumes-slider").value, 10);
+      const interviews = parseInt(document.getElementById("opt2-interviews-slider").value, 10);
+
+      document.getElementById("opt2-resumes-label").innerText = `${resumes.toLocaleString()} Resumes`;
+      document.getElementById("opt2-interviews-label").innerText = `${interviews.toLocaleString()} Candidates`;
+
+      const cvCredits = resumes * 1;
+      const interviewCredits = interviews * 3; // 1 credit invite + 2 credits eval
+      const campaignCredits = 2;
+      const totalCredits = cvCredits + interviewCredits + campaignCredits;
+      const totalUsd = (totalCredits / 100).toFixed(2);
+
+      document.getElementById("opt2-log-cv").innerText = `${cvCredits.toLocaleString()} Credits`;
+      document.getElementById("opt2-log-interview").innerText = `${interviewCredits.toLocaleString()} Credits`;
+      document.getElementById("opt2-total-credits").innerText = totalCredits.toLocaleString();
+      document.getElementById("opt2-total-usd").innerText = `≈ $${totalUsd} USD`;
+      document.getElementById("opt2-bar-ha-val").innerText = `$${totalUsd}`;
+      document.getElementById("opt2-btn-usd").innerText = totalUsd;
+    }
+
+    // OPTION 3 TAB LOGIC
+    function setOpt3Tab(tab) {
+      const viewCards = document.getElementById("opt3-view-cards");
+      const viewMatrix = document.getElementById("opt3-view-matrix");
+      const tabCards = document.getElementById("opt3-tab-cards");
+      const tabMatrix = document.getElementById("opt3-tab-matrix");
+
+      if (tab === "cards") {
+        viewCards.classList.remove("hidden");
+        viewMatrix.classList.add("hidden");
+        tabCards.style.background = "var(--accent-badge)";
+        tabCards.style.color = "var(--accent-text)";
+        tabCards.classList.add("font-bold");
+        tabMatrix.style.background = "transparent";
+        tabMatrix.style.color = "var(--txt-secondary)";
+        tabMatrix.classList.remove("font-bold");
+      } else {
+        viewCards.classList.add("hidden");
+        viewMatrix.classList.remove("hidden");
+        tabMatrix.style.background = "var(--accent-badge)";
+        tabMatrix.style.color = "var(--accent-text)";
+        tabMatrix.classList.add("font-bold");
+        tabCards.style.background = "transparent";
+        tabCards.style.color = "var(--txt-secondary)";
+        tabCards.classList.remove("font-bold");
+      }
+    }
+  </script>
+</body>
+</html>

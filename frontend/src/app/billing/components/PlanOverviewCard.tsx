@@ -83,15 +83,15 @@ export function PlanOverviewCard({
 
           {isFree && isAnyLimitReached && (
             <span
-              className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1 animate-pulse"
+              className="px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5"
               style={{
-                background: hexToRgba(t.numNeg, 0.18),
+                background: hexToRgba(t.numNeg, 0.12),
                 color: t.numNeg,
                 border: `1px solid ${hexToRgba(t.numNeg, 0.3)}`,
               }}
             >
               <AlertTriangle size={11} />
-              Lifetime Quota Exhausted
+              Free Quota Exhausted
             </span>
           )}
         </div>
@@ -118,10 +118,10 @@ export function PlanOverviewCard({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <div className="lg:col-span-6 space-y-3.5">
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: t.txtPrimary }}>
-              Lifetime Free Quota
+              Free Starter Quota
             </h2>
             <p className="text-xs sm:text-sm leading-relaxed" style={{ color: t.txtMuted }}>
-              Free accounts receive a fixed lifetime allowance of 5 campaigns, 100 CV parses, and 5 interviews. Upgrade to Paid Credits for unlimited campaigns and candidate screening.
+              Free accounts receive a starter allowance of 5 campaigns, 100 CV parses, and 5 interviews (valid for 1 year). Upgrade to Paid Credits for scalable candidate screening.
             </p>
             <div className="pt-2">
               <button

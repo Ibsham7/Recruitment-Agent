@@ -9,6 +9,7 @@ import {
   ProcessSection,
   StatsSection,
   FeaturesSection,
+  PricingSection,
   FaqSection,
   CtaSection,
   LandingFooter
@@ -42,6 +43,8 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
       <StatsSection theme={t} />
       
       <FeaturesSection theme={t} />
+      
+      <PricingSection theme={t} onEnter={onEnter} />
       
       <FaqSection theme={t} onEnter={onEnter} />
       

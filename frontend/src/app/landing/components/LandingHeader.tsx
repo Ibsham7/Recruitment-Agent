@@ -39,6 +39,7 @@ export function LandingHeader({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
         items={[
           { label: "Features", onClick: () => document.getElementById("ha-features")?.scrollIntoView({ behavior: "smooth" }) },
           { label: "How it works", onClick: () => document.getElementById("ha-process")?.scrollIntoView({ behavior: "smooth" }) },
+          { label: "Pricing", onClick: () => document.getElementById("ha-pricing")?.scrollIntoView({ behavior: "smooth" }) },
           { label: "FAQ", onClick: () => document.getElementById("ha-faq")?.scrollIntoView({ behavior: "smooth" }) },
           { label: "Sign in", onClick: onEnter },
         ]}
