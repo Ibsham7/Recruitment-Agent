@@ -9,29 +9,34 @@ interface LandingScrollbarProps {
 export function LandingScrollbar({ theme: t }: LandingScrollbarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [thumbHeight, setThumbHeight] = useState(60);
   const [isDesktop, setIsDesktop] = useState(false);
 
   const trackRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const thumbHeightRef = useRef<number>(60);
+  const scrollProgressRef = useRef<number>(0);
   const dragStartY = useRef(0);
   const dragStartScroll = useRef(0);
   const rafId = useRef<number | null>(null);
 
-  // Check if device is desktop / laptop with fine pointer and hover support
+  // Check if device is desktop / laptop with fine pointer and hover support via matchMedia
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(hover: hover) and (pointer: fine)");
     const checkDevice = () => {
-      const isFinePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-      const isWideScreen = window.innerWidth >= 1024;
-      setIsDesktop(isFinePointer && isWideScreen);
+      setIsDesktop(mql.matches && window.innerWidth >= 1024);
     };
 
     checkDevice();
-    window.addEventListener("resize", checkDevice);
-    return () => window.removeEventListener("resize", checkDevice);
+    mql.addEventListener("change", checkDevice);
+    window.addEventListener("resize", checkDevice, { passive: true });
+    return () => {
+      mql.removeEventListener("change", checkDevice);
+      window.removeEventListener("resize", checkDevice);
+    };
   }, []);
 
-  // Update scroll metrics
+  // Update scroll metrics directly in DOM to eliminate React state updates on scroll frames
   const updateScrollMetrics = useCallback(() => {
     if (rafId.current !== null) {
       cancelAnimationFrame(rafId.current);
@@ -47,15 +52,20 @@ export function LandingScrollbar({ theme: t }: LandingScrollbarProps) {
       const currentScroll = window.scrollY || document.documentElement.scrollTop || 0;
 
       const progress = Math.min(1, Math.max(0, currentScroll / maxScroll));
-      setScrollProgress(progress);
+      scrollProgressRef.current = progress;
 
-      if (trackRef.current) {
+      if (trackRef.current && thumbRef.current) {
         const trackHeight = trackRef.current.clientHeight;
         const calculatedThumbHeight = Math.max(
           40,
           Math.min(trackHeight * 0.8, (winHeight / docHeight) * trackHeight)
         );
-        setThumbHeight(calculatedThumbHeight);
+        thumbHeightRef.current = calculatedThumbHeight;
+        const availableTrack = Math.max(0, trackHeight - calculatedThumbHeight);
+        const thumbTop = progress * availableTrack;
+
+        thumbRef.current.style.height = `${calculatedThumbHeight}px`;
+        thumbRef.current.style.transform = `translateY(${thumbTop}px)`;
       }
     });
   }, []);
@@ -100,8 +110,9 @@ export function LandingScrollbar({ theme: t }: LandingScrollbarProps) {
     const onPointerMove = (moveEvent: PointerEvent) => {
       if (!trackRef.current) return;
 
+      const currentThumbHeight = thumbHeightRef.current;
       const trackHeight = trackRef.current.clientHeight;
-      const availableTrack = trackHeight - thumbHeight;
+      const availableTrack = trackHeight - currentThumbHeight;
       if (availableTrack <= 0) return;
 
       const docHeight = Math.max(
@@ -141,14 +152,15 @@ export function LandingScrollbar({ theme: t }: LandingScrollbarProps) {
   const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!trackRef.current) return;
 
+    const currentThumbHeight = thumbHeightRef.current;
     const trackRect = trackRef.current.getBoundingClientRect();
     const clickY = e.clientY - trackRect.top;
     const trackHeight = trackRect.height;
-    const availableTrack = trackHeight - thumbHeight;
+    const availableTrack = trackHeight - currentThumbHeight;
 
     if (availableTrack <= 0) return;
 
-    const targetThumbTop = clickY - thumbHeight / 2;
+    const targetThumbTop = clickY - currentThumbHeight / 2;
     const targetProgress = Math.max(0, Math.min(1, targetThumbTop / availableTrack));
 
     const docHeight = Math.max(
@@ -165,10 +177,6 @@ export function LandingScrollbar({ theme: t }: LandingScrollbarProps) {
   };
 
   if (!isDesktop) return null;
-
-  const trackHeight = trackRef.current ? trackRef.current.clientHeight : (typeof window !== "undefined" ? window.innerHeight - 24 : 600);
-  const availableTrack = Math.max(0, trackHeight - thumbHeight);
-  const thumbTop = scrollProgress * availableTrack;
 
   const isVisible = isHovered || isDragging;
 
@@ -197,13 +205,14 @@ export function LandingScrollbar({ theme: t }: LandingScrollbarProps) {
       >
         {/* Scrollbar Thumb */}
         <div
+          ref={thumbRef}
           onPointerDown={handlePointerDown}
           className={`absolute left-0 right-0 rounded-full transition-colors duration-150 cursor-grab active:cursor-grabbing ${
             isDragging ? "cursor-grabbing" : ""
           }`}
           style={{
-            height: `${thumbHeight}px`,
-            transform: `translateY(${thumbTop}px)`,
+            height: `${thumbHeightRef.current}px`,
+            transform: "translateY(0px)",
             backgroundColor: isDragging
               ? t.accentPrimary
               : isHovered
@@ -219,3 +228,4 @@ export function LandingScrollbar({ theme: t }: LandingScrollbarProps) {
     </div>
   );
 }
+

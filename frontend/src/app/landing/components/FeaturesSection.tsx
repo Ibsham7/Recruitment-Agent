@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, useInView } from "motion/react";
 import { 
   ChevronLeft, 
@@ -9,17 +9,98 @@ import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
 import { landingDeckFeatures, LandingDeckFeature } from "../landingData";
 
+const DECK_STYLES = `
+  .deck-glass-surface {
+    background: var(--deck-bg-card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--deck-border-card);
+    box-shadow: var(--deck-shadow-card);
+  }
+
+  .deck-screenshot-viewport {
+    background: var(--deck-bg-surface);
+    border: 1px solid var(--deck-border-card);
+    border-radius: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--deck-shadow-viewport);
+  }
+
+  .deck-viewport-inner-card {
+    background: var(--deck-bg-surface-elevated);
+    border: 1px solid var(--deck-border-card);
+    border-radius: 0.875rem;
+  }
+
+  .tone-pos { color: var(--deck-num-pos); background: var(--deck-num-pos-bg); border-color: var(--deck-num-pos-border); }
+  .tone-neg { color: var(--deck-num-neg); background: var(--deck-num-neg-bg); border-color: var(--deck-num-neg-border); }
+  .tone-mid { color: var(--deck-num-mid); background: var(--deck-num-mid-bg); border-color: var(--deck-num-mid-border); }
+  .tone-accent { color: var(--deck-accent-badge); background: var(--deck-accent-glow); border-color: var(--deck-border-card); }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+`;
+
+const DeckStyles = React.memo(function DeckStyles() {
+  return <style>{DECK_STYLES}</style>;
+});
+
+const StrictnessPresetWidget = React.memo(function StrictnessPresetWidget() {
+  const [strictMode, setStrictMode] = useState<"lenient" | "moderate" | "strict">("moderate");
+  const [strictScore, setStrictScore] = useState(84);
+
+  return (
+    <div className="space-y-2.5 sm:space-y-3 font-mono text-xs">
+      <div className="deck-viewport-inner-card p-3 sm:p-3.5 space-y-2.5 sm:space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <span className="text-[10.5px] sm:text-[11px]" style={{ color: "var(--deck-txt-secondary)" }}>Evaluation Strictness Mode</span>
+          <span className="text-xs sm:text-sm font-bold self-start sm:self-auto" style={{ color: "var(--deck-num-pos)" }}>
+            {strictScore}% ({strictMode.charAt(0).toUpperCase() + strictMode.slice(1)})
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-2 text-center text-[10px] sm:text-[11px]">
+          <button 
+            onClick={() => { setStrictMode("lenient"); setStrictScore(91); }}
+            className={`min-h-[44px] p-2 sm:p-2.5 rounded-lg border transition-all flex items-center justify-center touch-manipulation ${strictMode === "lenient" ? "font-bold tone-accent" : ""}`}
+            style={strictMode !== "lenient" ? { borderColor: "var(--deck-border-card)", background: "var(--deck-bg-card)", color: "var(--deck-txt-primary)" } : {}}
+          >
+            Lenient (+4 pts)
+          </button>
+          <button 
+            onClick={() => { setStrictMode("moderate"); setStrictScore(84); }}
+            className={`min-h-[44px] p-2 sm:p-2.5 rounded-lg border transition-all flex items-center justify-center touch-manipulation ${strictMode === "moderate" ? "font-bold tone-accent" : ""}`}
+            style={strictMode !== "moderate" ? { borderColor: "var(--deck-border-card)", background: "var(--deck-bg-card)", color: "var(--deck-txt-primary)" } : {}}
+          >
+            Moderate (Default)
+          </button>
+          <button 
+            onClick={() => { setStrictMode("strict"); setStrictScore(71); }}
+            className={`min-h-[44px] p-2 sm:p-2.5 rounded-lg border transition-all flex items-center justify-center touch-manipulation ${strictMode === "strict" ? "font-bold tone-accent" : ""}`}
+            style={strictMode !== "strict" ? { borderColor: "var(--deck-border-card)", background: "var(--deck-bg-card)", color: "var(--deck-txt-primary)" } : {}}
+          >
+            Strict (-25% Cap)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 interface FeaturesSectionProps {
   theme: Theme;
 }
 
-export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
+export const FeaturesSection = React.memo(function FeaturesSection({ theme: t }: FeaturesSectionProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isTouching, setIsTouching] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [strictMode, setStrictMode] = useState<"lenient" | "moderate" | "strict">("moderate");
-  const [strictScore, setStrictScore] = useState(84);
   const total = landingDeckFeatures.length;
 
   const sectionRef = useRef<HTMLElement>(null);
@@ -106,7 +187,7 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [rotate, isInView]);
 
-  // Horizontal Trackpad / Mouse Scroll Listener
+  // Horizontal Trackpad / Mouse Scroll Listener (Passive)
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -118,7 +199,6 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
       const deltaX = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
 
       if (Math.abs(deltaX) > 15) {
-        e.preventDefault();
         accumulatedDeltaX += deltaX;
 
         if (Math.abs(accumulatedDeltaX) >= 45) {
@@ -133,7 +213,7 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
       }, 150);
     };
 
-    stage.addEventListener("wheel", handleWheel, { passive: false });
+    stage.addEventListener("wheel", handleWheel, { passive: true });
     return () => stage.removeEventListener("wheel", handleWheel);
   }, [rotate]);
 
@@ -203,46 +283,47 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
     dragRef.current.currentX = 0;
   };
 
-  // Dynamically compute precise CSS tokens directly from theme `t`
-  const isDark = t.isDark;
-  const isIvory = !isDark && (t.name === "Ivory" || t.bgPage === "#F8F5EF" || t.bgPage === "#f8f8f7");
-
   // Dynamic token palette ensuring 100% theme awareness in Light and Dark modes
-  const dynamicStyles = {
-    "--deck-txt-primary": t.txtPrimary,
-    "--deck-txt-body": t.txtBody,
-    "--deck-txt-secondary": t.txtSecondary,
-    "--deck-txt-muted": t.txtMuted,
-    "--deck-accent-badge": t.accentBadge,
-    "--deck-accent-glow": hexToRgba(t.accentBadge, isDark ? 0.18 : 0.14),
-    
-    "--deck-num-pos": t.numPos,
-    "--deck-num-pos-bg": hexToRgba(t.numPos, isDark ? 0.12 : 0.10),
-    "--deck-num-pos-border": hexToRgba(t.numPos, isDark ? 0.28 : 0.25),
+  const dynamicStyles = useMemo(() => {
+    const isDark = t.isDark;
+    const isIvory = !isDark && (t.name === "Ivory" || t.bgPage === "#F8F5EF" || t.bgPage === "#f8f8f7");
 
-    "--deck-num-mid": t.numMid,
-    "--deck-num-mid-bg": hexToRgba(t.numMid, isDark ? 0.12 : 0.10),
-    "--deck-num-mid-border": hexToRgba(t.numMid, isDark ? 0.28 : 0.25),
+    return {
+      "--deck-txt-primary": t.txtPrimary,
+      "--deck-txt-body": t.txtBody,
+      "--deck-txt-secondary": t.txtSecondary,
+      "--deck-txt-muted": t.txtMuted,
+      "--deck-accent-badge": t.accentBadge,
+      "--deck-accent-glow": hexToRgba(t.accentBadge, isDark ? 0.18 : 0.14),
+      
+      "--deck-num-pos": t.numPos,
+      "--deck-num-pos-bg": hexToRgba(t.numPos, isDark ? 0.12 : 0.10),
+      "--deck-num-pos-border": hexToRgba(t.numPos, isDark ? 0.28 : 0.25),
 
-    "--deck-num-neg": t.numNeg,
-    "--deck-num-neg-bg": hexToRgba(t.numNeg, isDark ? 0.14 : 0.10),
-    "--deck-num-neg-border": hexToRgba(t.numNeg, isDark ? 0.32 : 0.25),
+      "--deck-num-mid": t.numMid,
+      "--deck-num-mid-bg": hexToRgba(t.numMid, isDark ? 0.12 : 0.10),
+      "--deck-num-mid-border": hexToRgba(t.numMid, isDark ? 0.28 : 0.25),
 
-    // Card Chassis & Viewports
-    "--deck-bg-page": t.bgPage,
-    "--deck-bg-surface": isDark ? hexToRgba(t.bgSurface, 0.95) : (isIvory ? "#EDE8DD" : hexToRgba(t.bgSurface, 0.95)),
-    "--deck-bg-surface-elevated": isDark ? (t.bgCard === "#FFFFFF" ? "#151528" : hexToRgba(t.bgCard, 0.08)) : (isIvory ? "#E2DDD0" : hexToRgba(t.bgSurface, 0.70)),
-    "--deck-bg-card": isDark ? (t.bgCard === "#FFFFFF" ? "rgba(255, 255, 255, 0.035)" : hexToRgba(t.bgCard, 0.05)) : "rgba(255, 255, 255, 0.92)",
-    "--deck-border-card": isDark ? (t.bgCard === "#FFFFFF" ? "rgba(255, 255, 255, 0.09)" : hexToRgba(t.bgCard, 0.12)) : "rgba(0, 0, 0, 0.10)",
-    
-    // Shadows
-    "--deck-shadow-card": isDark 
-      ? "0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.08)" 
-      : "0 16px 40px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.95)",
-    "--deck-shadow-viewport": isDark 
-      ? "inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.6)" 
-      : "inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 16px 40px rgba(0, 0, 0, 0.09)",
-  } as React.CSSProperties;
+      "--deck-num-neg": t.numNeg,
+      "--deck-num-neg-bg": hexToRgba(t.numNeg, isDark ? 0.14 : 0.10),
+      "--deck-num-neg-border": hexToRgba(t.numNeg, isDark ? 0.32 : 0.25),
+
+      // Card Chassis & Viewports
+      "--deck-bg-page": t.bgPage,
+      "--deck-bg-surface": isDark ? hexToRgba(t.bgSurface, 0.95) : (isIvory ? "#EDE8DD" : hexToRgba(t.bgSurface, 0.95)),
+      "--deck-bg-surface-elevated": isDark ? (t.bgCard === "#FFFFFF" ? "#151528" : hexToRgba(t.bgCard, 0.08)) : (isIvory ? "#E2DDD0" : hexToRgba(t.bgSurface, 0.70)),
+      "--deck-bg-card": isDark ? (t.bgCard === "#FFFFFF" ? "rgba(255, 255, 255, 0.035)" : hexToRgba(t.bgCard, 0.05)) : "rgba(255, 255, 255, 0.92)",
+      "--deck-border-card": isDark ? (t.bgCard === "#FFFFFF" ? "rgba(255, 255, 255, 0.09)" : hexToRgba(t.bgCard, 0.12)) : "rgba(0, 0, 0, 0.10)",
+      
+      // Shadows
+      "--deck-shadow-card": isDark 
+        ? "0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.08)" 
+        : "0 16px 40px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.95)",
+      "--deck-shadow-viewport": isDark 
+        ? "inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.6)" 
+        : "inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 16px 40px rgba(0, 0, 0, 0.09)",
+    } as React.CSSProperties;
+  }, [t]);
 
   // Render individual slide viewport mockups matching HTML preview with robust mobile responsiveness
   const renderViewportContent = (feat: LandingDeckFeature) => {
@@ -408,41 +489,7 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
         );
 
       case "strictness-presets":
-        return (
-          <div className="space-y-2.5 sm:space-y-3 font-mono text-xs">
-            <div className="deck-viewport-inner-card p-3 sm:p-3.5 space-y-2.5 sm:space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                <span className="text-[10.5px] sm:text-[11px]" style={{ color: "var(--deck-txt-secondary)" }}>Evaluation Strictness Mode</span>
-                <span className="text-xs sm:text-sm font-bold self-start sm:self-auto" style={{ color: "var(--deck-num-pos)" }}>
-                  {strictScore}% ({strictMode.charAt(0).toUpperCase() + strictMode.slice(1)})
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-2 text-center text-[10px] sm:text-[11px]">
-                <button 
-                  onClick={() => { setStrictMode("lenient"); setStrictScore(91); }}
-                  className={`min-h-[44px] p-2 sm:p-2.5 rounded-lg border transition-all flex items-center justify-center touch-manipulation ${strictMode === "lenient" ? "font-bold tone-accent" : ""}`}
-                  style={strictMode !== "lenient" ? { borderColor: "var(--deck-border-card)", background: "var(--deck-bg-card)", color: "var(--deck-txt-primary)" } : {}}
-                >
-                  Lenient (+4 pts)
-                </button>
-                <button 
-                  onClick={() => { setStrictMode("moderate"); setStrictScore(84); }}
-                  className={`min-h-[44px] p-2 sm:p-2.5 rounded-lg border transition-all flex items-center justify-center touch-manipulation ${strictMode === "moderate" ? "font-bold tone-accent" : ""}`}
-                  style={strictMode !== "moderate" ? { borderColor: "var(--deck-border-card)", background: "var(--deck-bg-card)", color: "var(--deck-txt-primary)" } : {}}
-                >
-                  Moderate (Default)
-                </button>
-                <button 
-                  onClick={() => { setStrictMode("strict"); setStrictScore(71); }}
-                  className={`min-h-[44px] p-2 sm:p-2.5 rounded-lg border transition-all flex items-center justify-center touch-manipulation ${strictMode === "strict" ? "font-bold tone-accent" : ""}`}
-                  style={strictMode !== "strict" ? { borderColor: "var(--deck-border-card)", background: "var(--deck-bg-card)", color: "var(--deck-txt-primary)" } : {}}
-                >
-                  Strict (-25% Cap)
-                </button>
-              </div>
-            </div>
-          </div>
-        );
+        return <StrictnessPresetWidget />;
 
       case "vision-ocr":
         return (
@@ -513,43 +560,7 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
       style={dynamicStyles}
       className="deck-section-root w-full px-4 sm:px-8 lg:px-12 py-16 sm:py-24 max-w-7xl mx-auto overflow-hidden"
     >
-      <style>{`
-        .deck-glass-surface {
-          background: var(--deck-bg-card);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          border: 1px solid var(--deck-border-card);
-          box-shadow: var(--deck-shadow-card);
-        }
-
-        .deck-screenshot-viewport {
-          background: var(--deck-bg-surface);
-          border: 1px solid var(--deck-border-card);
-          border-radius: 1.25rem;
-          position: relative;
-          overflow: hidden;
-          box-shadow: var(--deck-shadow-viewport);
-        }
-
-        .deck-viewport-inner-card {
-          background: var(--deck-bg-surface-elevated);
-          border: 1px solid var(--deck-border-card);
-          border-radius: 0.875rem;
-        }
-
-        .tone-pos { color: var(--deck-num-pos); background: var(--deck-num-pos-bg); border-color: var(--deck-num-pos-border); }
-        .tone-neg { color: var(--deck-num-neg); background: var(--deck-num-neg-bg); border-color: var(--deck-num-neg-border); }
-        .tone-mid { color: var(--deck-num-mid); background: var(--deck-num-mid-bg); border-color: var(--deck-num-mid-border); }
-        .tone-accent { color: var(--deck-accent-badge); background: var(--deck-accent-glow); border-color: var(--deck-border-card); }
-
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
+      <DeckStyles />
 
       {/* Retained Heading with Exact Brand Font Hierarchy & Fluid Responsive Typography */}
       <motion.div
@@ -654,11 +665,11 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
           const isRight = diff === 1;
           const isFarLeft = diff === -2;
           const isFarRight = diff === 2;
+          const isNear = Math.abs(diff) <= 1;
 
           let transform = "translate3d(0%, 0, -200px) scale(0.6)";
           let opacity = 0;
           let zIndex = 0;
-          let filter = "blur(4px)";
           let pointerEvents: "auto" | "none" = "none";
           let boxShadow = "none";
 
@@ -668,7 +679,6 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
               transform = "translate3d(0%, 0, 0px) scale(1)";
               opacity = 1;
               zIndex = 30;
-              filter = "blur(0px)";
               pointerEvents = "auto";
               boxShadow = "var(--deck-shadow-card), 0 0 25px var(--deck-accent-glow)";
             } else if (isLeft || isFarLeft) {
@@ -683,25 +693,22 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
               pointerEvents = "none";
             }
           } else {
-            // Desktop / Tablet 3D perspective stage
+            // Desktop / Tablet 3D perspective stage with pure GPU transforms
             if (isCenter) {
               transform = "translate3d(0%, 0, 0px) scale(1)";
               opacity = 1;
               zIndex = 30;
-              filter = "blur(0px)";
               pointerEvents = "auto";
               boxShadow = "var(--deck-shadow-card), 0 0 40px var(--deck-accent-glow)";
             } else if (isLeft) {
               transform = "translate3d(-68%, 0, -80px) scale(0.86) rotateY(6deg)";
               opacity = 0.32;
               zIndex = 20;
-              filter = "blur(1.5px)";
               pointerEvents = "auto";
             } else if (isRight) {
               transform = "translate3d(68%, 0, -80px) scale(0.86) rotateY(-6deg)";
               opacity = 0.32;
               zIndex = 20;
-              filter = "blur(1.5px)";
               pointerEvents = "auto";
             } else if (isFarLeft) {
               transform = "translate3d(-120%, 0, -160px) scale(0.72)";
@@ -730,12 +737,11 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
                 transform,
                 opacity,
                 zIndex,
-                filter,
                 pointerEvents,
                 boxShadow,
-                transition: "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), filter 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+                transition: "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
                 transformStyle: isMobile ? "flat" : "preserve-3d",
-                willChange: "transform, opacity, filter"
+                willChange: "transform, opacity"
               }}
             >
               {/* Left Column: Spec Details */}
@@ -796,8 +802,14 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
                   </span>
                 </div>
 
-                {/* Inner Viewport Content */}
-                {renderViewportContent(feat)}
+                {/* Inner Viewport Content - Virtualized for off-screen cards */}
+                {isNear ? (
+                  renderViewportContent(feat)
+                ) : (
+                  <div className="h-28 flex items-center justify-center text-xs font-mono opacity-50" style={{ color: "var(--deck-txt-muted)" }}>
+                    <span>{feat.title} Viewport Shell</span>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -839,4 +851,5 @@ export function FeaturesSection({ theme: t }: FeaturesSectionProps) {
 
     </section>
   );
-}
+});
+

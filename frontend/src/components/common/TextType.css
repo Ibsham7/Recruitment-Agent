@@ -1,10 +1,18 @@
 .text-type {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  position: relative;
+}
+
+.text-type__content {
   display: inline-block;
   white-space: nowrap;
 }
 
 .text-type__cursor {
-  margin-left: 0.25rem;
+  margin-left: 0.15rem;
   display: inline-block;
   opacity: 1;
 }

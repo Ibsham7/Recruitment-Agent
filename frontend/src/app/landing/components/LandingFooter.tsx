@@ -42,10 +42,12 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
             </p>
             
             <div
+              role="status"
+              aria-label="All Systems Operational"
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium mb-5"
               style={{ background: hexToRgba(t.accentBadge, 0.12), color: t.accentBadge }}
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" aria-hidden="true" />
               <span>All Systems Operational</span>
             </div>
 
@@ -97,7 +99,7 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
           </div>
 
           {/* Column 2: Product */}
-          <div>
+          <nav aria-label="Product navigation">
             <h4
               className="text-xs font-bold uppercase tracking-wider mb-2 sm:mb-3"
               style={{ color: t.txtPrimary, fontFamily: "'DM Mono', monospace" }}
@@ -146,10 +148,10 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
                 </button>
               </li>
             </ul>
-          </div>
+          </nav>
 
           {/* Column 3: Architecture */}
-          <div>
+          <nav aria-label="Architecture navigation">
             <h4
               className="text-xs font-bold uppercase tracking-wider mb-2 sm:mb-3"
               style={{ color: t.txtPrimary, fontFamily: "'DM Mono', monospace" }}
@@ -207,10 +209,10 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
                 </a>
               </li>
             </ul>
-          </div>
+          </nav>
 
           {/* Column 4: Security & Data */}
-          <div>
+          <nav aria-label="Security and legal navigation">
             <h4
               className="text-xs font-bold uppercase tracking-wider mb-2 sm:mb-3"
               style={{ color: t.txtPrimary, fontFamily: "'DM Mono', monospace" }}
@@ -246,7 +248,7 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
                 </a>
               </li>
             </ul>
-          </div>
+          </nav>
         </div>
 
         {/* Responsive bottom copyright & legal links row: stack on mobile, row on sm+ */}

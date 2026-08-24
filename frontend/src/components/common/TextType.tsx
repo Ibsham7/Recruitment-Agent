@@ -87,15 +87,20 @@ const TextType = ({
   }, [startOnVisible]);
 
   useEffect(() => {
-    if (showCursor && cursorRef.current) {
-      gsap.set(cursorRef.current, { opacity: 1 });
-      gsap.to(cursorRef.current, {
+    const cursor = cursorRef.current;
+    if (showCursor && cursor) {
+      gsap.set(cursor, { opacity: 1 });
+      const tween = gsap.to(cursor, {
         opacity: 0,
         duration: cursorBlinkDuration,
         repeat: -1,
         yoyo: true,
         ease: 'power2.inOut'
       });
+      return () => {
+        tween.kill();
+        gsap.killTweensOf(cursor);
+      };
     }
   }, [showCursor, cursorBlinkDuration]);
 
@@ -177,6 +182,12 @@ const TextType = ({
     {
       ref: containerRef,
       className: `text-type ${className}`,
+      style: {
+        minHeight: '1.3em',
+        display: 'inline-flex',
+        alignItems: 'center',
+        ...props.style
+      },
       ...props
     },
     <span className="text-type__content" style={{ color: getCurrentTextColor() || 'inherit' }}>

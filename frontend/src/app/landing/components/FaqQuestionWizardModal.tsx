@@ -301,7 +301,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
           <button
             type="button"
             onClick={handleClose}
-            className="w-10 h-10 min-w-[40px] sm:min-w-[44px] rounded-xl flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10 shrink-0"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10 shrink-0 cursor-target touch-manipulation"
             style={{ color: t.txtGhost }}
             title="Close dialog (Esc)"
             aria-label="Close dialog"
@@ -1074,3 +1074,6 @@ function getFallbackKnowledge(query: string, category: string): KnowledgeItem[] 
     return catMatch && (titleMatch || snippetMatch || tagMatch);
   });
 }
+
+export default FaqQuestionWizardModal;
+

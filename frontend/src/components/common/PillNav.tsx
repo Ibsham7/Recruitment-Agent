@@ -92,7 +92,7 @@ export function PillNav({
     };
 
     layout();
-    window.addEventListener("resize", layout);
+    window.addEventListener("resize", layout, { passive: true });
     document.fonts?.ready?.then(layout).catch(() => {});
 
     return () => {

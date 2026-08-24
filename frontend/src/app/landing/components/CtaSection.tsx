@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion } from "motion/react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
@@ -10,9 +11,9 @@ interface CtaSectionProps {
   gridHover: string;
 }
 
-export function CtaSection({ theme: t, onEnter, gridBorder, gridHover }: CtaSectionProps) {
+export const CtaSection = memo(function CtaSection({ theme: t, onEnter, gridBorder, gridHover }: CtaSectionProps) {
   return (
-    <section className="relative w-full max-w-full px-4 sm:px-8 py-16 sm:py-24 md:py-28 flex flex-col items-center justify-center text-center overflow-hidden">
+    <section id="ha-cta" className="relative w-full max-w-full px-4 sm:px-8 py-16 sm:py-24 md:py-28 flex flex-col items-center justify-center text-center overflow-hidden">
       {/* ShapeGrid background for CTA section */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         <ShapeGrid
@@ -66,7 +67,7 @@ export function CtaSection({ theme: t, onEnter, gridBorder, gridHover }: CtaSect
         <button
           onClick={onEnter}
           aria-label="Start for free"
-          className="cursor-target w-full sm:w-auto min-h-[48px] sm:min-h-[52px] min-w-[44px] px-8 sm:px-12 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          className="cursor-target w-full sm:w-auto min-h-[48px] sm:min-h-[52px] min-w-[44px] px-8 sm:px-12 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 touch-manipulation"
           style={{
             background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.78)})`,
             color: t.accentText,
@@ -88,4 +89,5 @@ export function CtaSection({ theme: t, onEnter, gridBorder, gridHover }: CtaSect
       </motion.div>
     </section>
   );
-}
+});
+

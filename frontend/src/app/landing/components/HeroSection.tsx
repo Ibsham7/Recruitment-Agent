@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
 import { ShapeGrid } from "../../../components/common/ShapeGrid";
@@ -44,11 +43,8 @@ export function HeroSection({ theme: t, onEnter, gridBorder, gridHover }: HeroSe
         }} 
       />
 
-      {/* Hero copy */}
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
+      {/* Hero copy — immediately visible on first paint for instant LCP */}
+      <div
         className="relative z-10 flex flex-col items-center text-center px-4 sm:px-6 w-full max-w-3xl mx-auto"
       >
         {/* Badge pill with fluid typography & wrapping protection */}
@@ -80,10 +76,9 @@ export function HeroSection({ theme: t, onEnter, gridBorder, gridHover }: HeroSe
             Hire top candidates
           </span>
           <span 
-            className="inline-flex items-center justify-center max-w-full mt-1 sm:mt-1.5"
+            className="inline-flex items-center justify-center max-w-full mt-1 sm:mt-1.5 min-h-[1.3em] min-w-[200px] sm:min-w-[280px] md:min-w-[340px]"
             style={{ 
               color: t.txtPrimary,
-              minHeight: "1.3em" 
             }}
           >
             <TextType
@@ -130,7 +125,7 @@ export function HeroSection({ theme: t, onEnter, gridBorder, gridHover }: HeroSe
         <p className="text-xs mt-3 sm:mt-4 px-2 text-center" style={{ color: t.txtGhost }}>
           No credit card required · Set up in under 5 minutes
         </p>
-      </motion.div>
+      </div>
 
       {/* Scroll cue */}
       <div 

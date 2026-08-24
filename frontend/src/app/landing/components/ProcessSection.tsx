@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValueEvent } from "motion/react";
 import { Play, Pause, Maximize2, Lock, ChevronRight, ChevronLeft, X, Sparkles } from "lucide-react";
 import { Theme } from "../../../lib/types";
@@ -11,7 +11,7 @@ interface ProcessSectionProps {
   processSectionRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function ProcessSection({ theme: t, onEnter, processSectionRef }: ProcessSectionProps) {
+export const ProcessSection = React.memo(function ProcessSection({ theme: t, onEnter, processSectionRef }: ProcessSectionProps) {
   const [activeStep, setActiveStep] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
@@ -55,7 +55,10 @@ export function ProcessSection({ theme: t, onEnter, processSectionRef }: Process
   const step1Progress = useTransform(scrollYProgress, [0.25, 0.5], [0, 1]);
   const step2Progress = useTransform(scrollYProgress, [0.5, 0.75], [0, 1]);
   const step3Progress = useTransform(scrollYProgress, [0.75, 1], [0, 1]);
-  const stepProgresses = [step0Progress, step1Progress, step2Progress, step3Progress];
+  const stepProgresses = useMemo(
+    () => [step0Progress, step1Progress, step2Progress, step3Progress],
+    [step0Progress, step1Progress, step2Progress, step3Progress]
+  );
 
   useMotionValueEvent(scrollYProgress, "change", (latest) => {
     if (isAutoPlaying) return;
@@ -66,7 +69,7 @@ export function ProcessSection({ theme: t, onEnter, processSectionRef }: Process
       3,
       Math.max(0, Math.floor(clamped * 4))
     );
-    setActiveStep(stepIndex);
+    setActiveStep((prev) => (prev !== stepIndex ? stepIndex : prev));
   });
 
   const handleStepClick = (idx: number) => {
@@ -376,6 +379,7 @@ export function ProcessSection({ theme: t, onEnter, processSectionRef }: Process
               <div className="relative aspect-[16/10] w-full overflow-hidden bg-black/40 flex items-center justify-center group">
                 {landingSteps.map((s, idx) => {
                   const isActive = activeStep === idx;
+                  const isNear = Math.abs(idx - activeStep) <= 1;
 
                   return (
                     <motion.div
@@ -393,36 +397,44 @@ export function ProcessSection({ theme: t, onEnter, processSectionRef }: Process
                         pointerEvents: isActive ? "auto" : "none",
                       }}
                     >
-                      <img
-                        src={s.image}
-                        alt={s.title}
-                        className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
-                      />
+                      {isNear && (
+                        <>
+                          <img
+                            src={s.image}
+                            alt={s.title}
+                            width={1200}
+                            height={750}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
+                          />
 
-                      {/* Vignette Overlay */}
-                      <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                          background: `radial-gradient(ellipse 90% 90% at 50% 50%, transparent 40%, ${hexToRgba(t.bgPage, t.isDark ? 0.35 : 0.15)} 100%)`,
-                        }}
-                      />
+                          {/* Vignette Overlay */}
+                          <div
+                            className="absolute inset-0 pointer-events-none"
+                            style={{
+                              background: `radial-gradient(ellipse 90% 90% at 50% 50%, transparent 40%, ${hexToRgba(t.bgPage, t.isDark ? 0.35 : 0.15)} 100%)`,
+                            }}
+                          />
 
-                      {/* Click-to-Expand Overlay Hint */}
-                      <div
-                        onClick={() => setFullscreenImg(s.image)}
-                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer backdrop-blur-[2px]"
-                      >
-                        <div
-                          className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-transform scale-95 group-hover:scale-100 min-h-[44px]"
-                          style={{
-                            background: t.accentPrimary,
-                            color: t.accentText,
-                            boxShadow: `0 4px 20px ${hexToRgba(t.accentPrimary, 0.4)}`,
-                          }}
-                        >
-                          <Maximize2 size={14} /> Expand Screenshot View
-                        </div>
-                      </div>
+                          {/* Click-to-Expand Overlay Hint */}
+                          <div
+                            onClick={() => setFullscreenImg(s.image)}
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer backdrop-blur-[2px]"
+                          >
+                            <div
+                              className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-transform scale-95 group-hover:scale-100 min-h-[44px]"
+                              style={{
+                                background: t.accentPrimary,
+                                color: t.accentText,
+                                boxShadow: `0 4px 20px ${hexToRgba(t.accentPrimary, 0.4)}`,
+                              }}
+                            >
+                              <Maximize2 size={14} /> Expand Screenshot View
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </motion.div>
                   );
                 })}
@@ -682,6 +694,10 @@ export function ProcessSection({ theme: t, onEnter, processSectionRef }: Process
                 key={activeStepData.num}
                 src={activeStepData.image}
                 alt={activeStepData.title}
+                width={1200}
+                height={750}
+                loading="lazy"
+                decoding="async"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
@@ -848,6 +864,7 @@ export function ProcessSection({ theme: t, onEnter, processSectionRef }: Process
                 <img
                   src={fullscreenImg}
                   alt="Full resolution preview"
+                  decoding="async"
                   className="max-w-full max-h-[68vh] sm:max-h-[75vh] object-contain rounded-xl shadow-lg border border-white/10"
                 />
               </div>
@@ -904,4 +921,5 @@ export function ProcessSection({ theme: t, onEnter, processSectionRef }: Process
       </AnimatePresence>
     </section>
   );
-}
+});
+

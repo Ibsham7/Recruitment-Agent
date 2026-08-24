@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { gsap } from 'gsap';
 import './TargetCursor.css';
 
@@ -47,20 +47,25 @@ const TargetCursor = ({
   const spinTl = useRef(null);
   const dotRef = useRef(null);
   const containingBlockRef = useRef(null);
+  const cachedOffsetRef = useRef({ x: 0, y: 0 });
 
   const isActiveRef = useRef(false);
   const targetCornerPositionsRef = useRef(null);
   const tickerFnRef = useRef(null);
   const activeStrengthRef = useRef(0);
 
-  const isMobile = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const isSmallScreen = window.innerWidth <= 768;
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-    const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
-    const isMobileUserAgent = mobileRegex.test(userAgent.toLowerCase());
-    return (hasTouchScreen && isSmallScreen) || isMobileUserAgent;
+  // Deactivate custom cursor on touch viewports via matchMedia
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(pointer: fine) and (hover: hover)');
+    const updateMedia = () => {
+      setEnabled(mql.matches);
+    };
+    updateMedia();
+    mql.addEventListener('change', updateMedia);
+    return () => mql.removeEventListener('change', updateMedia);
   }, []);
 
   const constants = useMemo(
@@ -71,9 +76,18 @@ const TargetCursor = ({
     []
   );
 
+  const updateCachedOffset = useCallback(() => {
+    if (!containingBlockRef.current) {
+      cachedOffsetRef.current = { x: 0, y: 0 };
+      return;
+    }
+    cachedOffsetRef.current = getContainingBlockOffset(containingBlockRef.current);
+  }, []);
+
+  // Hot mousemove handler uses cached offsets to completely eliminate getBoundingClientRect layout thrashing
   const moveCursor = useCallback((x, y) => {
     if (!cursorRef.current) return;
-    const { x: offsetX, y: offsetY } = getContainingBlockOffset(containingBlockRef.current);
+    const { x: offsetX, y: offsetY } = cachedOffsetRef.current;
     gsap.to(cursorRef.current, {
       x: x - offsetX,
       y: y - offsetY,
@@ -83,7 +97,7 @@ const TargetCursor = ({
   }, []);
 
   useEffect(() => {
-    if (isMobile || !cursorRef.current) return;
+    if (!enabled || !cursorRef.current) return;
 
     const originalCursor = document.body.style.cursor;
     if (hideDefaultCursor) {
@@ -94,11 +108,12 @@ const TargetCursor = ({
     cornersRef.current = cursor.querySelectorAll('.target-cursor-corner');
 
     containingBlockRef.current = getContainingBlock(cursor);
-    const getOffset = () => getContainingBlockOffset(containingBlockRef.current);
+    updateCachedOffset();
 
     let activeTarget = null;
     let currentLeaveHandler = null;
     let resumeTimeout = null;
+    let scrollRaf = null;
 
     const cleanupTarget = target => {
       if (currentLeaveHandler) {
@@ -107,7 +122,7 @@ const TargetCursor = ({
       currentLeaveHandler = null;
     };
 
-    const initialOffset = getOffset();
+    const initialOffset = cachedOffsetRef.current;
     gsap.set(cursor, {
       xPercent: -50,
       yPercent: -50,
@@ -163,22 +178,31 @@ const TargetCursor = ({
     tickerFnRef.current = tickerFn;
 
     const moveHandler = e => moveCursor(e.clientX, e.clientY);
-    window.addEventListener('mousemove', moveHandler);
+    window.addEventListener('mousemove', moveHandler, { passive: true });
 
+    // Throttled scroll handler using fast bounding box check without synchronous elementFromPoint layout flushing
     const scrollHandler = () => {
+      updateCachedOffset();
       if (!activeTarget || !cursorRef.current) return;
-      const { x: offsetX, y: offsetY } = getOffset();
-      const mouseX = gsap.getProperty(cursorRef.current, 'x') + offsetX;
-      const mouseY = gsap.getProperty(cursorRef.current, 'y') + offsetY;
-      const elementUnderMouse = document.elementFromPoint(mouseX, mouseY);
-      const isStillOverTarget =
-        elementUnderMouse &&
-        (elementUnderMouse === activeTarget || elementUnderMouse.closest(targetSelector) === activeTarget);
-      if (!isStillOverTarget) {
-        if (currentLeaveHandler) {
-          currentLeaveHandler();
+      if (scrollRaf !== null) return;
+      scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = null;
+        if (!activeTarget || !cursorRef.current) return;
+        const { x: offsetX, y: offsetY } = cachedOffsetRef.current;
+        const mouseX = gsap.getProperty(cursorRef.current, 'x') + offsetX;
+        const mouseY = gsap.getProperty(cursorRef.current, 'y') + offsetY;
+        const targetRect = activeTarget.getBoundingClientRect();
+        const isInside =
+          mouseX >= targetRect.left &&
+          mouseX <= targetRect.right &&
+          mouseY >= targetRect.top &&
+          mouseY <= targetRect.bottom;
+        if (!isInside) {
+          if (currentLeaveHandler) {
+            currentLeaveHandler();
+          }
         }
-      }
+      });
     };
     window.addEventListener('scroll', scrollHandler, { passive: true });
 
@@ -194,8 +218,8 @@ const TargetCursor = ({
       gsap.to(cursorRef.current, { scale: 1, duration: 0.2 });
     };
 
-    window.addEventListener('mousedown', mouseDownHandler);
-    window.addEventListener('mouseup', mouseUpHandler);
+    window.addEventListener('mousedown', mouseDownHandler, { passive: true });
+    window.addEventListener('mouseup', mouseUpHandler, { passive: true });
 
     const enterHandler = e => {
       const directTarget = e.target;
@@ -243,7 +267,7 @@ const TargetCursor = ({
 
       const rect = target.getBoundingClientRect();
       const { borderWidth, cornerSize } = constants;
-      const { x: offsetX, y: offsetY } = getOffset();
+      const { x: offsetX, y: offsetY } = cachedOffsetRef.current;
       const cursorX = gsap.getProperty(cursorRef.current, 'x');
       const cursorY = gsap.getProperty(cursorRef.current, 'y');
 
@@ -351,10 +375,19 @@ const TargetCursor = ({
 
     const resizeHandler = () => {
       containingBlockRef.current = getContainingBlock(cursor);
+      updateCachedOffset();
     };
-    window.addEventListener('resize', resizeHandler);
+    window.addEventListener('resize', resizeHandler, { passive: true });
 
     return () => {
+      if (scrollRaf !== null) {
+        cancelAnimationFrame(scrollRaf);
+        scrollRaf = null;
+      }
+      if (resumeTimeout) {
+        clearTimeout(resumeTimeout);
+        resumeTimeout = null;
+      }
       if (tickerFnRef.current) {
         gsap.ticker.remove(tickerFnRef.current);
       }
@@ -370,6 +403,17 @@ const TargetCursor = ({
         cleanupTarget(activeTarget);
       }
 
+      if (cursorRef.current) {
+        gsap.killTweensOf(cursorRef.current);
+      }
+      if (cornersRef.current) {
+        cornersRef.current.forEach(c => gsap.killTweensOf(c));
+      }
+      if (dotRef.current) {
+        gsap.killTweensOf(dotRef.current);
+      }
+      gsap.killTweensOf(activeStrengthRef);
+
       spinTl.current?.kill();
       document.body.style.cursor = originalCursor;
 
@@ -383,24 +427,25 @@ const TargetCursor = ({
     moveCursor,
     constants,
     hideDefaultCursor,
-    isMobile,
+    enabled,
     hoverDuration,
     parallaxOn,
     cursorColor,
-    cursorColorOnTarget
+    cursorColorOnTarget,
+    updateCachedOffset
   ]);
 
   useEffect(() => {
-    if (isMobile || !cursorRef.current || !spinTl.current) return;
+    if (!enabled || !cursorRef.current || !spinTl.current) return;
     if (spinTl.current.isActive()) {
       spinTl.current.kill();
       spinTl.current = gsap
         .timeline({ repeat: -1 })
         .to(cursorRef.current, { rotation: '+=360', duration: spinDuration, ease: 'none' });
     }
-  }, [spinDuration, isMobile]);
+  }, [spinDuration, enabled]);
 
-  if (isMobile) {
+  if (!enabled) {
     return null;
   }
 
@@ -416,3 +461,4 @@ const TargetCursor = ({
 };
 
 export default TargetCursor;
+

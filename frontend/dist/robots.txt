@@ -4,4 +4,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: http://localhost:5173/sitemap.xml
+Sitemap: https://hireagent.ai/sitemap.xml

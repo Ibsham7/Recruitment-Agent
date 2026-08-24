@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useDeferredValue, useMemo, useCallback, lazy, Suspense, memo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Search, 
@@ -11,47 +11,172 @@ import {
 } from "lucide-react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
-import { landingFaqs, getFaqCategoryIcon } from "../landingData";
-import { FaqQuestionWizardModal } from "./FaqQuestionWizardModal";
+import { landingFaqs, getFaqCategoryIcon, LandingFaq } from "../landingData";
+
+// Dynamic import / code split heavy wizard modal (~49.2 KB)
+const FaqQuestionWizardModal = lazy(() =>
+  import("./FaqQuestionWizardModal").then((m) => ({ default: m.FaqQuestionWizardModal || m.default }))
+);
 
 interface FaqSectionProps {
   theme: Theme;
   onEnter?: () => void;
 }
 
-export function FaqSection({ theme: t, onEnter: _onEnter }: FaqSectionProps) {
+interface FaqAccordionItemProps {
+  faq: LandingFaq;
+  idx: number;
+  isOpen: boolean;
+  onToggle: (idx: number) => void;
+  theme: Theme;
+}
+
+/* ── MEMOIZED FAQ ACCORDION CARD ─────────────────────────────────────────── */
+export const FaqAccordionItem = memo(function FaqAccordionItem({
+  faq,
+  idx,
+  isOpen,
+  onToggle,
+  theme: t
+}: FaqAccordionItemProps) {
+  const CategoryIcon = getFaqCategoryIcon(faq.category);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: idx * 0.04 }}
+      className="rounded-2xl border overflow-hidden transition-all duration-300 group"
+      style={{
+        background: isOpen
+          ? hexToRgba(t.bgCard, t.isDark ? 0.28 : 0.85)
+          : hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.45),
+        borderColor: isOpen
+          ? hexToRgba(t.accentPrimary, 0.45)
+          : hexToRgba(t.txtBody, 0.08),
+        backdropFilter: "blur(14px)",
+        boxShadow: isOpen ? `0 6px 24px ${hexToRgba(t.accentPrimary, 0.12)}` : "none"
+      }}
+    >
+      <button
+        type="button"
+        id={`faq-btn-${idx}`}
+        aria-expanded={isOpen}
+        aria-controls={`faq-panel-${idx}`}
+        onClick={() => onToggle(idx)}
+        className="w-full px-4 sm:px-6 py-3.5 sm:py-5 min-h-[44px] flex items-center justify-between text-left cursor-target focus:outline-none gap-3"
+      >
+        <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+          {/* Category Icon Badge */}
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-colors duration-300"
+            style={{
+              background: isOpen
+                ? hexToRgba(t.accentPrimary, 0.20)
+                : hexToRgba(t.txtBody, 0.05),
+              color: isOpen ? t.accentPrimary : t.txtSecondary,
+            }}
+          >
+            <CategoryIcon size={16} />
+          </div>
+
+          <div className="flex flex-col gap-1 min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span
+                className="text-[9px] sm:text-[10px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full w-fit max-w-full truncate"
+                style={{
+                  color: t.accentBadge,
+                  background: hexToRgba(t.accentBadge, 0.12),
+                  border: `1px solid ${hexToRgba(t.accentBadge, 0.20)}`
+                }}
+              >
+                {faq.category}
+              </span>
+            </div>
+            <span className="text-xs sm:text-base font-semibold leading-snug break-words" style={{ color: t.txtPrimary }}>
+              {faq.q}
+            </span>
+          </div>
+        </div>
+
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+          className="shrink-0 ml-1 sm:ml-2 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center"
+          style={{
+            background: isOpen ? hexToRgba(t.accentPrimary, 0.15) : "transparent",
+            color: isOpen ? t.accentPrimary : t.txtGhost
+          }}
+        >
+          <ChevronDown size={18} />
+        </motion.div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            id={`faq-panel-${idx}`}
+            role="region"
+            aria-labelledby={`faq-btn-${idx}`}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div
+              className="px-4 sm:px-6 pb-4 sm:pb-5 pt-3 text-xs sm:text-sm leading-relaxed border-t flex flex-col gap-3"
+              style={{
+                color: t.txtSecondary,
+                borderColor: hexToRgba(t.txtBody, 0.06),
+                background: hexToRgba(t.bgSurface, t.isDark ? 0.20 : 0.30)
+              }}
+            >
+              <p className="break-words">{faq.a}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+});
+
+/* ── ROOT FAQ SECTION (MEMOIZED) ─────────────────────────────────────────── */
+export const FaqSection = memo(function FaqSection({ theme: t, onEnter: _onEnter }: FaqSectionProps) {
   const [faqSearchQuery, setFaqSearchQuery] = useState<string>("");
   const [openFaqs, setOpenFaqs] = useState<number[]>([]);
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
 
+  // Defer search input filtering with React 18 useDeferredValue
+  const deferredQuery = useDeferredValue(faqSearchQuery);
 
-  const filteredFaqs = landingFaqs.filter((faq) => {
-    const query = faqSearchQuery.toLowerCase().trim();
-    if (!query) return true;
-    return (
+  const filteredFaqs = useMemo(() => {
+    const query = deferredQuery.toLowerCase().trim();
+    if (!query) return landingFaqs;
+    return landingFaqs.filter((faq) =>
       faq.q.toLowerCase().includes(query) ||
       faq.a.toLowerCase().includes(query) ||
       faq.category.toLowerCase().includes(query)
     );
-  });
+  }, [deferredQuery]);
 
-  const toggleFaq = (idx: number) => {
+  const toggleFaq = useCallback((idx: number) => {
     setOpenFaqs((prev) =>
       prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
     );
-  };
+  }, []);
 
   const isAllExpanded =
     filteredFaqs.length > 0 &&
     filteredFaqs.every((_, i) => openFaqs.includes(i));
 
-  const handleToggleExpandAll = () => {
+  const handleToggleExpandAll = useCallback(() => {
     if (isAllExpanded) {
       setOpenFaqs([]);
     } else {
       setOpenFaqs(filteredFaqs.map((_, i) => i));
     }
-  };
+  }, [isAllExpanded, filteredFaqs]);
 
   return (
     <section id="ha-faq" className="w-full px-4 sm:px-6 lg:px-12 py-16 sm:py-24 max-w-5xl mx-auto overflow-hidden">
@@ -143,106 +268,15 @@ export function FaqSection({ theme: t, onEnter: _onEnter }: FaqSectionProps) {
         <div className="flex flex-col gap-3 sm:gap-3.5">
           {filteredFaqs.map((faq, idx) => {
             const isOpen = openFaqs.includes(idx);
-            const CategoryIcon = getFaqCategoryIcon(faq.category);
-
             return (
-              <motion.div
+              <FaqAccordionItem
                 key={idx}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: idx * 0.04 }}
-                className="rounded-2xl border overflow-hidden transition-all duration-300 group"
-                style={{
-                  background: isOpen
-                    ? hexToRgba(t.bgCard, t.isDark ? 0.28 : 0.85)
-                    : hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.45),
-                  borderColor: isOpen
-                    ? hexToRgba(t.accentPrimary, 0.45)
-                    : hexToRgba(t.txtBody, 0.08),
-                  backdropFilter: "blur(14px)",
-                  boxShadow: isOpen ? `0 6px 24px ${hexToRgba(t.accentPrimary, 0.12)}` : "none"
-                }}
-              >
-                <button
-                  type="button"
-                  id={`faq-btn-${idx}`}
-                  aria-expanded={isOpen}
-                  aria-controls={`faq-panel-${idx}`}
-                  onClick={() => toggleFaq(idx)}
-                  className="w-full px-4 sm:px-6 py-3.5 sm:py-5 min-h-[44px] flex items-center justify-between text-left cursor-target focus:outline-none gap-3"
-                >
-                  <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
-                    {/* Category Icon Badge */}
-                    <div
-                      className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-colors duration-300"
-                      style={{
-                        background: isOpen
-                          ? hexToRgba(t.accentPrimary, 0.20)
-                          : hexToRgba(t.txtBody, 0.05),
-                        color: isOpen ? t.accentPrimary : t.txtSecondary,
-                      }}
-                    >
-                      <CategoryIcon size={16} />
-                    </div>
-
-                    <div className="flex flex-col gap-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="text-[9px] sm:text-[10px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full w-fit max-w-full truncate"
-                          style={{
-                            color: t.accentBadge,
-                            background: hexToRgba(t.accentBadge, 0.12),
-                            border: `1px solid ${hexToRgba(t.accentBadge, 0.20)}`
-                          }}
-                        >
-                          {faq.category}
-                        </span>
-                      </div>
-                      <span className="text-xs sm:text-base font-semibold leading-snug break-words" style={{ color: t.txtPrimary }}>
-                        {faq.q}
-                      </span>
-                    </div>
-                  </div>
-
-                  <motion.div
-                    animate={{ rotate: isOpen ? 180 : 0 }}
-                    transition={{ duration: 0.25, ease: "easeInOut" }}
-                    className="shrink-0 ml-1 sm:ml-2 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center"
-                    style={{
-                      background: isOpen ? hexToRgba(t.accentPrimary, 0.15) : "transparent",
-                      color: isOpen ? t.accentPrimary : t.txtGhost
-                    }}
-                  >
-                    <ChevronDown size={18} />
-                  </motion.div>
-                </button>
-
-                <AnimatePresence initial={false}>
-                  {isOpen && (
-                    <motion.div
-                      id={`faq-panel-${idx}`}
-                      role="region"
-                      aria-labelledby={`faq-btn-${idx}`}
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                      className="overflow-hidden"
-                    >
-                      <div
-                        className="px-4 sm:px-6 pb-4 sm:pb-5 pt-3 text-xs sm:text-sm leading-relaxed border-t flex flex-col gap-3"
-                        style={{
-                          color: t.txtSecondary,
-                          borderColor: hexToRgba(t.txtBody, 0.06),
-                          background: hexToRgba(t.bgSurface, t.isDark ? 0.20 : 0.30)
-                        }}
-                      >
-                        <p className="break-words">{faq.a}</p>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+                faq={faq}
+                idx={idx}
+                isOpen={isOpen}
+                onToggle={toggleFaq}
+                theme={t}
+              />
             );
           })}
         </div>
@@ -304,9 +338,9 @@ export function FaqSection({ theme: t, onEnter: _onEnter }: FaqSectionProps) {
             <MessageCircle size={22} />
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="text-sm sm:text-base font-bold mb-1" style={{ color: t.txtPrimary }}>
+            <h3 className="text-sm sm:text-base font-bold mb-1" style={{ color: t.txtPrimary }}>
               Still have questions?
-            </h4>
+            </h3>
             <p className="text-xs leading-relaxed max-w-md break-words" style={{ color: t.txtSecondary }}>
               Can't find what you're looking for? Talk to our recruiting architecture specialists or explore our platform onboarding walkthrough.
             </p>
@@ -331,13 +365,17 @@ export function FaqSection({ theme: t, onEnter: _onEnter }: FaqSectionProps) {
         </div>
       </motion.div>
 
-      {/* Interactive FAQ Question & Knowledge Discovery Wizard Modal */}
-      <FaqQuestionWizardModal 
-        isOpen={isWizardOpen} 
-        onClose={() => setIsWizardOpen(false)} 
-        theme={t} 
-      />
+      {/* Interactive FAQ Question & Knowledge Discovery Wizard Modal (Code-split with Suspense) */}
+      {isWizardOpen && (
+        <Suspense fallback={null}>
+          <FaqQuestionWizardModal 
+            isOpen={isWizardOpen} 
+            onClose={() => setIsWizardOpen(false)} 
+            theme={t} 
+          />
+        </Suspense>
+      )}
     </section>
-
   );
-}
+});
+
