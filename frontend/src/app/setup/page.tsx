@@ -81,7 +81,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
     // Step A: Fetch presigned upload URL from backend with campaign folder isolation
     const contentType = file.type || "application/pdf";
     const presignedRes = await apiFetch(
-      `${import.meta.env.VITE_BACKEND_URL}/api/upload/presigned-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(contentType)}&campaignId=${encodeURIComponent(campaignId)}`
+      `/api/upload/presigned-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(contentType)}&campaignId=${encodeURIComponent(campaignId)}`
     );
     if (!presignedRes.ok) {
       let errReason = `Presigned URL generation failed (${presignedRes.status})`;
@@ -218,7 +218,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
         return;
       }
 
-      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`, {
+      const res = await apiFetch('/api/campaigns', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -7,7 +7,7 @@ import { ExtendedCampaign } from "../../app/dashboard/components/CampaignCard";
 export const CAMPAIGNS_QUERY_KEY = ["campaigns"] as const;
 
 export async function fetchCampaignsData(): Promise<ExtendedCampaign[]> {
-  const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`);
+  const res = await apiFetch('/api/campaigns');
   if (!res.ok) {
     throw new Error(`Server returned HTTP ${res.status}`);
   }

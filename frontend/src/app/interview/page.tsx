@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { Theme } from "../../lib/types";
 import { getGlass } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
+import { API_BASE_URL } from "../../lib/api";
 import { Loader2 } from "lucide-react";
 import {
   InterviewHeader,
@@ -101,7 +102,7 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
 
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}/interview-access?token=${encodeURIComponent(token)}`
+          `${API_BASE_URL}/api/candidates/${id}/interview-access?token=${encodeURIComponent(token)}`
         );
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
@@ -118,7 +119,7 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
           data.status === "review" ||
           data.status === "complete"
         ) {
-          const candRes = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}`);
+          const candRes = await fetch(`${API_BASE_URL}/api/candidates/${id}`);
           if (candRes.ok) {
             const candData = await candRes.json();
             setCandidate(candData);
@@ -204,7 +205,7 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}/start-interview`, {
+      const res = await fetch(`${API_BASE_URL}/api/candidates/${id}/start-interview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -261,7 +262,7 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     };
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}/interview/answer`, {
+      const res = await fetch(`${API_BASE_URL}/api/candidates/${id}/interview/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -25,7 +25,7 @@ export function DecisionBar({ candidate, campaign, theme: t, onDecisionUpdate }:
     setFeedbackMessage(null);
 
     try {
-      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidate.id}/review`, {
+      const res = await apiFetch(`/api/candidates/${candidate.id}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ decision })

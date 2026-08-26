@@ -49,8 +49,8 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
     setLoading(true);
     try {
       const [candRes, campRes] = await Promise.all([
-        apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/interviews/candidates`),
-        apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns`)
+        apiFetch('/api/interviews/candidates'),
+        apiFetch('/api/campaigns')
       ]);
 
       if (candRes.ok) {
@@ -92,7 +92,7 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
     if (!configCampaignId) return;
     setSavingConfig(true);
     try {
-      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${configCampaignId}/interview-config`, {
+      const res = await apiFetch(`/api/campaigns/${configCampaignId}/interview-config`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ interviewConfig: configText }),
@@ -151,7 +151,7 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
     setToastMessage(null);
 
     try {
-      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/interviews/send-invitations`, {
+      const res = await apiFetch('/api/interviews/send-invitations', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateIds: idsToSend }),
@@ -175,7 +175,7 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
   const handleRecruiterReview = async (candidateId: string, decision: "approve" | "hold" | "reject") => {
     setReviewingAction(decision);
     try {
-      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${candidateId}/review`, {
+      const res = await apiFetch(`/api/candidates/${candidateId}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ decision }),

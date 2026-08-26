@@ -575,7 +575,7 @@ export const FeaturesSection = React.memo(function FeaturesSection({ theme: t }:
           style={{ fontFamily: "'DM Mono',monospace" }}
         >
           <span className="w-1.5 h-1.5 rounded-full animate-ping shrink-0" style={{ background: "var(--deck-accent-badge)" }} />
-          <span>Features // Circular Endless Deck</span>
+          <span>Features </span>
         </div>
         <h2 style={{ fontFamily: "'Fraunces',serif", color: "var(--deck-txt-primary)", fontSize: "clamp(1.75rem, 4vw, 2.8rem)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "pre-line" }}>
           Built for engineering precision.{"\n"}Designed for hiring velocity.

@@ -88,8 +88,7 @@ export function AdminRejectReasonModal({
       setIsSubmitting(true);
       setErrorMessage(null);
 
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
-      const res = await apiFetch(`${apiBase}/api/admin/credit-requests/${request.id}/reject`, {
+      const res = await apiFetch(`/api/admin/credit-requests/${request.id}/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: finalReason }),

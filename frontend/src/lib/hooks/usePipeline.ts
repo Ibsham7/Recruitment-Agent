@@ -12,7 +12,7 @@ export async function fetchPipelineData(id: string) {
     return { campaign: null, candidates: [] };
   }
 
-  const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${id}`);
+  const res = await apiFetch(`/api/campaigns/${id}`);
   if (!res.ok) {
     throw new Error("Failed to fetch campaign data");
   }

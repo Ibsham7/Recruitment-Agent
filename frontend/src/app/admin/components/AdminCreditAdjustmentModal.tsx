@@ -85,7 +85,6 @@ export function AdminCreditAdjustmentModal({
     setError(null);
 
     try {
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
       const payload: { adjustment: number; reason: string; plan?: string } = {
         adjustment,
         reason: reason.trim() || "Admin manual adjustment",
@@ -95,7 +94,7 @@ export function AdminCreditAdjustmentModal({
         payload.plan = planOverride;
       }
 
-      const res = await apiFetch(`${apiBase}/api/admin/users/${user.userId}/credits`, {
+      const res = await apiFetch(`/api/admin/users/${user.userId}/credits`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

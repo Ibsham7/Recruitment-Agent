@@ -25,7 +25,7 @@ export default function PipelinePage({ theme: t }: { theme: Theme }) {
     if (!id) return;
     setRetrying(true);
     try {
-      const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/campaigns/${id}/retry-failed`, {
+      const res = await apiFetch(`/api/campaigns/${id}/retry-failed`, {
         method: 'POST'
       });
       if (!res.ok) throw new Error("Failed to retry candidates");

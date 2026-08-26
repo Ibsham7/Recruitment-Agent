@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Theme } from "../../../lib/types";
 import { hexToRgba } from "../../../lib/theme";
+import { API_BASE_URL } from "../../../lib/api";
 
 interface FaqQuestionWizardModalProps {
   isOpen: boolean;
@@ -135,8 +136,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
     const fetchKnowledge = async () => {
       setIsSearching(true);
       try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-        const res = await fetch(`${backendUrl}/api/faqs/search-knowledge`, {
+        const res = await fetch(`${API_BASE_URL}/api/faqs/search-knowledge`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ query: searchQuery, category }),
@@ -221,8 +221,7 @@ export function FaqQuestionWizardModal({ isOpen, onClose, theme: t }: FaqQuestio
         preferredContact,
       };
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-      const res = await fetch(`${backendUrl}/api/faqs/questions`, {
+      const res = await fetch(`${API_BASE_URL}/api/faqs/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

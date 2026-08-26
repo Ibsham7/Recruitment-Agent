@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return
     }
     try {
-      const res = await apiFetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/user/profile`)
+      const res = await apiFetch('/api/user/profile')
       if (res.ok) {
         const data = (await res.json()) as UserProfileResponse
         setProfile(data.profile || null)

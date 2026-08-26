@@ -87,8 +87,7 @@ export function AdminCreditRequestsTab({
   } = useQuery<AdminCreditRequestWithUser[]>({
     queryKey: ["admin", "credit-requests"],
     queryFn: async () => {
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
-      const res = await apiFetch(`${apiBase}/api/admin/credit-requests`);
+      const res = await apiFetch('/api/admin/credit-requests');
       if (!res.ok) {
         throw new Error(`Failed to load credit requests (${res.status})`);
       }
@@ -169,8 +168,7 @@ export function AdminCreditRequestsTab({
       setIsApprovingId(req.id);
       setFeedbackMessage(null);
 
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
-      const res = await apiFetch(`${apiBase}/api/admin/credit-requests/${req.id}/approve`, {
+      const res = await apiFetch(`/api/admin/credit-requests/${req.id}/approve`, {
         method: "POST",
       });
 

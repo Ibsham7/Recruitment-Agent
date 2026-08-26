@@ -40,8 +40,7 @@ export function AdminUsersTab({ theme: t }: AdminUsersTabProps) {
   } = useQuery<UserProfile[]>({
     queryKey: ["admin", "users"],
     queryFn: async () => {
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
-      const res = await apiFetch(`${apiBase}/api/admin/users`);
+      const res = await apiFetch('/api/admin/users');
       if (!res.ok) {
         throw new Error(`Failed to fetch admin users (${res.status})`);
       }

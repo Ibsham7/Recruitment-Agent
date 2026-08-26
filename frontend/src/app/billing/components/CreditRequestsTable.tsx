@@ -46,8 +46,7 @@ export function CreditRequestsTable({
   } = useQuery<CreditRequest[]>({
     queryKey: ["user", "credit-requests"],
     queryFn: async () => {
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
-      const res = await apiFetch(`${apiBase}/api/user/credit-requests`);
+      const res = await apiFetch('/api/user/credit-requests');
       if (!res.ok) {
         throw new Error(`Failed to fetch credit requests (${res.status})`);
       }

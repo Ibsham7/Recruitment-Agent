@@ -53,8 +53,7 @@ export function TransactionsTable({
   } = useQuery<CreditTransaction[]>({
     queryKey: ["user", "transactions"],
     queryFn: async () => {
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
-      const res = await apiFetch(`${apiBase}/api/user/transactions`);
+      const res = await apiFetch('/api/user/transactions');
       if (!res.ok) {
         throw new Error(`Failed to fetch transactions (${res.status})`);
       }

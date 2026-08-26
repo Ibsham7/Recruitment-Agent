@@ -44,8 +44,7 @@ export function AdminStatsTab({ theme: t, onNavigateTab }: AdminStatsTabProps) {
   } = useQuery<AdminStats>({
     queryKey: ["admin", "stats"],
     queryFn: async () => {
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
-      const res = await apiFetch(`${apiBase}/api/admin/stats`);
+      const res = await apiFetch('/api/admin/stats');
       if (!res.ok) {
         throw new Error(`Failed to load admin stats (HTTP ${res.status})`);
       }

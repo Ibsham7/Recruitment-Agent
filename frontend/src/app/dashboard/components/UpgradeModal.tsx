@@ -117,11 +117,9 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
 
     setUploading(true);
     try {
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
       // 1. Obtain presigned PUT upload URL from backend
       const presignedRes = await apiFetch(
-        `${apiBase}/api/upload/payment-screenshot-presigned-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type || "image/png")}`
+        `/api/upload/payment-screenshot-presigned-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type || "image/png")}`
       );
       if (!presignedRes.ok) {
         const errorData = await presignedRes.json().catch(() => ({}));
@@ -142,7 +140,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
       }
 
       // 3. Create CreditRequest in database
-      const requestRes = await apiFetch(`${apiBase}/api/user/credit-requests`, {
+      const requestRes = await apiFetch('/api/user/credit-requests', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -20,8 +20,7 @@ export default function AdminPage({ theme: t }: { theme: Theme }) {
   const { data: requests = [] } = useQuery<CreditRequest[]>({
     queryKey: ["admin", "credit-requests"],
     queryFn: async () => {
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
-      const res = await apiFetch(`${apiBase}/api/admin/credit-requests`);
+      const res = await apiFetch('/api/admin/credit-requests');
       if (!res.ok) return [];
       return res.json();
     },

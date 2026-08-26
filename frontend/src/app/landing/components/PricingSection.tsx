@@ -710,7 +710,7 @@ export const PricingSection = memo(function PricingSection({ theme: t, onEnter }
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full animate-ping shrink-0" style={{ background: t.accentBadge }} />
-          <span className="truncate sm:whitespace-normal">Credit-Based Unit Economics // $1 = 100 Credits</span>
+          <span className="truncate sm:whitespace-normal">Credit-Based Unit Economics</span>
         </div>
 
         <h2 

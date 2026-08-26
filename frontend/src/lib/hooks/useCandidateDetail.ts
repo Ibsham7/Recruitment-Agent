@@ -12,7 +12,7 @@ export async function fetchCandidateDetail(id: string) {
     return { candidate: null, campaign: null };
   }
 
-  const res = await apiFetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/${id}`);
+  const res = await apiFetch(`/api/candidates/${id}`);
   if (!res.ok) {
     throw new Error("Failed to fetch candidate");
   }
