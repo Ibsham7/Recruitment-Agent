@@ -31,7 +31,7 @@ export function cleanFilenameToDisplayName(filename: string): string | null {
   return null;
 }
 
-export function getCandidateDisplayName(candidate: Partial<Candidate> | null | undefined): string {
+export function getCandidateDisplayName(candidate: Partial<Pick<Candidate, 'name' | 'cvUrl' | 'resumePath' | 'status' | 'stage'>> | null | undefined): string {
   if (!candidate) return "Processing Candidate...";
 
   const rawName = candidate.name?.trim();

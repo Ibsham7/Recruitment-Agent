@@ -1,11 +1,11 @@
-import { AntiCheatFlag, AntiCheatMetadata } from "../../lib/types";
+import { AntiCheatFlag, AntiCheatMetadata, CandidateStage } from "../../lib/types";
 
 export interface InterviewCandidate {
   id: string;
   name: string;
   email?: string;
   phone?: string;
-  status: string;
+  status: CandidateStage;
   fitScore?: number;
   campaignId: string;
   campaignTitle: string;

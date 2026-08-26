@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Receipt,
@@ -435,10 +435,10 @@ export function AdminCreditRequestsTab({
         >
           {(
             [
-              { key: "all", label: "All Requests", count: stats.totalCount },
+              { key: "all", label: "All Requests", count: stats.totalCount, alert: false },
               { key: "pending", label: "Pending", count: stats.pendingCount, alert: stats.pendingCount > 0 },
-              { key: "approved", label: "Approved", count: stats.approvedCount },
-              { key: "rejected", label: "Rejected", count: stats.rejectedCount },
+              { key: "approved", label: "Approved", count: stats.approvedCount, alert: false },
+              { key: "rejected", label: "Rejected", count: stats.rejectedCount, alert: false },
             ] as const
           ).map((tab) => {
             const isSelected = selectedStatus === tab.key;

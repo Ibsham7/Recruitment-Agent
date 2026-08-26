@@ -1,12 +1,31 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type PluginOption } from 'vite'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import prerender from '@prerenderer/rollup-plugin'
-import PuppeteerRenderer from '@prerenderer/renderer-puppeteer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Puppeteer-based prerendering requires a full Chrome install with system
+// libraries (libnspr4.so, etc.) that CI environments like Vercel don't have.
+// Only enable it for local production builds where Chrome is available.
+const isCI = !!(process.env.CI || process.env.VERCEL || process.env.SKIP_PRERENDER)
+
+async function getPrerenderPlugin(): Promise<PluginOption | null> {
+  if (isCI) return null
+  const { default: prerender } = await import('@prerenderer/rollup-plugin')
+  const { default: PuppeteerRenderer } = await import('@prerenderer/renderer-puppeteer')
+  return prerender({
+    routes: ['/', '/privacy', '/terms'],
+    renderer: new PuppeteerRenderer({
+      renderAfterTime: 3000,
+      headless: true,
+    }),
+    postProcess(renderedRoute) {
+      renderedRoute.html = renderedRoute.html.trim();
+    },
+  })
+}
 
 function figmaAssetResolver() {
   return {
@@ -20,7 +39,10 @@ function figmaAssetResolver() {
   }
 }
 
-export default defineConfig({
+export default defineConfig(async () => {
+  const prerenderPlugin = await getPrerenderPlugin()
+
+  return {
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if
@@ -28,19 +50,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     // Pre-render public routes at build time so Googlebot sees full HTML
-    // instead of an empty <div id="root"></div>. Only runs in production build.
-    prerender({
-      routes: ['/', '/privacy', '/terms'],
-      renderer: new PuppeteerRenderer({
-        renderAfterTime: 3000, // wait 3s for React to hydrate + render content
-        headless: true,
-      }),
-      postProcess(renderedRoute) {
-        // Collapse whitespace in pre-rendered output
-        renderedRoute.html = renderedRoute.html.trim();
-        return renderedRoute;
-      },
-    }),
+    // instead of an empty <div id="root"></div>. Skipped on Vercel/CI where
+    // Chrome system libraries are unavailable.
+    ...(prerenderPlugin ? [prerenderPlugin] : []),
   ],
   resolve: {
     alias: {
@@ -57,7 +69,7 @@ export default defineConfig({
     assetsInlineLimit: 4096,
     rollupOptions: {
       output: {
-        manualChunks(id) {
+        manualChunks(id: string) {
           if (id.includes('node_modules')) {
             if (id.includes('recharts')) return 'vendor-recharts';
             if (id.includes('@supabase')) return 'vendor-supabase';
@@ -72,4 +84,6 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+  }
 })
+
