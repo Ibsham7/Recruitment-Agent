@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import prerender from '@prerenderer/rollup-plugin'
+import PuppeteerRenderer from '@prerenderer/renderer-puppeteer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -25,6 +27,20 @@ export default defineConfig({
     // Tailwind is not being actively used – do not remove them
     react(),
     tailwindcss(),
+    // Pre-render public routes at build time so Googlebot sees full HTML
+    // instead of an empty <div id="root"></div>. Only runs in production build.
+    prerender({
+      routes: ['/', '/privacy', '/terms'],
+      renderer: new PuppeteerRenderer({
+        renderAfterTime: 3000, // wait 3s for React to hydrate + render content
+        headless: true,
+      }),
+      postProcess(renderedRoute) {
+        // Collapse whitespace in pre-rendered output
+        renderedRoute.html = renderedRoute.html.trim();
+        return renderedRoute;
+      },
+    }),
   ],
   resolve: {
     alias: {
