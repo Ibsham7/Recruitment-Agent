@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { createBrowserRouter, RouterProvider, useNavigate } from "react-router";
+import { HelmetProvider } from "react-helmet-async";
 import { Theme } from "../lib/types";
 import { PRESETS, loadSavedTheme, saveTheme } from "../lib/theme";
 import { AuthProvider, useAuth } from "../lib/AuthContext";
@@ -224,11 +225,13 @@ export function AppRouter() {
   ]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </QueryClientProvider>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 }
 

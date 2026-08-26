@@ -634,7 +634,7 @@ export const RoiSimulatorTab = memo(function RoiSimulatorTab({ theme: t, onEnter
             <div className="space-y-3 pt-3 border-t" style={{ borderColor: hexToRgba(t.txtBody, 0.1) }}>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between font-mono flex-wrap gap-1">
-                  <span style={{ color: t.txtSecondary }}>hireagent Compute:</span>
+                  <span style={{ color: t.txtSecondary }}>AgenticHR Compute:</span>
                   <span className="font-bold" style={{ color: t.numPos }}>${simTotalUsd}</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-black/20 overflow-hidden">

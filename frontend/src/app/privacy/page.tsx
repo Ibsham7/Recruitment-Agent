@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { Theme } from "../../lib/types";
 import { PRESETS, hexToRgba, getGlass } from "../../lib/theme";
 import { ArrowLeft, ShieldCheck, FileText, Lock, Cpu, Server, Trash2, Mail, CheckCircle2 } from "lucide-react";
+import SEOHead from "../../components/SEOHead";
 
 export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }) {
   const navigate = useNavigate();
@@ -19,6 +20,11 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
       className="flex flex-col h-screen w-full overflow-hidden select-none"
       style={{ background: t.bgPage, color: t.txtBody }}
     >
+      <SEOHead
+        title="Privacy Policy"
+        description="How AgenticHR handles candidate data, GDPR compliance, data retention policies, and your privacy rights."
+        path="/privacy"
+      />
       {/* Sticky Header */}
       <header
         className="shrink-0 z-10 w-full px-6 py-4 border-b flex items-center justify-between"
@@ -147,7 +153,7 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
               Candidate Privacy & Automated Assessment Transparency
             </h2>
             <p style={{ color: t.txtSecondary }}>
-              At <strong>hireagent</strong>, we are committed to upholding the highest standards of data privacy, algorithmic fairness, and transparency under the General Data Protection Regulation (GDPR), California Consumer Privacy Act (CCPA), and EU AI Act. This disclosure outlines how candidate data is handled during recruitment and assessment workflows.
+              At <strong>AgenticHR</strong>, we are committed to upholding the highest standards of data privacy, algorithmic fairness, and transparency under the General Data Protection Regulation (GDPR), California Consumer Privacy Act (CCPA), and EU AI Act. This disclosure outlines how candidate data is handled during recruitment and assessment workflows.
             </p>
           </div>
 

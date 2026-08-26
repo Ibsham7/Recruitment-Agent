@@ -29,11 +29,11 @@ export function BrandingHeader({
           type="button"
           onClick={onBack}
           className="bg-transparent border-0 p-0 cursor-pointer transition-transform hover:scale-105 active:scale-95 focus:outline-none"
-          title="HireAgent"
+          title="AgenticHR"
         >
           <img
             src={t.isDark ? logoDarkImg : logoLightImg}
-            alt="hireagent"
+            alt="AgenticHR"
             style={{ width: "160px", height: "52px", objectFit: "contain" }}
           />
         </button>

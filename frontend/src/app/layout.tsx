@@ -25,7 +25,7 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
     location.pathname.includes("/dashboard") ? "Campaigns" :
     location.pathname.includes("/setup") ? "New Campaign" :
       location.pathname.includes("/candidate") ? "Candidate Review" :
-        location.pathname.includes("/pipeline") ? "Pipeline" : "Hireagent";
+        location.pathname.includes("/pipeline") ? "Pipeline" : "AgenticHR";
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: theme.bgPage, position: "relative" }}>
@@ -39,7 +39,7 @@ export default function Layout({ theme, setTheme }: { theme: Theme, setTheme: (t
           style={{ borderBottom: `1px solid ${hexToRgba(theme.bgCard, theme.isDark ? 0.10 : 0.50)}`, height: "64px", gap: "8px", justifyContent: collapsed ? "center" : "flex-start" }}>
           <img
             src={theme.isDark ? logoDarkImg : logoLightImg}
-            alt="hireagent"
+            alt="AgenticHR"
             style={{
               width: collapsed ? 0 : "136px", height: "44px", objectFit: "contain", objectPosition: "left center",
               display: "block", flexShrink: 0,

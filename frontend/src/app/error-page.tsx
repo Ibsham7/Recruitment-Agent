@@ -122,7 +122,7 @@ export default function RouteErrorPage({ theme }: { theme?: Theme }) {
         {/* Error code footer badge */}
         <div className="flex items-center gap-2 text-[11px]" style={{ fontFamily: "'DM Mono', monospace", color: t.txtGhost }}>
           <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: t.numNeg, display: "inline-block", boxShadow: `0 0 6px ${hexToRgba(t.numNeg, 0.7)}` }} />
-          ERR_MODULE_IMPORT · hireagent/v1
+          ERR_MODULE_IMPORT · agentichr/v1
         </div>
       </div>
     </div>

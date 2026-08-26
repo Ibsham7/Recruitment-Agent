@@ -126,7 +126,7 @@ export const PRESETS: Theme[] = [
   },
 ];
 
-export const THEME_STORAGE_KEY = "hireagent_theme";
+export const THEME_STORAGE_KEY = "agentichr_theme";
 
 export function loadSavedTheme(): Theme {
   if (typeof window === "undefined") return PRESETS[4];

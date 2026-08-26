@@ -47,7 +47,7 @@ export function LoginForm({
           Welcome back
         </h2>
         <p className="text-xs mt-0.5" style={{ color: t.txtMuted }}>
-          Sign in to your hireagent workspace.
+          Sign in to your AgenticHR workspace.
         </p>
       </div>
 

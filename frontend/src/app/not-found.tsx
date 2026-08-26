@@ -51,7 +51,7 @@ export default function NotFoundPage({ theme: t }: { theme: Theme }) {
         {/* Error code badge */}
         <div className="flex items-center gap-2 text-[11px]" style={{ fontFamily: "'DM Mono', monospace", color: t.txtGhost }}>
           <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: t.numNeg, display: "inline-block", boxShadow: `0 0 6px ${hexToRgba(t.numNeg, 0.7)}` }} />
-          ERR_ROUTE_NOT_FOUND · hireagent/v1
+          ERR_ROUTE_NOT_FOUND · agentichr/v1
         </div>
       </div>
     </div>

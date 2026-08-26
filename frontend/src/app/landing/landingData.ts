@@ -84,9 +84,9 @@ export const landingSteps: LandingStep[] = [
     num: 1, 
     badge: "Step 01",
     title: "Post a Campaign", 
-    body: "Define job requirements, mandatory experience, and custom hard rules. hireagent instantly constructs your automated screening pipeline.", 
+    body: "Define job requirements, mandatory experience, and custom hard rules. AgenticHR instantly constructs your automated screening pipeline.", 
     icon: FileText,
-    url: "app.hireagent.ai/setup",
+    url: "app.agentichr.dev/setup",
     image: "/process/step-1.png",
     tags: ["JD Parsing", "Hard-Filter Rules", "Pipeline Setup"],
     highlight: "Zero LLM Cost Filtering"
@@ -97,7 +97,7 @@ export const landingSteps: LandingStep[] = [
     title: "Multi-Tier AI Funnel", 
     body: "PyMuPDF parsing, Python hard filters, pgvector semantic search (1536d), and Gemini Flash JD scoring screen applications in seconds.", 
     icon: Bot,
-    url: "app.hireagent.ai/pipeline",
+    url: "app.agentichr.dev/pipeline",
     image: "/process/step-2.png",
     tags: ["PyMuPDF Engine", "pgvector Semantic Search", "Gemini Flash Fit"],
     highlight: "10x Screening Velocity"
@@ -108,7 +108,7 @@ export const landingSteps: LandingStep[] = [
     title: "Asynchronous AI Interviews", 
     body: "Shortlisted candidates answer 3-5 tailored technical questions designed dynamically to probe their specific CV gaps — anytime, anywhere.", 
     icon: MessageSquareText,
-    url: "app.hireagent.ai/interview/session",
+    url: "app.agentichr.dev/interview/session",
     image: "/process/step-3.png",
     tags: ["CV Gap Detection", "Adaptive Follow-ups", "Async Candidate Portal"],
     highlight: "Zero Scheduling Delay"
@@ -119,7 +119,7 @@ export const landingSteps: LandingStep[] = [
     title: "Final Scorecard & Shortlist", 
     body: "Review Claude Sonnet transcript evaluations, multi-dimensional radar scores, per-candidate cost analytics, and make instant hiring decisions.", 
     icon: CheckCircle,
-    url: "app.hireagent.ai/dashboard",
+    url: "app.agentichr.dev/dashboard",
     image: "/process/step-4.png",
     tags: ["Multi-Axis Radar", "Claude Sonnet Grading", "Token Cost Tracker"],
     highlight: "Data-Driven Hiring"
@@ -296,7 +296,7 @@ export const landingDeckFeatures: LandingDeckFeature[] = [
     icon: ShieldAlert,
     title: "Anti-Keyword Stuffing & Fluff Flag",
     pillTitle: "10 Keyword Stuffer Flag",
-    description: "Traditional ATS screeners give 100% credit to candidates who dump 50+ keywords into a skills box. hireagent cross-verifies skills against actual project bullets, flagging unevidenced fluff and neutralizing inflated scores.",
+    description: "Traditional ATS screeners give 100% credit to candidates who dump 50+ keywords into a skills box. AgenticHR cross-verifies skills against actual project bullets, flagging unevidenced fluff and neutralizing inflated scores.",
     metrics: [
       { label: "KEYWORD TRAP DEFENSE", value: "100% Stuffer Immune", tone: "pos" },
       { label: "SCORE OVERRIDE", value: "Caps Fluff to 0 Pts", tone: "neg" }
@@ -320,7 +320,7 @@ export const landingFaqs: LandingFaq[] = [
   {
     category: "Control & Governance",
     q: "Will the AI make automated hiring or rejection decisions without my review?",
-    a: "No. hireagent operates as an intelligent hiring co-pilot, not an autonomous black box. While our multi-stage engine automatically screens, ranks candidates, and evaluates interviews, your hiring team retains 100% decision control. You can inspect fit scores, review full interview transcripts, manually move candidates across pipeline stages, and override any recommendation."
+    a: "No. AgenticHR operates as an intelligent hiring co-pilot, not an autonomous black box. While our multi-stage engine automatically screens, ranks candidates, and evaluates interviews, your hiring team retains 100% decision control. You can inspect fit scores, review full interview transcripts, manually move candidates across pipeline stages, and override any recommendation."
   },
   {
     category: "Candidate Experience",
@@ -334,12 +334,12 @@ export const landingFaqs: LandingFaq[] = [
   },
   {
     category: "Cost & Efficiency",
-    q: "How does hireagent process high volumes of CVs so cost-effectively?",
-    a: "Instead of running full AI evaluations on every raw application upfront, hireagent uses an intelligent multi-stage cascade. Non-matching profiles and duplicates are filtered out early during initial qualification checks, reserving deep AI evaluations exclusively for viable candidates. This multi-tiered approach dramatically reduces overall processing overhead while accelerating screening."
+    q: "How does AgenticHR process high volumes of CVs so cost-effectively?",
+    a: "Instead of running full AI evaluations on every raw application upfront, AgenticHR uses an intelligent multi-stage cascade. Non-matching profiles and duplicates are filtered out early during initial qualification checks, reserving deep AI evaluations exclusively for viable candidates. This multi-tiered approach dramatically reduces overall processing overhead while accelerating screening."
   },
   {
     category: "Objectivity & Bias",
-    q: "How does hireagent minimize bias and maintain objective candidate evaluation?",
+    q: "How does AgenticHR minimize bias and maintain objective candidate evaluation?",
     a: "Our evaluation engine grades candidates strictly against job description requirements, verified skills, and structured multi-axis rubric standards (Technical Depth, Communication, and Problem-Solving). Every candidate in a campaign is judged against the exact same rules, filters, and criteria set up by your hiring team, ensuring consistent and objective evaluations."
   },
   {
@@ -355,7 +355,7 @@ export const landingFaqs: LandingFaq[] = [
   {
     category: "Setup & Onboarding",
     q: "How quickly can our team set up a hiring campaign and start screening?",
-    a: "You can launch a hiring campaign in under 5 minutes. Simply paste your job description, define your mandatory filter rules, and upload candidate resumes. hireagent parses the CVs, runs the multi-stage screening funnel, and populates your visual pipeline dashboard instantly."
+    a: "You can launch a hiring campaign in under 5 minutes. Simply paste your job description, define your mandatory filter rules, and upload candidate resumes. AgenticHR parses the CVs, runs the multi-stage screening funnel, and populates your visual pipeline dashboard instantly."
   }
 ];
 

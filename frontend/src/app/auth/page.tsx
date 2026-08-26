@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Theme } from "../../lib/types";
 import { supabase } from "../../lib/supabase";
 import { AuthNavbar, BrandingHeader, LoginForm, SignupForm } from "./components";
+import SEOHead from "../../components/SEOHead";
 
 export default function AuthPage({ theme: t }: { theme: Theme }) {
   const navigate = useNavigate();
@@ -88,6 +89,12 @@ export default function AuthPage({ theme: t }: { theme: Theme }) {
       className="min-h-screen w-full flex flex-col justify-between relative z-10 select-none overflow-x-hidden"
       style={{ background: t.bgPage, color: t.txtBody }}
     >
+      <SEOHead
+        title="Sign In"
+        description="Sign in to your AgenticHR workspace or create a free account to start automating your recruitment pipeline."
+        path="/auth"
+        noindex={true}
+      />
       {/* Responsive Fixed Top Navbar */}
       <AuthNavbar
         theme={t}

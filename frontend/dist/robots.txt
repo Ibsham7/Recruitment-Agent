@@ -4,4 +4,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://hireagent.ai/sitemap.xml
+Sitemap: https://agentichr.dev/sitemap.xml

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Theme } from "../../lib/types";
 import { hexToRgba } from "../../lib/theme";
 import TargetCursor from "../../components/common/TargetCursor";
+import SEOHead from "../../components/SEOHead";
 import {
   LandingHeader,
   HeroSection,
@@ -30,6 +31,11 @@ export default function LandingPage({ theme: t }: { theme: Theme }) {
 
   return (
     <div className="relative w-full overflow-x-clip" style={{ background: t.bgPage, color: t.txtBody, minHeight: "100vh" }}>
+      <SEOHead
+        title="AI Recruitment Automation Platform | Screening & Interviews"
+        description="Automate hiring by screening resumes, conducting AI interviews, and delivering a curated shortlist with detailed candidate insights for recruiters."
+        path="/"
+      />
       <LandingScrollbar theme={t} />
 
       <TargetCursor

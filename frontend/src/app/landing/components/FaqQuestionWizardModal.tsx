@@ -1031,7 +1031,7 @@ function getFallbackKnowledge(query: string, category: string): KnowledgeItem[] 
       id: "kb-1",
       category: "Screening Engine",
       title: "Multi-Criteria Resume & Profile Evaluation Engine",
-      snippet: "hireagent utilizes LLM embeddings and deterministic hard filters to evaluate candidates against custom job descriptions with configurable strictness levels (lenient, moderate, strict).",
+      snippet: "AgenticHR utilizes LLM embeddings and deterministic hard filters to evaluate candidates against custom job descriptions with configurable strictness levels (lenient, moderate, strict).",
       tags: ["Screening", "Algorithms", "Scoring", "Strictness"]
     },
     {
@@ -1059,7 +1059,7 @@ function getFallbackKnowledge(query: string, category: string): KnowledgeItem[] 
       id: "kb-5",
       category: "Enterprise Onboarding",
       title: "High-Volume Pipeline Automation & SLA",
-      snippet: "Built for scale, hireagent processes thousands of applicants concurrently with distributed queue workers and dedicated priority infrastructure.",
+      snippet: "Built for scale, AgenticHR processes thousands of applicants concurrently with distributed queue workers and dedicated priority infrastructure.",
       tags: ["Enterprise", "High-Volume", "SLA", "Workers"]
     }
   ];

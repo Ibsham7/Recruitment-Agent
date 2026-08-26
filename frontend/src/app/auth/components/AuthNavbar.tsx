@@ -63,11 +63,11 @@ export function AuthNavbar({
             type="button"
             onClick={onBack}
             className="flex items-center min-h-[42px] cursor-pointer bg-transparent border-0 p-0 text-left focus:outline-none rounded-lg transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            aria-label="HireAgent Home"
+            aria-label="AgenticHR Home"
           >
             <img
               src={t.isDark ? logoDarkImg : logoLightImg}
-              alt="hireagent logo"
+              alt="AgenticHR logo"
               width={120}
               height={32}
               decoding="async"

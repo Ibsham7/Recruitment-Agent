@@ -110,7 +110,7 @@ export function HeroSection({ theme: t, onEnter, gridBorder, gridHover }: HeroSe
         <button 
           type="button"
           onClick={onEnter}
-          aria-label="Get started free with hireagent"
+          aria-label="Get started free with AgenticHR"
           className="cursor-target w-full sm:w-auto min-h-[48px] px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center justify-center touch-manipulation"
           style={{ 
             background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.78)})`, 

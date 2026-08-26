@@ -32,7 +32,7 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
           <div className="flex flex-col items-start sm:col-span-2 md:col-span-1">
             <img
               src={t.isDark ? logoDarkImg : logoLightImg}
-              alt="hireagent logo"
+              alt="AgenticHR logo"
               width={130}
               height={40}
               className="mb-4 h-8 w-auto object-contain"
@@ -57,7 +57,7 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
                 href="https://github.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="hireagent on GitHub"
+                aria-label="AgenticHR on GitHub"
                 className="min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center border transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{
                   background: hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.50),
@@ -71,7 +71,7 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
                 href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="hireagent on Twitter"
+                aria-label="AgenticHR on Twitter"
                 className="min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center border transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{
                   background: hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.50),
@@ -85,7 +85,7 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
                 href="https://linkedin.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="hireagent on LinkedIn"
+                aria-label="AgenticHR on LinkedIn"
                 className="min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center border transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{
                   background: hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.50),
@@ -260,7 +260,7 @@ export function LandingFooter({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
             fontFamily: "'DM Mono', monospace"
           }}
         >
-          <span>© 2026 hireagent. All rights reserved.</span>
+          <span>© 2026 AgenticHR. All rights reserved.</span>
           <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-3">
             <a
               href="/privacy"

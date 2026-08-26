@@ -195,7 +195,7 @@ export const FaqSection = memo(function FaqSection({ theme: t, onEnter: _onEnter
           Frequently Asked Questions
         </h2>
         <p className="text-xs sm:text-sm mt-3 max-w-xl mx-auto leading-relaxed px-2 break-words" style={{ color: t.txtSecondary }}>
-          Everything you need to know about hireagent's screening engine, candidate experience, data privacy, and recruiting workflow.
+          Everything you need to know about AgenticHR's screening engine, candidate experience, data privacy, and recruiting workflow.
         </p>
       </motion.div>
 

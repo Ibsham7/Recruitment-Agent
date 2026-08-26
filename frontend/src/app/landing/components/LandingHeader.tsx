@@ -96,7 +96,7 @@ function MobileNavDrawer({
           <div className="flex items-center">
             <img
               src={t.isDark ? logoDarkImg : logoLightImg}
-              alt="hireagent logo"
+              alt="AgenticHR logo"
               width={120}
               height={32}
               loading="lazy"
@@ -335,11 +335,11 @@ export function LandingHeader({ theme: t, onEnter, logoLightImg, logoDarkImg }: 
               type="button"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
               className="flex items-center min-h-[44px] cursor-pointer bg-transparent border-0 p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 rounded-lg transition-transform hover:scale-[1.02] active:scale-[0.98]"
-              aria-label="HireAgent Home"
+              aria-label="AgenticHR Home"
             >
               <img
                 src={t.isDark ? logoDarkImg : logoLightImg}
-                alt="hireagent logo"
+                alt="AgenticHR logo"
                 width={140}
                 height={38}
                 loading="eager"

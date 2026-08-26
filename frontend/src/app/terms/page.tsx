@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { Theme } from "../../lib/types";
 import { PRESETS, hexToRgba, getGlass } from "../../lib/theme";
 import { ArrowLeft, Scale, FileText, CheckCircle2, UserCheck, Cpu, ShieldAlert, Award } from "lucide-react";
+import SEOHead from "../../components/SEOHead";
 
 export default function TermsPage({ theme: t = PRESETS[4] }: { theme?: Theme }) {
   const navigate = useNavigate();
@@ -19,6 +20,11 @@ export default function TermsPage({ theme: t = PRESETS[4] }: { theme?: Theme }) 
       className="flex flex-col h-screen w-full overflow-hidden select-none"
       style={{ background: t.bgPage, color: t.txtBody }}
     >
+      <SEOHead
+        title="Terms of Service"
+        description="Terms and conditions for using AgenticHR's recruitment platform, assessment workflows, and automated screening services."
+        path="/terms"
+      />
       {/* Sticky Header */}
       <header
         className="shrink-0 z-10 w-full px-6 py-4 border-b flex items-center justify-between"
@@ -147,7 +153,7 @@ export default function TermsPage({ theme: t = PRESETS[4] }: { theme?: Theme }) 
               Candidate Terms of Service & Automated Assessment Rules
             </h2>
             <p style={{ color: t.txtSecondary }}>
-              Welcome to <strong>hireagent</strong>. These Terms of Service govern your access to and use of our recruitment platform, assessment links, and automated screening workflow. Please read these terms carefully before initiating your assessment.
+              Welcome to <strong>AgenticHR</strong>. These Terms of Service govern your access to and use of our recruitment platform, assessment links, and automated screening workflow. Please read these terms carefully before initiating your assessment.
             </p>
           </div>
 
@@ -180,7 +186,7 @@ export default function TermsPage({ theme: t = PRESETS[4] }: { theme?: Theme }) 
               </h2>
             </div>
             <p style={{ color: t.txtBody }}>
-              When taking an assessment on hireagent, candidates agree to maintain integrity and authenticate their identity:
+              When taking an assessment on AgenticHR, candidates agree to maintain integrity and authenticate their identity:
             </p>
             <ul className="list-disc list-inside space-y-2 pl-2" style={{ color: t.txtSecondary }}>
               <li><strong style={{ color: t.txtPrimary }}>Authenticity of Responses:</strong> All submitted written answers must be your own authentic work. You warrant that you will not engage proxy test-takers or unauthorized automated response generators.</li>
@@ -246,7 +252,7 @@ export default function TermsPage({ theme: t = PRESETS[4] }: { theme?: Theme }) 
               </h2>
             </div>
             <p style={{ color: t.txtBody }}>
-              All assessment questions, campaign materials, platform interface designs, and proprietary scoring algorithms are the exclusive intellectual property of hireagent and its hiring organization partners.
+              All assessment questions, campaign materials, platform interface designs, and proprietary scoring algorithms are the exclusive intellectual property of AgenticHR and its hiring organization partners.
             </p>
             <p style={{ color: t.txtSecondary }}>
               Candidates agree not to copy, publish, record, share, or publicly distribute assessment questions or materials encountered during their assessment session.
@@ -264,7 +270,7 @@ export default function TermsPage({ theme: t = PRESETS[4] }: { theme?: Theme }) 
               </h2>
             </div>
             <p style={{ color: t.txtBody }}>
-              To the maximum extent permitted by applicable law, hireagent and its affiliates shall not be liable for indirect, incidental, or consequential damages resulting from technical interruptions or candidate internet connection failures during assessments.
+              To the maximum extent permitted by applicable law, AgenticHR and its affiliates shall not be liable for indirect, incidental, or consequential damages resulting from technical interruptions or candidate internet connection failures during assessments.
             </p>
             <p style={{ color: t.txtSecondary }}>
               For legal notices or questions regarding these terms, please contact us at <a href="mailto:contact@agentichr.dev" className="font-mono hover:underline" style={{ color: t.accentPrimary }}>contact@agentichr.dev</a>.
