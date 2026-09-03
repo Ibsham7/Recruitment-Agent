@@ -171,16 +171,16 @@ export function AdminCreditAdjustmentModal({
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors disabled:opacity-50"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl transition-all active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
             style={{ color: t.txtMuted, background: hexToRgba(t.bgPage, 0.5) }}
             aria-label="Close modal"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Modal UX Rule 4: Independent Scroll Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5">
           {success ? (
             <div className="text-center py-8 space-y-3">
               <div
@@ -356,7 +356,7 @@ export function AdminCreditAdjustmentModal({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                  className="min-h-[44px] w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                   style={{
                     background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.8)})`,
                     color: t.accentText,

@@ -49,18 +49,19 @@ export default function FiltersModal({
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="rounded-2xl max-w-md w-full max-h-[85vh] shadow-2xl flex flex-col overflow-hidden relative border" 
+        className="rounded-2xl max-w-md w-full max-h-[90vh] sm:max-h-[85vh] shadow-2xl flex flex-col overflow-hidden relative border" 
         style={{ background: t.bgCard, borderColor: hexToRgba(t.txtGhost, 0.2) }}
       >
         {/* Sticky Header */}
-        <div className="shrink-0 z-10 p-5 border-b flex items-center justify-between" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
+        <div className="shrink-0 z-10 p-4 sm:p-5 border-b flex items-center justify-between" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
           <div>
             <h3 className="text-base font-bold" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>Hard Filters & Penalties</h3>
             <p className="text-xs mt-0.5" style={{ color: t.txtSecondary }}>Define mandatory requirements and score deductions.</p>
           </div>
           <button 
             onClick={() => setShowFiltersModal(false)} 
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors" 
+            aria-label="Close modal"
+            className="min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center text-sm font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors" 
             style={{ color: t.txtMuted }}
           >
             ✕
@@ -68,7 +69,7 @@ export default function FiltersModal({
         </div>
         
         {/* Independent Scroll Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
           {hardFilters.length === 0 ? (
             <div className="text-center py-6 space-y-2">
               <div className="text-xs font-medium" style={{ color: t.txtSecondary }}>No filters configured.</div>
@@ -87,34 +88,36 @@ export default function FiltersModal({
                   <select 
                     value={hf.type} 
                     onChange={e => { const newHf = [...hardFilters]; newHf[i].type = e.target.value; setHardFilters(newHf); }} 
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none" 
-                    style={{ ...fieldStyle, flex: 1 }}
+                    className="rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none min-h-[44px] sm:min-h-0 flex-1" 
+                    style={fieldStyle}
                   >
                     <option value="skill">Mandatory Skill</option>
                     <option value="experience">Min Experience (Years)</option>
                   </select>
 
                   <button 
+                    type="button"
                     onClick={() => { const newHf = [...hardFilters]; newHf.splice(i, 1); setHardFilters(newHf); }} 
-                    className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                    aria-label="Remove filter rule"
+                    className="min-w-[44px] min-h-[44px] rounded-lg text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors shrink-0"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input 
                     value={hf.value} 
                     onChange={e => { const newHf = [...hardFilters]; newHf[i].value = e.target.value; setHardFilters(newHf); }} 
                     placeholder={hf.type === "experience" ? "e.g. 3" : "e.g. Python, React"} 
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none flex-1" 
+                    className="rounded-lg px-3 py-2.5 text-xs font-medium focus:outline-none w-full sm:flex-1 min-h-[44px] sm:min-h-0" 
                     style={fieldStyle} 
                   />
                   <select 
                     value={hf.penalty} 
                     onChange={e => { const newHf = [...hardFilters]; newHf[i].penalty = e.target.value; setHardFilters(newHf); }} 
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none" 
-                    style={{ ...fieldStyle, flex: 1.3 }}
+                    className="rounded-lg px-3 py-2.5 text-xs font-semibold focus:outline-none w-full sm:flex-[1.3] min-h-[44px] sm:min-h-0" 
+                    style={fieldStyle} 
                   >
                     <option value="reject">Completely Reject</option>
                     <option value="hard_penalize">Hard Penalize (-30)</option>
@@ -130,16 +133,18 @@ export default function FiltersModal({
         {/* Fixed Footer */}
         <div className="shrink-0 z-10 p-4 border-t flex gap-2.5" style={{ borderColor: hexToRgba(t.txtGhost, 0.15), background: t.bgCard }}>
           <button 
-            onClick={() => setHardFilters([...hardFilters, { type: "skill", value: "", penalty: "reject" }])} 
-            className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1" 
+            type="button"
+            onClick={() => setHardFilters(prev => [...prev, { type: "skill", value: "", penalty: "reject" }])} 
+            className="flex-1 py-3 min-h-[44px] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95" 
             style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}
           >
             <Plus size={14} />
             <span>Add Filter</span>
           </button>
           <button 
+            type="button"
             onClick={() => setShowFiltersModal(false)} 
-            className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all" 
+            className="flex-1 py-3 min-h-[44px] rounded-xl text-xs font-bold transition-all flex items-center justify-center active:scale-95" 
             style={{ background: t.accentPrimary, color: t.accentText }}
           >
             Done

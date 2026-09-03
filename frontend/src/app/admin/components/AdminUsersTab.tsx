@@ -223,13 +223,98 @@ export function AdminUsersTab({ theme: t }: AdminUsersTabProps) {
         </div>
       </div>
 
-      {/* Users Table */}
+      {/* Mobile Card List (md:hidden) */}
+      {!isLoading && !error && filteredUsers.length > 0 && (
+        <div className="md:hidden space-y-3">
+          {filteredUsers.map((user) => (
+            <div
+              key={user.id}
+              className="p-4 rounded-2xl border space-y-3 shadow-md"
+              style={{
+                background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6),
+                borderColor: hexToRgba(t.bgCard, 0.3),
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs uppercase shrink-0"
+                    style={{
+                      background: hexToRgba(t.accentBadge, 0.15),
+                      color: t.accentBadge,
+                      border: `1px solid ${hexToRgba(t.accentBadge, 0.3)}`,
+                    }}
+                  >
+                    {user.email ? user.email.substring(0, 2) : "US"}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-xs truncate" style={{ color: t.txtPrimary }}>
+                      {user.email}
+                    </div>
+                    <div className="text-[10px] flex items-center gap-1 mt-0.5" style={{ color: t.txtMuted }}>
+                      <span>ID: {user.userId.slice(0, 8)}...</span>
+                      <button
+                        onClick={() => handleCopy(user.userId, user.userId)}
+                        className="p-1 min-w-[28px] min-h-[28px] flex items-center justify-center"
+                        title="Copy full User ID"
+                      >
+                        {copiedId === user.userId ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider shrink-0"
+                  style={{
+                    background: user.plan === "paid" ? hexToRgba(t.numPos, 0.15) : hexToRgba(t.txtMuted, 0.15),
+                    color: user.plan === "paid" ? t.numPos : t.txtSecondary,
+                    border: `1px solid ${user.plan === "paid" ? hexToRgba(t.numPos, 0.3) : hexToRgba(t.txtMuted, 0.25)}`,
+                  }}
+                >
+                  {user.plan}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-700/15">
+                <div>
+                  <span className="text-[10px] uppercase block" style={{ color: t.txtGhost }}>Balance</span>
+                  <span className="font-bold font-mono" style={{ color: user.creditBalance > 0 ? t.numPos : t.txtPrimary }}>
+                    {user.creditBalance.toLocaleString()} cr
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase block" style={{ color: t.txtGhost }}>Usage</span>
+                  <span className="text-[11px]" style={{ color: t.txtSecondary }}>
+                    {user.totalCampaignsCreated} camps · {user.totalCvsProcessed} CVs
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleOpenAdjust(user)}
+                className="min-h-[44px] w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
+                style={{
+                  background: hexToRgba(t.accentBadge, 0.15),
+                  color: t.accentBadge,
+                  border: `1px solid ${hexToRgba(t.accentBadge, 0.35)}`,
+                }}
+              >
+                <Coins size={14} />
+                <span>Adjust Balance & Tier</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Desktop Table View (hidden md:block) */}
       <div
-        className="rounded-2xl border overflow-hidden"
+        className="hidden md:block rounded-2xl border overflow-hidden"
         style={{ ...G.card, borderColor: hexToRgba(t.txtMuted, 0.15) }}
       >
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left border-collapse text-xs min-w-[700px]">
             <thead>
               <tr
                 className="border-b"

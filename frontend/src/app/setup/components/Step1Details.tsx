@@ -80,7 +80,7 @@ export default function Step1Details({
             <button
               type="button"
               onClick={onOpenUpgradeModal}
-              className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 shrink-0 self-end sm:self-auto"
+              className="px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 shrink-0 self-stretch sm:self-auto"
               style={{ 
                 background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`, 
                 color: t.accentText 
@@ -131,7 +131,7 @@ export default function Step1Details({
               </span>
               <button 
                 onClick={() => { setTitle(DEFAULT_TITLE); setJd(DEFAULT_JD); }} 
-                className="text-xs font-semibold flex items-center gap-1 hover:underline transition-all" 
+                className="text-xs font-semibold flex items-center gap-1 hover:underline transition-all min-h-[36px] px-2 py-1" 
                 style={{ color: t.accentPrimary }}
               >
                 <RotateCcw size={11} /> Reset Sample
@@ -141,9 +141,9 @@ export default function Step1Details({
           <textarea 
             value={jd} 
             onChange={(e) => setJd(e.target.value)} 
-            rows={10} 
+            rows={5} 
             placeholder="Paste role requirements, responsibilities, technical stack, qualifications..."
-            className="w-full rounded-xl px-4 py-3.5 text-sm focus:outline-none resize-y leading-relaxed font-sans" 
+            className="w-full rounded-xl px-4 py-3 sm:py-3.5 text-sm focus:outline-none resize-y leading-relaxed font-sans min-h-[140px] sm:min-h-[200px] lg:min-h-[260px]" 
             style={fieldStyle} 
           />
         </div>
@@ -162,13 +162,13 @@ export default function Step1Details({
             </span>
           </div>
           
-          <div className="grid grid-cols-3 gap-2.5 p-1.5 rounded-xl" style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6) }}>
+          <div className="grid grid-cols-3 gap-2 sm:gap-2.5 p-1.5 rounded-xl" style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6) }}>
             {(["lenient", "moderate", "strict"] as const).map((level) => (
               <button
                 key={level}
                 type="button"
                 onClick={() => setStrictness(level)}
-                className="py-2.5 px-3 rounded-lg text-xs font-bold capitalize transition-all flex items-center justify-center"
+                className="py-2.5 px-2 sm:px-3 min-h-[44px] rounded-lg text-xs sm:text-sm font-bold capitalize transition-all flex items-center justify-center text-center"
                 style={{
                   background: strictness === level ? t.accentPrimary : "transparent",
                   color: strictness === level ? t.accentText : t.txtSecondary,
@@ -199,7 +199,7 @@ export default function Step1Details({
             </div>
             <button 
               onClick={() => setShowFiltersModal(true)} 
-              className="text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 hover:opacity-90 shadow-sm" 
+              className="text-xs font-bold px-3.5 py-2.5 min-h-[44px] rounded-xl transition-all flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95 shadow-sm shrink-0" 
               style={{ background: hexToRgba(t.accentPrimary, 0.18), color: t.accentPrimary }}
             >
               <Plus size={14} />
@@ -233,7 +233,7 @@ export default function Step1Details({
       <button 
         onClick={onContinue} 
         disabled={!title || !jd} 
-        className="w-full py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 hover:scale-[1.005]"
+        className="w-full py-3.5 sm:py-4 min-h-[48px] rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 hover:scale-[1.005] active:scale-[0.99] shadow-lg"
         style={{ 
           background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`, 
           color: t.accentText, 

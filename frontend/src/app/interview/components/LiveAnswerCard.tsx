@@ -115,9 +115,9 @@ export function LiveAnswerCard({
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
           onPaste={handlePaste}
-          rows={7}
+          rows={5}
           placeholder="Type your response here... Include specific examples, methodology, and technical reasoning."
-          className="w-full rounded-2xl p-4 text-sm focus:outline-none resize-none"
+          className="w-full rounded-2xl p-3.5 sm:p-4 text-sm focus:outline-none resize-none sm:rows-7"
           style={{
             color: t.txtBody,
             background: hexToRgba(t.bgSurface, t.isDark ? 0.1 : 0.8),
@@ -144,7 +144,7 @@ export function LiveAnswerCard({
       <button
         onClick={onSubmit}
         disabled={submitting || !answer.trim()}
-        className="w-full py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+        className="min-h-[44px] w-full py-3.5 sm:py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer"
         style={{
           background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(
             t.accentPrimary,
@@ -159,7 +159,7 @@ export function LiveAnswerCard({
         ) : (
           <Send size={18} />
         )}
-        Submit Answer
+        <span>Submit Answer</span>
       </button>
     </div>
   );

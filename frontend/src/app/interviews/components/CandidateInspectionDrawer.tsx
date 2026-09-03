@@ -57,27 +57,27 @@ export function CandidateInspectionDrawer({
       >
         {/* Sticky Header Bar */}
         <div
-          className="shrink-0 flex items-center justify-between p-6 border-b z-10"
+          className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-b z-10"
           style={{
             borderColor: hexToRgba(t.txtPrimary, 0.1),
             background: hexToRgba(t.isDark ? t.bgSurface : t.bgCard, 0.95),
             backdropFilter: "blur(8px)"
           }}
         >
-          <div>
+          <div className="min-w-0 pr-2">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-1" style={{ color: t.accentPrimary }}>
-              Technical Evaluation Inspection
+              Technical Evaluation
             </div>
-            <div className="flex items-center gap-3">
-              <h2 id="eval-modal-title" className="text-xl md:text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <h2 id="eval-modal-title" className="text-lg sm:text-2xl font-bold truncate" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
                 {displayName}
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary, border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}` }}>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary, border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}` }}>
                 {candidate.status}
               </span>
             </div>
-            <p className="text-xs font-medium mt-0.5" style={{ color: t.txtSecondary }}>
-              {candidate.email || "No email provided"} · Position: <span style={{ color: t.txtPrimary }}>{candidate.campaignTitle}</span>
+            <p className="text-xs font-medium mt-0.5 truncate" style={{ color: t.txtSecondary }}>
+              {candidate.email || "No email"} · <span style={{ color: t.txtPrimary }}>{candidate.campaignTitle}</span>
             </p>
           </div>
 
@@ -85,7 +85,7 @@ export function CandidateInspectionDrawer({
           <button
             onClick={onClose}
             aria-label="Close modal"
-            className="p-2.5 rounded-full transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0"
+            className="min-w-[44px] min-h-[44px] p-2.5 rounded-full transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0 flex items-center justify-center"
             style={{ color: t.txtSecondary, background: hexToRgba(t.txtPrimary, 0.08), border: `1px solid ${hexToRgba(t.txtPrimary, 0.12)}` }}
           >
             <X size={20} />

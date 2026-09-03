@@ -94,7 +94,7 @@ export function DecisionBar({ candidate, campaign, theme: t, onDecisionUpdate }:
 
   return (
     <div
-      className="px-8 py-4 flex items-center justify-between flex-shrink-0 relative"
+      className="px-4 sm:px-8 py-3 sm:py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-shrink-0 relative z-10"
       style={{
         background: hexToRgba(t.bgSurface, t.isDark ? 0.88 : 0.90),
         backdropFilter: "blur(28px)",
@@ -102,10 +102,10 @@ export function DecisionBar({ candidate, campaign, theme: t, onDecisionUpdate }:
         borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.50)}`
       }}
     >
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
         <div className="text-xs" style={{ color: t.txtSecondary }}>
-          Final decision for <span className="font-semibold" style={{ color: t.txtPrimary }}>{getCandidateDisplayName(candidate)}</span>
-          {campaign && <span style={{ color: t.txtMuted }}> · {campaign.title}</span>}
+          Decision: <span className="font-semibold" style={{ color: t.txtPrimary }}>{getCandidateDisplayName(candidate)}</span>
+          {campaign && <span className="hidden sm:inline" style={{ color: t.txtMuted }}> · {campaign.title}</span>}
         </div>
 
         {feedbackMessage && (
@@ -122,20 +122,20 @@ export function DecisionBar({ candidate, campaign, theme: t, onDecisionUpdate }:
         )}
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
         <button
           onClick={() => handleDecision("hold")}
           disabled={submittingAction !== null}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+          className="min-h-[44px] flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
           style={{ ...G.card, color: t.txtSecondary }}
         >
-          {submittingAction === "hold" ? <Loader2 size={11} className="animate-spin" /> : <Pause size={11} />}
-          Hold
+          {submittingAction === "hold" ? <Loader2 size={12} className="animate-spin" /> : <Pause size={12} />}
+          <span>Hold</span>
         </button>
         <button
           onClick={() => handleDecision("reject")}
           disabled={submittingAction !== null}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="min-h-[44px] flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           style={{ background: hexToRgba(t.numNeg, 0.12), border: `1px solid ${hexToRgba(t.numNeg, 0.28)}`, color: t.numNeg }}
           onMouseEnter={(e) => {
             if (!submittingAction) (e.currentTarget as HTMLElement).style.background = hexToRgba(t.numNeg, 0.22);
@@ -144,13 +144,13 @@ export function DecisionBar({ candidate, campaign, theme: t, onDecisionUpdate }:
             if (!submittingAction) (e.currentTarget as HTMLElement).style.background = hexToRgba(t.numNeg, 0.12);
           }}
         >
-          {submittingAction === "reject" ? <Loader2 size={11} className="animate-spin" /> : <XCircle size={11} />}
-          Reject Candidate
+          {submittingAction === "reject" ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+          <span>Reject</span>
         </button>
         <button
           onClick={() => handleDecision("approve")}
           disabled={submittingAction !== null}
-          className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="min-h-[44px] flex-[1.4] sm:flex-initial flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           style={{
             background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.72)})`,
             color: t.accentText,
@@ -163,8 +163,8 @@ export function DecisionBar({ candidate, campaign, theme: t, onDecisionUpdate }:
             if (!submittingAction) (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 16px ${hexToRgba(t.accentPrimary, 0.40)}`;
           }}
         >
-          {submittingAction === "approve" ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle size={11} />}
-          Approve Candidate
+          {submittingAction === "approve" ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+          <span>Approve</span>
         </button>
       </div>
     </div>

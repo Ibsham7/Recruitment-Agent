@@ -117,29 +117,30 @@ export default function Step2Upload({
         onDragLeave={() => setDragging(false)} 
         onDrop={handleFileDrop} 
         onClick={() => fileInputRef.current?.click()}
-        className="rounded-2xl p-10 text-center cursor-pointer transition-all border-2 border-dashed flex flex-col items-center justify-center gap-3 hover:scale-[1.005]"
+        className="rounded-2xl p-6 sm:p-10 text-center cursor-pointer transition-all border-2 border-dashed flex flex-col items-center justify-center gap-3 hover:scale-[1.005] select-none"
         style={{ 
           borderColor: dragging ? t.accentPrimary : hexToRgba(t.accentPrimary, 0.4), 
           background: dragging ? hexToRgba(t.accentPrimary, 0.12) : hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.45) 
         }}
       >
         <div 
-          className="w-14 h-14 rounded-2xl flex items-center justify-center mb-1 transition-transform"
+          className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mb-1 transition-transform"
           style={{ background: hexToRgba(t.accentPrimary, 0.18), color: t.accentPrimary, transform: dragging ? "scale(1.1)" : "scale(1)" }}
         >
-          <Upload size={28} />
+          <Upload size={26} className="sm:w-7 sm:h-7" />
         </div>
         
         <div>
-          <div className="text-base font-bold" style={{ color: t.txtPrimary }}>
-            Drop candidate resumes here or click to browse files
+          <div className="text-sm sm:text-base font-bold" style={{ color: t.txtPrimary }}>
+            <span className="hidden sm:inline">Drop candidate resumes here or click to browse files</span>
+            <span className="sm:hidden">Tap to browse and select candidate resumes</span>
           </div>
           <div className="text-xs mt-1 font-medium" style={{ color: t.txtMuted }}>
             Supports PDF, DOCX, DOC, and TXT files — batch upload up to 100 resumes at once
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mt-2">
+        <div className="flex items-center gap-2 mt-1 sm:mt-2">
           {['PDF', 'DOCX', 'DOC', 'TXT'].map(ext => (
             <span 
               key={ext} 
@@ -177,13 +178,13 @@ export default function Step2Upload({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
             {retryableTasks.length > 0 && (
               <button
                 type="button"
                 onClick={handleRetryAllFailed}
                 disabled={uploading}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 disabled:opacity-50"
+                className="px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 disabled:opacity-50"
                 style={{ background: t.accentPrimary, color: t.accentText }}
               >
                 <RefreshCw size={13} />
@@ -193,7 +194,7 @@ export default function Step2Upload({
             <button
               type="button"
               onClick={() => setUploadTasks(prev => prev.filter(task => task.status !== 'error' && task.file.size > 0))}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
+              className="px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
               style={{ background: '#ef4444', color: '#ffffff' }}
             >
               <Trash2 size={13} />
@@ -240,7 +241,7 @@ export default function Step2Upload({
             <button
               type="button"
               onClick={onOpenUpgradeModal}
-              className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 shrink-0 self-end sm:self-auto"
+              className="px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 shrink-0 self-stretch sm:self-auto"
               style={{ 
                 background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`, 
                 color: t.accentText 
@@ -254,14 +255,14 @@ export default function Step2Upload({
 
       {/* Queued Files Card */}
       {uploadTasks.length > 0 && (
-        <div className="rounded-2xl p-5 sm:p-6 space-y-4" style={G.card}>
+        <div className="rounded-2xl p-4 sm:p-6 space-y-4" style={G.card}>
           <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: t.txtMuted }}>
               {uploadTasks.length} {uploadTasks.length === 1 ? 'File' : 'Files'} Queued ({formatFileSize(totalFileSize)})
             </span>
             <button 
               onClick={() => setUploadTasks([])} 
-              className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1 transition-colors"
+              className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1 transition-colors min-h-[36px] px-2.5 py-1 rounded-lg"
             >
               <Trash2 size={13} /> Clear Batch
             </button>
@@ -308,28 +309,29 @@ export default function Step2Upload({
                       </div>
                     </div>
                     
-                    {task.status === 'pending' && !isProblematic && <span className="text-[10px] font-bold" style={{ color: t.txtMuted }}>Ready</span>}
-                    {task.status === 'uploading' && <span className="text-[10px] font-bold" style={{ color: t.accentPrimary }}>{task.progress}%</span>}
-                    {task.status === 'success' && <CheckCircle size={16} style={{ color: t.numPos }} />}
+                    {task.status === 'pending' && !isProblematic && <span className="text-[10px] font-bold shrink-0" style={{ color: t.txtMuted }}>Ready</span>}
+                    {task.status === 'uploading' && <span className="text-[10px] font-bold shrink-0" style={{ color: t.accentPrimary }}>{task.progress}%</span>}
+                    {task.status === 'success' && <CheckCircle size={16} className="shrink-0" style={{ color: t.numPos }} />}
                     
                     {isProblematic && (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {task.file.size > 0 && (
                           <button 
                             onClick={(e) => { e.stopPropagation(); uploadToR2WithProgress(task.id, task.file).catch(() => {}); }} 
-                            className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-bold transition-colors"
+                            className="flex items-center justify-center gap-1 text-xs px-2.5 py-1.5 min-h-[44px] rounded-lg font-bold transition-colors"
                             style={{ border: `1px solid ${hexToRgba('#ef4444', 0.4)}`, color: '#ef4444', background: hexToRgba('#ef4444', 0.1) }}
                           >
-                            <RefreshCw size={10} /> Retry
+                            <RefreshCw size={11} /> Retry
                           </button>
                         )}
                         <button
                           onClick={(e) => { e.stopPropagation(); setUploadTasks(prev => prev.filter(t => t.id !== task.id)); }}
-                          className="text-[10px] px-2 py-0.5 rounded font-bold transition-colors flex items-center gap-1 hover:bg-red-500/30"
+                          className="text-xs px-2.5 py-1.5 min-h-[44px] rounded-lg font-bold transition-colors flex items-center justify-center gap-1 hover:bg-red-500/30"
                           style={{ border: `1px solid ${hexToRgba('#ef4444', 0.4)}`, color: '#ef4444', background: hexToRgba('#ef4444', 0.15) }}
                           title="Remove this problematic file"
+                          aria-label="Remove this problematic file"
                         >
-                          <Trash2 size={10} /> Remove
+                          <Trash2 size={11} /> Remove
                         </button>
                       </div>
                     )}
@@ -337,9 +339,10 @@ export default function Step2Upload({
                     {!isProblematic && task.status !== 'uploading' && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); setUploadTasks(prev => prev.filter(t => t.id !== task.id)); }} 
-                        className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors" 
+                        className="w-11 h-11 sm:w-9 sm:h-9 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors shrink-0 text-sm" 
                         style={{ color: t.txtMuted }}
                         title="Remove file"
+                        aria-label="Remove file"
                       >
                         ✕
                       </button>
@@ -353,11 +356,11 @@ export default function Step2Upload({
       )}
 
       {/* Action Buttons */}
-      <div className="flex gap-4">
+      <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
         <button 
           onClick={() => setStep(1)} 
           disabled={uploading} 
-          className="px-6 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all border" 
+          className="w-full sm:w-auto px-6 py-3.5 min-h-[48px] rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all border hover:opacity-90 active:scale-95" 
           style={{ ...G.card, color: t.txtSecondary }}
         >
           <ArrowLeft size={15} />
@@ -369,7 +372,7 @@ export default function Step2Upload({
             type="button"
             onClick={onOpenUpgradeModal} 
             disabled={uploading}
-            className="flex-1 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.005]"
+            className="w-full flex-1 py-3.5 min-h-[48px] rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.005] active:scale-[0.99]"
             style={{ 
               background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`, 
               color: t.accentText, 
@@ -389,7 +392,7 @@ export default function Step2Upload({
           <button 
             onClick={onComplete} 
             disabled={validTasks.length === 0 || uploading} 
-            className="flex-1 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.005]"
+            className="w-full flex-1 py-3.5 min-h-[48px] rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.005] active:scale-[0.99]"
             style={{ 
               background: validTasks.length > 0 ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})` : hexToRgba(t.bgCard, 0.2), 
               color: validTasks.length > 0 ? t.accentText : t.txtGhost, 

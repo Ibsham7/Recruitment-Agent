@@ -65,7 +65,7 @@ export default function AdminPage({ theme: t }: { theme: Theme }) {
   return (
     <div
       ref={gridRef}
-      className="bento-section p-6 lg:p-8 w-full min-h-full max-w-[1600px] mx-auto space-y-6"
+      className="bento-section p-4 sm:p-6 lg:p-8 w-full min-h-full max-w-[1600px] mx-auto space-y-4 sm:space-y-6"
       style={{ background: t.bgPage }}
     >
       <GlobalSpotlight gridRef={gridRef} glowColor={glow} spotlightRadius={300} isDark={t.isDark} />
@@ -98,12 +98,12 @@ export default function AdminPage({ theme: t }: { theme: Theme }) {
 
       {/* Admin Tab Switcher */}
       <div
-        className="p-1.5 rounded-2xl border flex items-center gap-2 max-w-fit"
+        className="p-1.5 rounded-2xl border flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar"
         style={{ ...G.card, borderColor: hexToRgba(t.txtMuted, 0.15) }}
       >
         <button
           onClick={() => setActiveTab("users")}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all"
+          className="min-h-[44px] flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 whitespace-nowrap cursor-pointer"
           style={{
             background: activeTab === "users" ? hexToRgba(t.accentBadge, 0.2) : "transparent",
             color: activeTab === "users" ? t.accentBadge : t.txtMuted,
@@ -116,7 +116,7 @@ export default function AdminPage({ theme: t }: { theme: Theme }) {
 
         <button
           onClick={() => setActiveTab("requests")}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all relative"
+          className="min-h-[44px] flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold transition-all relative active:scale-95 whitespace-nowrap cursor-pointer"
           style={{
             background: activeTab === "requests" ? hexToRgba(t.accentBadge, 0.2) : "transparent",
             color: activeTab === "requests" ? t.accentBadge : t.txtMuted,
@@ -141,7 +141,7 @@ export default function AdminPage({ theme: t }: { theme: Theme }) {
 
         <button
           onClick={() => setActiveTab("stats")}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all"
+          className="min-h-[44px] flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 whitespace-nowrap cursor-pointer"
           style={{
             background: activeTab === "stats" ? hexToRgba(t.accentBadge, 0.2) : "transparent",
             color: activeTab === "stats" ? t.accentBadge : t.txtMuted,

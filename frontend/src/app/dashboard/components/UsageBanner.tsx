@@ -50,7 +50,7 @@ export function UsageBanner({ theme: t }: UsageBannerProps) {
       >
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Left Info Column */}
-          <div className="space-y-1.5 min-w-[240px]">
+          <div className="space-y-1.5 min-w-0 sm:min-w-[240px] w-full lg:w-auto">
             <div className="flex items-center gap-2">
               <span
                 className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1"
@@ -90,7 +90,7 @@ export function UsageBanner({ theme: t }: UsageBannerProps) {
 
           {/* Center Usage Indicators */}
           {isFree ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1 max-w-2xl">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 flex-1 w-full max-w-2xl">
               {/* Campaigns Quota */}
               <div
                 className="p-2.5 rounded-xl border space-y-1"
@@ -176,10 +176,10 @@ export function UsageBanner({ theme: t }: UsageBannerProps) {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-6 flex-1 justify-start lg:justify-center">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-6 flex-1 justify-start lg:justify-center w-full lg:w-auto">
               <div className="flex items-center gap-3">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-base"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-base shrink-0"
                   style={{ background: hexToRgba(t.accentBadge, 0.15), color: t.accentBadge }}
                 >
                   <Coins size={20} />
@@ -194,7 +194,7 @@ export function UsageBanner({ theme: t }: UsageBannerProps) {
                 </div>
               </div>
 
-              <div className="h-8 w-px" style={{ background: hexToRgba(t.txtMuted, 0.15) }} />
+              <div className="hidden sm:block h-8 w-px" style={{ background: hexToRgba(t.txtMuted, 0.15) }} />
 
               <div>
                 <div className="text-xs font-semibold" style={{ color: t.txtPrimary }}>
@@ -208,11 +208,11 @@ export function UsageBanner({ theme: t }: UsageBannerProps) {
           )}
 
           {/* Right Action Buttons */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto shrink-0">
             {isFree ? (
               <button
                 onClick={() => setModalOpen(true)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
                 style={{
                   background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.8)})`,
                   color: t.accentText,
@@ -226,7 +226,7 @@ export function UsageBanner({ theme: t }: UsageBannerProps) {
               <>
                 <button
                   onClick={() => navigate("/billing")}
-                  className="px-3 py-2 rounded-xl text-xs font-medium border transition-colors"
+                  className="w-full sm:w-auto px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs font-medium border transition-colors flex items-center justify-center"
                   style={{
                     background: hexToRgba(t.bgPage, 0.6),
                     borderColor: hexToRgba(t.txtMuted, 0.2),
@@ -237,7 +237,7 @@ export function UsageBanner({ theme: t }: UsageBannerProps) {
                 </button>
                 <button
                   onClick={() => setModalOpen(true)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                  className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
                   style={{
                     background: `linear-gradient(135deg, ${t.accentBadge}, ${hexToRgba(t.accentBadge, 0.85)})`,
                     color: "#ffffff",

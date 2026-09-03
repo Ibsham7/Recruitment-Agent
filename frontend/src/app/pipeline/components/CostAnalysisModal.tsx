@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Search, DollarSign, Layers, ChevronRight, FileText } from "lucide-react";
+import { X, Search, DollarSign, Layers, ChevronRight, ChevronLeft, FileText } from "lucide-react";
 import { Campaign, Candidate, Theme } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { getCandidateDisplayName } from "../../../lib/candidate";
@@ -69,6 +69,12 @@ export function CostAnalysisModal({ isOpen, onClose, campaign, candidates, theme
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string>("campaign_setup");
   const [sortBy, setSortBy] = useState<"cost_desc" | "cost_asc" | "name">("cost_desc");
+  const [mobileTab, setMobileTab] = useState<"list" | "detail">("list");
+
+  const handleSelect = (id: string) => {
+    setSelectedId(id);
+    setMobileTab("detail");
+  };
 
   // Handle ESC key press for modal dismissal
   useEffect(() => {
@@ -134,11 +140,11 @@ export function CostAnalysisModal({ isOpen, onClose, campaign, candidates, theme
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-black/75 backdrop-blur-md transition-opacity animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 lg:p-8 bg-black/75 backdrop-blur-md transition-opacity animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-6xl h-[85vh] rounded-3xl flex flex-col overflow-hidden shadow-2xl border transition-all"
+        className="w-full max-w-6xl h-[92vh] sm:h-[85vh] rounded-2xl sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl border transition-all"
         style={{
           background: t.bgPage,
           borderColor: hexToRgba(t.accentPrimary, 0.3),
@@ -148,57 +154,72 @@ export function CostAnalysisModal({ isOpen, onClose, campaign, candidates, theme
       >
         {/* ── STICKY HEADER ──────────────────────────────────────────────────────── */}
         <div
-          className="px-6 py-4 flex-shrink-0 z-10 flex items-center justify-between border-b"
+          className="px-4 sm:px-6 py-3.5 sm:py-4 flex-shrink-0 z-10 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b"
           style={{
             ...G.bar,
             borderColor: hexToRgba(t.txtGhost, 0.15),
           }}
         >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-lg"
-              style={{
-                background: hexToRgba(t.accentPrimary, 0.2),
-                color: t.accentPrimary,
-                border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}`,
-              }}
-            >
-              <DollarSign size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-xl font-bold" style={{ color: t.txtPrimary }}>
-                  Campaign Cost & Model Breakdown
-                </h3>
-                <span
-                  className="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider"
-                  style={{
-                    background: hexToRgba(t.accentPrimary, 0.15),
-                    color: t.accentPrimary,
-                  }}
-                >
-                  Dev & Analytics
-                </span>
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center font-bold text-lg shrink-0"
+                style={{
+                  background: hexToRgba(t.accentPrimary, 0.2),
+                  color: t.accentPrimary,
+                  border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}`,
+                }}
+              >
+                <DollarSign size={18} />
               </div>
-              <p className="text-xs" style={{ color: t.txtMuted }}>
-                {campaign.title} • Setup + {candidates.length} Candidates
-              </p>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base sm:text-xl font-bold" style={{ color: t.txtPrimary }}>
+                    Campaign Cost Breakdown
+                  </h3>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold uppercase tracking-wider"
+                    style={{
+                      background: hexToRgba(t.accentPrimary, 0.15),
+                      color: t.accentPrimary,
+                    }}
+                  >
+                    Dev & Analytics
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs truncate max-w-[200px] sm:max-w-none" style={{ color: t.txtMuted }}>
+                  {campaign.title} • Setup + {candidates.length} Candidates
+                </p>
+              </div>
             </div>
+
+            <button
+              onClick={onClose}
+              className="md:hidden min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center transition-colors cursor-pointer hover:opacity-80 active:scale-95"
+              style={{
+                background: hexToRgba(t.txtGhost, 0.15),
+                color: t.txtPrimary,
+              }}
+              title="Close (Esc)"
+              aria-label="Close dialog"
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
             <div
-              className="px-4 py-2 rounded-2xl flex items-center gap-3"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl flex items-center gap-3 flex-1 md:flex-initial"
               style={{
                 background: hexToRgba(t.bgCard, t.isDark ? 0.4 : 0.6),
                 border: `1px solid ${hexToRgba(t.numNeg, 0.3)}`,
               }}
             >
-              <div className="text-right">
-                <div className="text-xs uppercase font-medium tracking-wider" style={{ color: t.txtGhost }}>
+              <div className="text-left md:text-right">
+                <div className="text-[10px] sm:text-xs uppercase font-medium tracking-wider" style={{ color: t.txtGhost }}>
                   Total Campaign Cost
                 </div>
-                <div className="text-lg font-bold" style={{ color: t.numNeg, fontFamily: "'Fraunces',serif" }}>
+                <div className="text-base sm:text-lg font-bold" style={{ color: t.numNeg, fontFamily: "'Fraunces',serif" }}>
                   ${totalCampaignCost.toFixed(6)}
                 </div>
               </div>
@@ -206,14 +227,39 @@ export function CostAnalysisModal({ isOpen, onClose, campaign, candidates, theme
 
             <button
               onClick={onClose}
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer hover:opacity-80"
+              className="hidden md:flex min-w-[44px] min-h-[44px] rounded-full items-center justify-center transition-colors cursor-pointer hover:opacity-80 active:scale-95 shrink-0"
               style={{
                 background: hexToRgba(t.txtGhost, 0.15),
                 color: t.txtPrimary,
               }}
               title="Close (Esc)"
+              aria-label="Close dialog"
             >
               <X size={20} />
+            </button>
+          </div>
+
+          {/* Mobile view toggle */}
+          <div className="flex md:hidden items-center gap-1 p-1 rounded-xl w-full" style={{ background: hexToRgba(t.bgCard, 0.5) }}>
+            <button
+              onClick={() => setMobileTab("list")}
+              className="min-h-[38px] flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all"
+              style={{
+                background: mobileTab === "list" ? hexToRgba(t.accentPrimary, 0.25) : "transparent",
+                color: mobileTab === "list" ? t.accentPrimary : t.txtMuted,
+              }}
+            >
+              Candidates & Setup
+            </button>
+            <button
+              onClick={() => setMobileTab("detail")}
+              className="min-h-[38px] flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all"
+              style={{
+                background: mobileTab === "detail" ? hexToRgba(t.accentPrimary, 0.25) : "transparent",
+                color: mobileTab === "detail" ? t.accentPrimary : t.txtMuted,
+              }}
+            >
+              Cost Details
             </button>
           </div>
         </div>
@@ -222,7 +268,7 @@ export function CostAnalysisModal({ isOpen, onClose, campaign, candidates, theme
         <div className="flex-1 flex overflow-hidden">
           {/* ── LEFT COLUMN: CAMPAIGN OVERHEAD & CANDIDATE LIST ───────────────── */}
           <div
-            className="w-80 lg:w-96 flex-shrink-0 border-r flex flex-col overflow-hidden"
+            className={`${mobileTab === "list" ? "flex" : "hidden md:flex"} w-full md:w-80 lg:w-96 flex-shrink-0 border-r flex-col overflow-hidden`}
             style={{
               borderColor: hexToRgba(t.txtGhost, 0.15),
               background: hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.4),
@@ -231,7 +277,7 @@ export function CostAnalysisModal({ isOpen, onClose, campaign, candidates, theme
             {/* Pinned Campaign Setup / JD Processing Button */}
             <div className="p-3 border-b" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
               <button
-                onClick={() => setSelectedId("campaign_setup")}
+                onClick={() => handleSelect("campaign_setup")}
                 className="w-full text-left p-3.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between group"
                 style={{
                   background: isCampaignSetupSelected
@@ -324,8 +370,8 @@ export function CostAnalysisModal({ isOpen, onClose, campaign, candidates, theme
                   return (
                     <button
                       key={c.id}
-                      onClick={() => setSelectedId(c.id)}
-                      className="w-full text-left p-3.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between group"
+                      onClick={() => handleSelect(c.id)}
+                      className="w-full text-left p-3.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between group active:scale-[0.99]"
                       style={{
                         background: isSelected
                           ? hexToRgba(t.accentPrimary, 0.18)
@@ -383,10 +429,24 @@ export function CostAnalysisModal({ isOpen, onClose, campaign, candidates, theme
           </div>
 
           {/* ── RIGHT COLUMN: DETAILED STAGE & MODEL BREAKDOWN ─────────────────── */}
-          <div className="flex-1 flex flex-col overflow-y-auto p-6 space-y-6">
+          <div className={`${mobileTab === "detail" ? "flex" : "hidden md:flex"} flex-1 flex-col overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6`}>
+            {/* Mobile back to list button */}
+            <button
+              onClick={() => setMobileTab("list")}
+              className="md:hidden self-start min-h-[44px] flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold active:scale-95 cursor-pointer"
+              style={{
+                background: hexToRgba(t.bgCard, 0.5),
+                color: t.accentPrimary,
+                border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}`,
+              }}
+            >
+              <ChevronLeft size={16} />
+              <span>Back to candidates list</span>
+            </button>
+
             {/* Selection Overview Header */}
             <div
-              className="p-5 rounded-2xl flex items-center justify-between border"
+              className="p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border"
               style={{
                 background: hexToRgba(t.bgCard, t.isDark ? 0.3 : 0.5),
                 borderColor: isCampaignSetupSelected

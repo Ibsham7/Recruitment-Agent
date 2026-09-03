@@ -6,7 +6,7 @@ import { DashboardEmptyState } from "./DashboardEmptyState";
 
 export function CampaignSkeleton({ G }: { G: ReturnType<typeof getGlass> }) {
   return (
-    <div className="magic-bento-card rounded-2xl p-6 animate-pulse" style={G.card}>
+    <div className="magic-bento-card rounded-2xl p-4 sm:p-6 animate-pulse" style={G.card}>
       <div className="flex justify-between items-start mb-4">
         <div className="space-y-2 flex-1">
           <div className="h-4 w-20 bg-white/10 rounded" />
@@ -88,7 +88,7 @@ export const CampaignGrid = React.memo(
         {/* New Campaign Button */}
         <button 
           onClick={onNavigateSetup} 
-          className="rounded-2xl flex flex-col items-center justify-center gap-2 py-12 transition-all group border-2 border-dashed"
+          className="rounded-2xl flex flex-col items-center justify-center gap-2 py-8 sm:py-12 p-4 min-h-[140px] transition-all group border-2 border-dashed"
           style={{ 
             borderColor: hexToRgba(t.bgCard, t.isDark ? 0.14 : 0.30), 
             background: hexToRgba(t.bgCard, t.isDark ? 0.04 : 0.20), 

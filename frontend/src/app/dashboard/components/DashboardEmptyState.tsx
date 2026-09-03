@@ -21,7 +21,7 @@ export function DashboardEmptyState({
 
   return (
     <div 
-      className="rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-3"
+      className="rounded-2xl p-6 sm:p-12 text-center flex flex-col items-center justify-center space-y-3"
       style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.05 : 0.25), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.40)}` }}
     >
       <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: hexToRgba(t.accentPrimary, 0.12), color: t.accentPrimary }}>
@@ -38,7 +38,7 @@ export function DashboardEmptyState({
       {hasFilters ? (
         <button
           onClick={onClearFilters}
-          className="px-4 py-2 rounded-xl text-xs font-semibold mt-2 transition-all"
+          className="px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold mt-2 transition-all inline-flex items-center justify-center"
           style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary, border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}` }}
         >
           Clear Filters
@@ -46,7 +46,7 @@ export function DashboardEmptyState({
       ) : (
         <button
           onClick={onNavigateSetup}
-          className="px-4 py-2 rounded-xl text-xs font-semibold mt-2 transition-all"
+          className="px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold mt-2 transition-all inline-flex items-center justify-center"
           style={{ background: t.accentPrimary, color: t.accentText }}
         >
           + Create Campaign

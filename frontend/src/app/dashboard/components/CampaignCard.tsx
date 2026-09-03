@@ -37,11 +37,11 @@ export const CampaignCard = React.memo(
     return (
       <Link to={`/pipeline/${campaign.id}`} style={{ textDecoration: 'none', display: 'block' }}>
         <ParticleCard 
-          className="magic-bento-card magic-bento-card--border-glow rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:translate-y-[-2px]"
+          className="magic-bento-card magic-bento-card--border-glow rounded-2xl p-4 sm:p-6 cursor-pointer transition-all duration-300 hover:translate-y-[-2px]"
           style={{ "--glow-color": glowColor, ...G.card } as React.CSSProperties}
           glowColor={glowColor} particleCount={10} enableTilt={true} clickEffect={true} enableMagnetism={true}
         >
-          <div className="flex items-start justify-between mb-4" style={{ position: "relative", zIndex: 1 }}>
+          <div className="flex items-start justify-between mb-3.5 sm:mb-4" style={{ position: "relative", zIndex: 1 }}>
             <div className="flex-1 min-w-0 pr-2">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <StatusBadge status={status} sc={sc} />
@@ -61,7 +61,7 @@ export const CampaignCard = React.memo(
               </div>
             </div>
             <div 
-              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:translate-x-1"
+              className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:translate-x-1"
               style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.45), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.20 : 0.60)}`, color: t.txtMuted }}
             >
               <ChevronRight size={14} />
@@ -69,8 +69,8 @@ export const CampaignCard = React.memo(
           </div>
 
           {/* AI Progress Bar */}
-          <div className="mb-4">
-            <div className="flex justify-between items-center text-[11px] mb-1.5 font-medium" style={{ color: t.txtMuted }}>
+          <div className="mb-3.5 sm:mb-4">
+            <div className="flex justify-between items-center text-[11px] mb-1.5 font-medium flex-wrap gap-1" style={{ color: t.txtMuted }}>
               <span className="flex items-center gap-1.5">
                 {isProcessing ? "AI Processing" : progress === 100 ? "Processing Complete" : "AI Processing"}
                 {isProcessing && <Loader2 size={12} className="animate-spin text-amber-500 flex-shrink-0" />}
@@ -93,17 +93,17 @@ export const CampaignCard = React.memo(
           </div>
 
           {/* Stat metrics & date */}
-          <div className="flex items-center gap-5 pt-3.5" style={{ borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.30)}` }}>
+          <div className="flex items-center gap-3 sm:gap-5 flex-wrap pt-3 sm:pt-3.5" style={{ borderTop: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.12 : 0.30)}` }}>
             {[
               { v: total, l: "Total CVs", c: t.numHero }, 
               { v: shortlisted, l: "Shortlisted", c: t.numPos }
             ].map((s) => (
-              <div key={s.l}>
-                <div className="text-2xl font-bold leading-none mb-0.5 font-sans" style={{ color: s.c }}>{s.v}</div>
+              <div key={s.l} className="shrink-0">
+                <div className="text-xl sm:text-2xl font-bold leading-none mb-0.5 font-sans" style={{ color: s.c }}>{s.v}</div>
                 <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: t.txtGhost }}>{s.l}</div>
               </div>
             ))}
-            <div className="ml-auto flex items-center gap-1 text-[11px]" style={{ color: t.txtGhost }}>
+            <div className="ml-auto flex items-center gap-1 text-[11px] shrink-0" style={{ color: t.txtGhost }}>
               <Calendar size={11} />
               {campaign.createdAt ? new Date(campaign.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent'}
             </div>

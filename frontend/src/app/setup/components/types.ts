@@ -29,6 +29,38 @@ export function validateFile(file: File): { isError: boolean; reason?: string } 
   return { isError: false };
 }
 
+/**
+ * Safe UUID v4 generator that works in both secure contexts (HTTPS, localhost)
+ * and non-secure contexts (e.g. mobile testing over LAN HTTP like http://192.168.x.x:5173).
+ */
+export function generateUUID(): string {
+  if (typeof crypto !== "undefined") {
+    if (typeof crypto.randomUUID === "function") {
+      try {
+        return crypto.randomUUID();
+      } catch {
+        // Fallback for edge cases
+      }
+    }
+    if (typeof crypto.getRandomValues === "function") {
+      try {
+        return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => {
+          const num = Number(c);
+          return (num ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (num / 4)))).toString(16);
+        });
+      } catch {
+        // Fallback below
+      }
+    }
+  }
+  // Standard RFC4122 v4 math fallback
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export const DEFAULT_TITLE = "AI Engineer (Applied ML & Agentic Systems)";
 export const DEFAULT_JD = `We are looking for an AI Developer to design, build, and deploy intelligent applications and machine learning infrastructure. In this role, you will bridge the gap between advanced deep learning models and production-ready software. You will focus heavily on large language model (LLM) orchestration, multi-agent frameworks, and building the robust backend architecture required to support scalable AI features.
 Key Responsibilities

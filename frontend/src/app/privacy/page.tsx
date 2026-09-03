@@ -17,7 +17,7 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
 
   return (
     <div
-      className="flex flex-col h-screen w-full overflow-hidden select-none"
+      className="flex flex-col min-h-screen md:h-screen w-full overflow-hidden"
       style={{ background: t.bgPage, color: t.txtBody }}
     >
       <SEOHead
@@ -27,17 +27,17 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
       />
       {/* Sticky Header */}
       <header
-        className="shrink-0 z-10 w-full px-6 py-4 border-b flex items-center justify-between"
+        className="shrink-0 z-10 w-full px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between gap-3"
         style={{
           background: hexToRgba(t.bgSurface, t.isDark ? 0.85 : 0.95),
           borderColor: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.8),
           backdropFilter: "blur(16px)",
         }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 rounded-xl border flex items-center justify-center transition-colors cursor-pointer"
+            className="min-w-[44px] min-h-[44px] p-2 rounded-xl border flex items-center justify-center transition-colors cursor-pointer active:scale-95 shrink-0"
             style={{
               borderColor: hexToRgba(t.accentPrimary, 0.3),
               color: t.txtPrimary,
@@ -47,27 +47,27 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
           >
             <ArrowLeft size={18} />
           </button>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             <div
-              className="p-2 rounded-xl"
+              className="p-2 rounded-xl shrink-0"
               style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}
             >
               <ShieldCheck size={20} />
             </div>
-            <div>
-              <h1 className="text-base font-bold leading-none" style={{ color: t.txtPrimary }}>
-                Privacy Policy & Candidate Data Disclosures
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-base font-bold leading-none truncate" style={{ color: t.txtPrimary }}>
+                Privacy Policy
               </h1>
-              <p className="text-xs mt-1" style={{ color: t.txtMuted }}>
-                GDPR & CCPA Compliant Candidate Information Notice
+              <p className="text-[11px] sm:text-xs mt-1 truncate" style={{ color: t.txtMuted }}>
+                Candidate Data Disclosures
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <span
-            className="px-3 py-1 rounded-full text-xs font-mono font-medium border"
+            className="hidden sm:inline-block px-3 py-1 rounded-full text-xs font-mono font-medium border"
             style={{
               background: hexToRgba(t.accentPrimary, 0.1),
               borderColor: hexToRgba(t.accentPrimary, 0.3),
@@ -78,7 +78,7 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
           </span>
           <button
             onClick={() => navigate("/")}
-            className="px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-opacity hover:opacity-80"
+            className="min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all active:scale-95 flex items-center justify-center"
             style={{ background: t.accentPrimary, color: t.accentText }}
           >
             Home
@@ -87,20 +87,20 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full p-6 gap-8">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full p-4 sm:p-6 gap-4 sm:gap-8">
         {/* Table of Contents Sidebar */}
         <aside
-          className="w-full md:w-64 shrink-0 rounded-2xl p-5 border flex flex-col justify-between overflow-y-auto"
+          className="w-full md:w-64 shrink-0 rounded-2xl p-3.5 sm:p-5 border flex flex-col justify-between overflow-y-auto"
           style={G.card}
         >
           <div>
             <h3
-              className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2"
+              className="text-xs font-bold uppercase tracking-wider mb-2 sm:mb-4 flex items-center gap-2"
               style={{ color: t.txtPrimary, fontFamily: "'DM Mono', monospace" }}
             >
               <FileText size={14} style={{ color: t.accentPrimary }} /> Table of Contents
             </h3>
-            <nav className="space-y-1.5 text-xs font-medium">
+            <nav className="flex md:flex-col overflow-x-auto md:overflow-x-visible gap-1.5 no-scrollbar text-xs font-medium">
               {[
                 { id: "sec-data", label: "1. Information We Collect", icon: Lock },
                 { id: "sec-ai", label: "2. AI Processing & LLMs", icon: Cpu },
@@ -112,7 +112,7 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
                 <button
                   key={item.id}
                   onClick={() => scrollToSection(item.id)}
-                  className="w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
+                  className="whitespace-nowrap min-h-[36px] md:min-h-0 text-left px-3 py-2 rounded-xl flex items-center gap-2 transition-colors cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 shrink-0"
                   style={{ color: t.txtSecondary }}
                 >
                   <item.icon size={14} style={{ color: t.accentPrimary }} />
@@ -123,7 +123,7 @@ export default function PrivacyPage({ theme: t = PRESETS[4] }: { theme?: Theme }
           </div>
 
           <div
-            className="mt-6 p-3.5 rounded-xl border text-[11px] space-y-2"
+            className="hidden md:block mt-6 p-3.5 rounded-xl border text-[11px] space-y-2"
             style={{
               background: hexToRgba(t.bgSurface, 0.4),
               borderColor: hexToRgba(t.accentPrimary, 0.2),

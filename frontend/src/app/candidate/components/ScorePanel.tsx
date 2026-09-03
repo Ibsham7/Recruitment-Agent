@@ -25,11 +25,11 @@ export function ScorePanel({ candidate, theme: t }: ScorePanelProps) {
   ];
 
   return (
-    <div className="rounded-2xl p-6" style={G.cardWarm}>
-      <div className="text-[10px] font-semibold uppercase tracking-widest mb-5" style={{ color: t.txtMuted }}>
+    <div className="rounded-2xl p-4 sm:p-6" style={G.cardWarm}>
+      <div className="text-[10px] font-semibold uppercase tracking-widest mb-4 sm:mb-5" style={{ color: t.txtMuted }}>
         Score Breakdown
       </div>
-      <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 sm:gap-y-4 mb-6">
         {scoreMetrics.map((item) => {
           const hasVal = item.value !== null && item.value !== undefined;
           const numVal = hasVal ? (item.value as number) : 0;

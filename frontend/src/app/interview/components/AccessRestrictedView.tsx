@@ -14,8 +14,8 @@ export function AccessRestrictedView({
   const G = getGlass(t);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: t.bgPage }}>
-      <div className="w-full max-w-md rounded-3xl p-8 shadow-2xl text-center" style={G.card}>
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6" style={{ background: t.bgPage }}>
+      <div className="w-full max-w-md rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-2xl text-center" style={G.card}>
         <div
           className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
           style={{

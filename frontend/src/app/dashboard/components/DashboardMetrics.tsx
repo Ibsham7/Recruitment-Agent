@@ -6,10 +6,10 @@ import { ParticleCard } from "../../../components/common/MagicBento";
 
 export function StatCardSkeleton({ G }: { G: ReturnType<typeof getGlass> }) {
   return (
-    <div className="magic-bento-card rounded-2xl p-5 animate-pulse" style={G.cardWarm}>
-      <div className="h-3 w-24 bg-white/10 rounded mb-3" />
-      <div className="h-8 w-16 bg-white/15 rounded mb-2" />
-      <div className="h-3 w-32 bg-white/10 rounded" />
+    <div className="magic-bento-card rounded-2xl p-3.5 sm:p-5 animate-pulse" style={G.cardWarm}>
+      <div className="h-3 w-16 sm:w-24 bg-white/10 rounded mb-2 sm:mb-3" />
+      <div className="h-6 sm:h-8 w-12 sm:w-16 bg-white/15 rounded mb-1.5 sm:mb-2" />
+      <div className="h-2.5 sm:h-3 w-20 sm:w-32 bg-white/10 rounded" />
     </div>
   );
 }
@@ -68,29 +68,29 @@ export const DashboardMetrics = React.memo(
     ];
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} G={G} />)
         ) : (
           stats.map((s) => (
             <ParticleCard 
               key={s.label}
-              className="magic-bento-card magic-bento-card--border-glow rounded-2xl p-5"
+              className="magic-bento-card magic-bento-card--border-glow rounded-2xl p-3.5 sm:p-5"
               style={{ "--glow-color": glow, ...G.cardWarm } as React.CSSProperties}
               glowColor={glow} particleCount={8} enableTilt={true} clickEffect={true} enableMagnetism={true}
             >
               <div className="flex items-center justify-between mb-2">
-                <div className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>
+                <div className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider sm:tracking-widest truncate mr-1" style={{ color: t.txtMuted }} title={s.label}>
                   {s.label}
                 </div>
-                <div className="p-1.5 rounded-lg" style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6) }}>
+                <div className="p-1 sm:p-1.5 rounded-lg shrink-0" style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6) }}>
                   {s.icon}
                 </div>
               </div>
-              <div className="text-3xl font-bold leading-none mb-1.5 font-sans" style={{ color: t.numHero }}>
+              <div className="text-2xl sm:text-3xl font-bold leading-none mb-1 sm:mb-1.5 font-sans" style={{ color: t.numHero }}>
                 {s.value}
               </div>
-              <div className="text-[11px]" style={{ color: t.txtGhost }}>{s.sub}</div>
+              <div className="text-[10px] sm:text-[11px] truncate" style={{ color: t.txtGhost }} title={s.sub}>{s.sub}</div>
             </ParticleCard>
           ))
         )}

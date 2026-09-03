@@ -169,7 +169,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       style={{ background: "rgba(0, 0, 0, 0.72)", backdropFilter: "blur(8px)" }}
       role="dialog"
       aria-modal="true"
@@ -177,7 +177,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl flex flex-col overflow-hidden max-h-[90vh] shadow-2xl border transition-all animate-in fade-in zoom-in-95 duration-200"
+        className="w-full max-w-lg rounded-2xl flex flex-col overflow-hidden max-h-[92vh] sm:max-h-[90vh] shadow-2xl border transition-all animate-in fade-in zoom-in-95 duration-200"
         style={{
           background: t.bgCard,
           borderColor: hexToRgba(t.accentPrimary, 0.25),
@@ -187,31 +187,31 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
       >
         {/* Sticky Header */}
         <div
-          className="shrink-0 z-10 flex items-center justify-between px-6 py-4 border-b"
+          className="shrink-0 z-10 flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b"
           style={{
             background: t.bgCard,
             borderColor: hexToRgba(t.txtMuted, 0.15),
           }}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0 pr-2">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
               style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}
             >
               <ShieldCheck size={18} />
             </div>
-            <div>
-              <h2 id="upgrade-modal-title" className="text-base font-semibold" style={{ color: t.txtPrimary }}>
+            <div className="min-w-0">
+              <h2 id="upgrade-modal-title" className="text-sm sm:text-base font-semibold truncate" style={{ color: t.txtPrimary }}>
                 Upgrade to Paid Credits
               </h2>
-              <p className="text-xs" style={{ color: t.txtMuted }}>
+              <p className="text-[11px] sm:text-xs truncate" style={{ color: t.txtMuted }}>
                 $10 = 1,000 Credits · 1 Credit = 1 CV / 1 Action
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+            className="w-11 h-11 sm:w-8 sm:h-8 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-lg transition-colors shrink-0"
             style={{ color: t.txtMuted, background: hexToRgba(t.bgPage, 0.5) }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLElement).style.color = t.txtPrimary;
@@ -226,7 +226,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
         </div>
 
         {/* Independent Scroll Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5">
           {success ? (
             <div className="text-center py-6 space-y-4">
               <div
@@ -245,7 +245,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
               </div>
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-xl text-xs font-semibold mt-2 transition-transform active:scale-95"
+                className="px-6 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold mt-2 transition-transform active:scale-95 inline-flex items-center justify-center"
                 style={{
                   background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.8)})`,
                   color: t.accentText,
@@ -292,7 +292,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
                           setSelectedAmount(amt);
                           setIsCustom(false);
                         }}
-                        className="py-2.5 px-3 rounded-xl border text-center transition-all"
+                        className="py-2.5 px-2 sm:px-3 min-h-[44px] rounded-xl border text-center transition-all flex flex-col items-center justify-center"
                         style={{
                           background: active ? hexToRgba(t.accentBadge, 0.15) : hexToRgba(t.bgSurface, 0.4),
                           borderColor: active ? t.accentBadge : hexToRgba(t.txtMuted, 0.2),
@@ -311,7 +311,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
 
                 {/* Custom Amount Input */}
                 <div className="pt-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <input
                       type="number"
                       min="1"
@@ -323,7 +323,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
                         setIsCustom(true);
                       }}
                       onFocus={() => setIsCustom(true)}
-                      className="flex-1 px-3 py-2 rounded-xl text-xs border outline-none transition-colors"
+                      className="flex-1 px-3.5 py-2.5 h-11 min-h-[44px] sm:min-h-0 rounded-xl text-xs border outline-none transition-colors"
                       style={{
                         background: hexToRgba(t.bgSurface, 0.6),
                         borderColor: isCustom ? t.accentBadge : hexToRgba(t.txtMuted, 0.2),
@@ -331,7 +331,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
                       }}
                     />
                     <div
-                      className="px-3 py-2 rounded-xl text-xs border font-medium whitespace-nowrap"
+                      className="px-3.5 py-2.5 h-11 min-h-[44px] sm:min-h-0 rounded-xl text-xs border font-medium whitespace-nowrap text-center flex items-center justify-center"
                       style={{
                         background: hexToRgba(t.bgSurface, 0.4),
                         borderColor: hexToRgba(t.txtMuted, 0.2),
@@ -375,7 +375,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
                 />
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 relative group"
+                  className="border-2 border-dashed rounded-xl p-3.5 sm:p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 relative group min-h-[88px]"
                   style={{
                     borderColor: file ? t.accentBadge : hexToRgba(t.txtMuted, 0.25),
                     background: file ? hexToRgba(t.accentBadge, 0.05) : hexToRgba(t.bgSurface, 0.3),
@@ -450,7 +450,7 @@ export function UpgradeModal({ theme: t, isOpen, onClose, onSuccess, initialAmou
                 <button
                   type="submit"
                   disabled={uploading || !file || currentAmount <= 0}
-                  className="w-full py-3 px-4 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 sm:py-3.5 px-4 min-h-[48px] rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
                   style={{
                     background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.8)})`,
                     color: t.accentText,

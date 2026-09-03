@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { Theme, UserProfile } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { HardFilter } from "./types";
-import { CreditCard, ShieldAlert } from "lucide-react";
+import { CreditCard, ChevronDown } from "lucide-react";
 
 interface Step1SidebarProps {
   theme: Theme;
@@ -23,6 +24,7 @@ export default function Step1Sidebar({
   onOpenUpgradeModal
 }: Step1SidebarProps) {
   const G = getGlass(t);
+  const [guidanceOpen, setGuidanceOpen] = useState(false);
 
   const isFree = profile?.plan === "free";
   const campaignsCount = profile?.totalCampaignsCreated ?? 0;
@@ -32,7 +34,7 @@ export default function Step1Sidebar({
   return (
     <div className="lg:col-span-5 xl:col-span-4 space-y-6">
       {/* Account Quota & Tier Card */}
-      <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
+      <div className="rounded-2xl p-4 sm:p-6 space-y-4 border" style={G.card}>
         <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
           <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
             Account Tier & Quota
@@ -91,7 +93,7 @@ export default function Step1Sidebar({
                 <button
                   type="button"
                   onClick={onOpenUpgradeModal}
-                  className="w-full py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
+                  className="w-full min-h-[44px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
                   style={{
                     background: isFreeExhausted ? `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})` : hexToRgba(t.accentPrimary, 0.15),
                     color: isFreeExhausted ? t.accentText : t.accentPrimary,
@@ -117,7 +119,7 @@ export default function Step1Sidebar({
                 <button
                   type="button"
                   onClick={onOpenUpgradeModal}
-                  className="w-full py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
+                  className="w-full min-h-[44px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
                   style={{
                     background: hexToRgba(t.accentBadge, 0.18),
                     color: t.accentBadge,
@@ -131,7 +133,7 @@ export default function Step1Sidebar({
         </div>
       </div>
       {/* Live Campaign Preview Card */}
-      <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
+      <div className="rounded-2xl p-4 sm:p-6 space-y-4 border" style={G.card}>
         <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
           <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
             Live Campaign Overview
@@ -171,73 +173,100 @@ export default function Step1Sidebar({
         </div>
       </div>
 
-      {/* AI Screening Engine Capabilities */}
-      <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
-        <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
-            AI Screening Workflow
-          </h3>
-        </div>
-
-        <div className="space-y-3 text-xs">
-          <div className="flex items-start gap-2.5">
-            <div 
-              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
-              style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
-            >
-              1
-            </div>
-            <div>
-              <div className="font-bold" style={{ color: t.txtPrimary }}>Deep JD Vectorization</div>
-              <div className="text-[11px] mt-0.5" style={{ color: t.txtMuted }}>
-                Extracts required skills, experience thresholds, and domain responsibilities into high-dimensional embeddings.
-              </div>
-            </div>
+      {/* Mobile Guidance Accordion Trigger (< 1024px) */}
+      <div className="lg:hidden">
+        <button
+          type="button"
+          onClick={() => setGuidanceOpen(!guidanceOpen)}
+          className="w-full rounded-2xl p-4 border flex items-center justify-between transition-all min-h-[44px]"
+          style={G.card}
+        >
+          <div className="flex items-center gap-2.5 text-left">
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: t.txtPrimary }}>
+              AI Screening Guidance & Tips
+            </span>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}>
+              {guidanceOpen ? "Hide" : "Show"}
+            </span>
           </div>
-
-          <div className="flex items-start gap-2.5">
-            <div 
-              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
-              style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
-            >
-              2
-            </div>
-            <div>
-              <div className="font-bold" style={{ color: t.txtPrimary }}>Hard Rule Enforcement</div>
-              <div className="text-[11px] mt-0.5" style={{ color: t.txtMuted }}>
-                Automatically applies instant rejection or score penalties for missing mandatory qualifications.
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2.5">
-            <div 
-              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
-              style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
-            >
-              3
-            </div>
-            <div>
-              <div className="font-bold" style={{ color: t.txtPrimary }}>Multi-Dimensional Scoring</div>
-              <div className="text-[11px] mt-0.5" style={{ color: t.txtMuted }}>
-                Evaluates technical alignment, project relevance, and overall role fit on a 0-100 scale.
-              </div>
-            </div>
-          </div>
-        </div>
+          <ChevronDown 
+            size={18} 
+            className={`transition-transform duration-200 ${guidanceOpen ? 'rotate-180' : ''}`}
+            style={{ color: t.txtMuted }} 
+          />
+        </button>
       </div>
 
-      {/* Best Practices Tip Box */}
-      <div 
-        className="rounded-2xl p-4 sm:p-5 border space-y-2" 
-        style={{ background: hexToRgba(t.accentPrimary, 0.08), borderColor: hexToRgba(t.accentPrimary, 0.25) }}
-      >
-        <div className="text-xs font-bold uppercase tracking-wider" style={{ color: t.accentPrimary }}>
-          Tips for High AI Accuracy
+      {/* Guidance Cards Container: Always open on desktop (lg:block), collapsible on mobile */}
+      <div className={`${guidanceOpen ? 'block' : 'hidden'} lg:block space-y-6`}>
+        {/* AI Screening Engine Capabilities */}
+        <div className="rounded-2xl p-4 sm:p-6 space-y-4 border" style={G.card}>
+          <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
+            <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
+              AI Screening Workflow
+            </h3>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <div className="flex items-start gap-2.5">
+              <div 
+                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
+                style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
+              >
+                1
+              </div>
+              <div>
+                <div className="font-bold" style={{ color: t.txtPrimary }}>Deep JD Vectorization</div>
+                <div className="text-[11px] mt-0.5" style={{ color: t.txtMuted }}>
+                  Extracts required skills, experience thresholds, and domain responsibilities into high-dimensional embeddings.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5">
+              <div 
+                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
+                style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
+              >
+                2
+              </div>
+              <div>
+                <div className="font-bold" style={{ color: t.txtPrimary }}>Hard Rule Enforcement</div>
+                <div className="text-[11px] mt-0.5" style={{ color: t.txtMuted }}>
+                  Automatically applies instant rejection or score penalties for missing mandatory qualifications.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5">
+              <div 
+                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
+                style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
+              >
+                3
+              </div>
+              <div>
+                <div className="font-bold" style={{ color: t.txtPrimary }}>Multi-Dimensional Scoring</div>
+                <div className="text-[11px] mt-0.5" style={{ color: t.txtMuted }}>
+                  Evaluates technical alignment, project relevance, and overall role fit on a 0-100 scale.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="text-[11px] leading-relaxed" style={{ color: t.txtSecondary }}>
-          Provide clear sections for <strong>Key Responsibilities</strong> and <strong>Required Qualifications</strong> in your JD to help the AI distinguish between mandatory vs. nice-to-have skills.
-        </p>
+
+        {/* Best Practices Tip Box */}
+        <div 
+          className="rounded-2xl p-4 sm:p-5 border space-y-2" 
+          style={{ background: hexToRgba(t.accentPrimary, 0.08), borderColor: hexToRgba(t.accentPrimary, 0.25) }}
+        >
+          <div className="text-xs font-bold uppercase tracking-wider" style={{ color: t.accentPrimary }}>
+            Tips for High AI Accuracy
+          </div>
+          <p className="text-[11px] leading-relaxed" style={{ color: t.txtSecondary }}>
+            Provide clear sections for <strong>Key Responsibilities</strong> and <strong>Required Qualifications</strong> in your JD to help the AI distinguish between mandatory vs. nice-to-have skills.
+          </p>
+        </div>
       </div>
     </div>
   );

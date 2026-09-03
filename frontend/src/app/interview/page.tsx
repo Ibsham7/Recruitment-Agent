@@ -338,8 +338,8 @@ export default function InterviewPage({ theme: t }: { theme: Theme }) {
     (currentQObj?.is_adaptive || currentQObj?.isAdaptive ? 45 : 75);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: t.bgPage }}>
-      <div className="w-full max-w-2xl rounded-3xl p-8 shadow-2xl" style={G.card}>
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-6" style={{ background: t.bgPage }}>
+      <div className="w-full max-w-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-2xl" style={G.card}>
         
         {/* Top Branding Header with Step Indicator */}
         <InterviewHeader

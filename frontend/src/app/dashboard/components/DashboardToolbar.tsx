@@ -31,7 +31,7 @@ export function DashboardToolbar({
 }: DashboardToolbarProps) {
   return (
     <div 
-      className="rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4"
+      className="rounded-2xl p-3.5 sm:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4"
       style={{ background: hexToRgba(t.bgCard, t.isDark ? 0.08 : 0.35), border: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.50)}` }}
     >
       {/* Search Input */}
@@ -42,7 +42,7 @@ export function DashboardToolbar({
           placeholder="Search campaigns, roles..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-8 py-2 rounded-xl text-xs outline-none transition-all"
+          className="w-full pl-9 pr-8 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-xl text-xs outline-none transition-all"
           style={{ 
             background: hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.6), 
             color: t.txtPrimary, 
@@ -52,8 +52,9 @@ export function DashboardToolbar({
         {searchQuery && (
           <button 
             onClick={() => setSearchQuery("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md"
             style={{ color: t.txtMuted }}
+            aria-label="Clear search"
           >
             <X size={12} />
           </button>
@@ -61,7 +62,10 @@ export function DashboardToolbar({
       </div>
 
       {/* Status Filter Tabs */}
-      <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+      <div 
+        className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0 scroll-smooth -mx-0.5 px-0.5"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
         {[
           { id: "all", label: `All (${totalCampaigns})` },
           { id: "active", label: `Active (${activeCount})` },
@@ -73,7 +77,7 @@ export function DashboardToolbar({
             <button
               key={tab.id}
               onClick={() => setStatusFilter(tab.id as any)}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all"
+              className="px-3.5 py-2 min-h-[44px] rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center justify-center shrink-0 active:scale-95"
               style={{
                 background: isActive ? hexToRgba(t.accentPrimary, 0.18) : "transparent",
                 color: isActive ? t.accentPrimary : t.txtMuted,
@@ -87,12 +91,12 @@ export function DashboardToolbar({
       </div>
 
       {/* Sort Selector */}
-      <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-        <ArrowUpDown size={13} style={{ color: t.txtMuted }} />
+      <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+        <ArrowUpDown size={13} style={{ color: t.txtMuted }} className="shrink-0" />
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as any)}
-          className="py-1.5 px-3 rounded-xl text-xs font-medium outline-none cursor-pointer"
+          className="w-full md:w-auto min-h-[44px] py-2 px-3 rounded-xl text-xs font-medium outline-none cursor-pointer"
           style={{ 
             background: hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.6), 
             color: t.txtSecondary,

@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { Theme, UserProfile } from "../../../lib/types";
 import { hexToRgba, getGlass } from "../../../lib/theme";
 import { UploadTask, formatFileSize } from "./types";
-import { CreditCard, AlertCircle } from "lucide-react";
+import { CreditCard, ChevronDown } from "lucide-react";
 
 interface Step2SidebarProps {
   theme: Theme;
@@ -17,6 +18,7 @@ export default function Step2Sidebar({
   onOpenUpgradeModal 
 }: Step2SidebarProps) {
   const G = getGlass(t);
+  const [nextStepsOpen, setNextStepsOpen] = useState(false);
 
   const totalFileSize = uploadTasks.reduce((acc, task) => acc + task.file.size, 0);
   const validCount = uploadTasks.filter(t => t.status !== 'error' && t.file.size > 0).length;
@@ -38,7 +40,7 @@ export default function Step2Sidebar({
   return (
     <div className="lg:col-span-5 xl:col-span-4 space-y-6">
       {/* Campaign Cost Breakdown Card */}
-      <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
+      <div className="rounded-2xl p-4 sm:p-6 space-y-4 border" style={G.card}>
         <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
           <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
             Estimated Campaign Cost
@@ -96,7 +98,7 @@ export default function Step2Sidebar({
                 <button
                   type="button"
                   onClick={onOpenUpgradeModal}
-                  className="w-full mt-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
+                  className="w-full mt-2 min-h-[44px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
                   style={{
                     background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`,
                     color: t.accentText,
@@ -125,7 +127,7 @@ export default function Step2Sidebar({
                 <button
                   type="button"
                   onClick={onOpenUpgradeModal}
-                  className="w-full mt-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
+                  className="w-full mt-2 min-h-[44px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95"
                   style={{
                     background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.85)})`,
                     color: t.accentText,
@@ -143,7 +145,7 @@ export default function Step2Sidebar({
         </div>
       </div>
       {/* Batch Upload Summary Card */}
-      <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
+      <div className="rounded-2xl p-4 sm:p-6 space-y-4 border" style={G.card}>
         <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
           <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
             Batch Upload Status
@@ -177,56 +179,82 @@ export default function Step2Sidebar({
         </div>
       </div>
 
-      {/* AI Evaluation Pipeline Card */}
-      <div className="rounded-2xl p-5 sm:p-6 space-y-4 border" style={G.card}>
-        <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
-          <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
-            What Happens Next?
-          </h3>
-        </div>
+      {/* Mobile Next Steps Accordion Trigger (< 1024px) */}
+      <div className="lg:hidden">
+        <button
+          type="button"
+          onClick={() => setNextStepsOpen(!nextStepsOpen)}
+          className="w-full rounded-2xl p-4 border flex items-center justify-between transition-all min-h-[44px]"
+          style={G.card}
+        >
+          <div className="flex items-center gap-2.5 text-left">
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: t.txtPrimary }}>
+              What Happens Next? (Pipeline Guide)
+            </span>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: hexToRgba(t.accentPrimary, 0.15), color: t.accentPrimary }}>
+              {nextStepsOpen ? "Hide" : "Show"}
+            </span>
+          </div>
+          <ChevronDown 
+            size={18} 
+            className={`transition-transform duration-200 ${nextStepsOpen ? 'rotate-180' : ''}`}
+            style={{ color: t.txtMuted }} 
+          />
+        </button>
+      </div>
 
-        <div className="space-y-3.5 text-xs">
-          <div className="flex items-start gap-3">
-            <div 
-              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
-              style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
-            >
-              1
-            </div>
-            <div>
-              <div className="font-bold" style={{ color: t.txtPrimary }}>Resume Storage & Parsing</div>
-              <div className="text-[11px] mt-0.5 leading-normal" style={{ color: t.txtMuted }}>
-                Resumes are uploaded to encrypted cloud storage and extracted into structured candidate profiles.
-              </div>
-            </div>
+      {/* AI Evaluation Pipeline Card: Always open on desktop (lg:block), collapsible on mobile */}
+      <div className={`${nextStepsOpen ? 'block' : 'hidden'} lg:block`}>
+        <div className="rounded-2xl p-4 sm:p-6 space-y-4 border" style={G.card}>
+          <div className="border-b pb-3" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
+            <h3 className="text-sm font-bold tracking-wide uppercase" style={{ fontFamily: "'Fraunces', serif", color: t.txtPrimary }}>
+              What Happens Next?
+            </h3>
           </div>
 
-          <div className="flex items-start gap-3">
-            <div 
-              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
-              style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
-            >
-              2
-            </div>
-            <div>
-              <div className="font-bold" style={{ color: t.txtPrimary }}>Hard Filter Verification</div>
-              <div className="text-[11px] mt-0.5 leading-normal" style={{ color: t.txtMuted }}>
-                Candidate profiles are evaluated against configured mandatory skills and experience limits.
+          <div className="space-y-3.5 text-xs">
+            <div className="flex items-start gap-3">
+              <div 
+                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
+                style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
+              >
+                1
+              </div>
+              <div>
+                <div className="font-bold" style={{ color: t.txtPrimary }}>Resume Storage & Parsing</div>
+                <div className="text-[11px] mt-0.5 leading-normal" style={{ color: t.txtMuted }}>
+                  Resumes are uploaded to encrypted cloud storage and extracted into structured candidate profiles.
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-start gap-3">
-            <div 
-              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
-              style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
-            >
-              3
+            <div className="flex items-start gap-3">
+              <div 
+                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
+                style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
+              >
+                2
+              </div>
+              <div>
+                <div className="font-bold" style={{ color: t.txtPrimary }}>Hard Filter Verification</div>
+                <div className="text-[11px] mt-0.5 leading-normal" style={{ color: t.txtMuted }}>
+                  Candidate profiles are evaluated against configured mandatory skills and experience limits.
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="font-bold" style={{ color: t.txtPrimary }}>LLM Candidate Scoring</div>
-              <div className="text-[11px] mt-0.5 leading-normal" style={{ color: t.txtMuted }}>
-                AI reasoning model generates detailed candidate breakdown, skill overlap scores, and interview question suggestions.
+
+            <div className="flex items-start gap-3">
+              <div 
+                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]" 
+                style={{ background: hexToRgba(t.accentPrimary, 0.2), color: t.accentPrimary }}
+              >
+                3
+              </div>
+              <div>
+                <div className="font-bold" style={{ color: t.txtPrimary }}>LLM Candidate Scoring</div>
+                <div className="text-[11px] mt-0.5 leading-normal" style={{ color: t.txtMuted }}>
+                  AI reasoning model generates detailed candidate breakdown, skill overlap scores, and interview question suggestions.
+                </div>
               </div>
             </div>
           </div>

@@ -26,7 +26,7 @@ export function EmailVerificationCard({
 
   return (
     <div
-      className="space-y-6 text-left p-6 rounded-2xl"
+      className="space-y-4 sm:space-y-6 text-left p-4 sm:p-6 rounded-2xl"
       style={{
         background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6),
         border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}`,
@@ -56,7 +56,7 @@ export function EmailVerificationCard({
               onStartAssessment();
             }
           }}
-          className="w-full rounded-xl p-3.5 text-sm focus:outline-none"
+          className="min-h-[44px] w-full rounded-xl p-3.5 text-sm focus:outline-none"
           style={{
             color: t.txtBody,
             background: hexToRgba(t.bgSurface, t.isDark ? 0.1 : 0.8),
@@ -137,7 +137,7 @@ export function EmailVerificationCard({
       <button
         onClick={onStartAssessment}
         disabled={startingAssessment || !emailInput.trim() || !agreed}
-        className="w-full py-3.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+        className="min-h-[44px] w-full py-3 sm:py-3.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer"
         style={{
           background: t.accentPrimary,
           color: t.accentText,

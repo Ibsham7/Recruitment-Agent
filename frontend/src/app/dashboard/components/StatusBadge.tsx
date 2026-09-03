@@ -15,7 +15,7 @@ export function StatusBadge({ status, sc }: StatusBadgeProps) {
   };
   return (
     <span 
-      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize transition-all" 
+      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize transition-all shrink-0 whitespace-nowrap" 
       style={{ backgroundColor: hexToRgba(sc, 0.15), color: sc, border: `1px solid ${hexToRgba(sc, 0.35)}` }}
     >
       {icons[status] || icons.active}

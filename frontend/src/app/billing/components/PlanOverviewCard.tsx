@@ -52,7 +52,7 @@ export function PlanOverviewCard({
 
   return (
     <div
-      className="rounded-3xl p-6 sm:p-8 w-full border relative overflow-hidden shadow-xl"
+      className="rounded-2xl sm:rounded-3xl p-4 sm:p-8 w-full border relative overflow-hidden shadow-xl"
       style={{
         ...G.cardWarm,
         borderColor: isFree
@@ -259,7 +259,7 @@ export function PlanOverviewCard({
                 <button
                   type="button"
                   onClick={() => onOpenUpgradeModal(10)}
-                  className="flex-1 min-w-[80px] p-2.5 rounded-xl border text-center transition-all hover:scale-105 active:scale-95"
+                  className="flex-1 min-w-[70px] min-h-[44px] p-2 sm:p-2.5 rounded-xl border text-center transition-all hover:scale-105 active:scale-95 flex flex-col items-center justify-center cursor-pointer"
                   style={{
                     background: hexToRgba(t.bgPage, 0.6),
                     borderColor: hexToRgba(t.txtMuted, 0.2),
@@ -273,7 +273,7 @@ export function PlanOverviewCard({
                 <button
                   type="button"
                   onClick={() => onOpenUpgradeModal(20)}
-                  className="flex-1 min-w-[80px] p-2.5 rounded-xl border text-center transition-all hover:scale-105 active:scale-95"
+                  className="flex-1 min-w-[70px] min-h-[44px] p-2 sm:p-2.5 rounded-xl border text-center transition-all hover:scale-105 active:scale-95 flex flex-col items-center justify-center cursor-pointer"
                   style={{
                     background: hexToRgba(t.bgPage, 0.6),
                     borderColor: hexToRgba(t.txtMuted, 0.2),
@@ -287,7 +287,7 @@ export function PlanOverviewCard({
                 <button
                   type="button"
                   onClick={() => onOpenUpgradeModal(50)}
-                  className="flex-1 min-w-[80px] p-2.5 rounded-xl border text-center transition-all hover:scale-105 active:scale-95"
+                  className="flex-1 min-w-[70px] min-h-[44px] p-2 sm:p-2.5 rounded-xl border text-center transition-all hover:scale-105 active:scale-95 flex flex-col items-center justify-center cursor-pointer"
                   style={{
                     background: hexToRgba(t.bgPage, 0.6),
                     borderColor: hexToRgba(t.txtMuted, 0.2),
@@ -301,7 +301,7 @@ export function PlanOverviewCard({
                 <button
                   type="button"
                   onClick={() => onOpenUpgradeModal(10)}
-                  className="px-5 py-3 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg transition-all active:scale-95 whitespace-nowrap"
+                  className="min-h-[44px] w-full sm:w-auto px-5 py-2.5 sm:py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 whitespace-nowrap cursor-pointer"
                   style={{
                     background: `linear-gradient(135deg, ${t.accentBadge}, ${hexToRgba(t.accentBadge, 0.85)})`,
                     color: "#ffffff",

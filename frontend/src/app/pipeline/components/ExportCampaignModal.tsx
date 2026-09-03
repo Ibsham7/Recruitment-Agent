@@ -70,50 +70,51 @@ export function ExportCampaignModal({ isOpen, onClose, campaign, candidates, the
       >
         {/* Sticky Header */}
         <div
-          className="shrink-0 z-10 px-6 py-5 flex items-center justify-between border-b"
+          className="shrink-0 z-10 px-4 sm:px-6 py-3.5 sm:py-5 flex items-center justify-between border-b"
           style={{
             borderColor: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6),
             background: hexToRgba(t.bgPage, t.isDark ? 0.4 : 0.7),
           }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <div
-              className="p-2.5 rounded-2xl flex items-center justify-center"
+              className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0"
               style={{
                 background: hexToRgba(t.accentPrimary, 0.15),
                 color: t.accentPrimary,
                 border: `1px solid ${hexToRgba(t.accentPrimary, 0.3)}`,
               }}
             >
-              <Download size={20} />
+              <Download size={18} />
             </div>
             <div>
-              <h3 className="text-xl font-bold flex items-center gap-2" style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary }}>
-                Export Campaign Report & Data
+              <h3 className="text-base sm:text-xl font-bold flex items-center gap-2" style={{ fontFamily: "'Fraunces',serif", color: t.txtPrimary }}>
+                Export Campaign Report
               </h3>
-              <p className="text-xs" style={{ color: t.txtMuted }}>
-                Download all candidate fit scores, score breakdowns, XAI strengths, concerns & AI reasoning
+              <p className="text-[11px] sm:text-xs line-clamp-1" style={{ color: t.txtMuted }}>
+                Download candidate fit scores, breakdowns & reasoning
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl transition-all cursor-pointer hover:scale-105"
+            className="min-w-[44px] min-h-[44px] p-2 rounded-xl transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center shrink-0"
             style={{
               background: hexToRgba(t.bgCard, 0.5),
               color: t.txtMuted,
             }}
+            aria-label="Close modal"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Campaign Stats Pill Banner */}
           <div
-            className="p-4 rounded-2xl flex items-center justify-between text-xs"
+            className="p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
             style={{
               background: hexToRgba(t.accentPrimary, 0.08),
               border: `1px solid ${hexToRgba(t.accentPrimary, 0.2)}`,
@@ -121,8 +122,8 @@ export function ExportCampaignModal({ isOpen, onClose, campaign, candidates, the
           >
             <div>
               <div className="font-semibold text-sm mb-0.5" style={{ color: t.txtPrimary }}>{campaign.title}</div>
-              <div className="flex items-center gap-3 font-medium" style={{ color: t.txtSecondary }}>
-                <span>Total Candidates: <strong style={{ color: t.numHero }}>{totalCandidates}</strong></span>
+              <div className="flex items-center gap-2 sm:gap-3 font-medium flex-wrap" style={{ color: t.txtSecondary }}>
+                <span>Total: <strong style={{ color: t.numHero }}>{totalCandidates}</strong></span>
                 <span>•</span>
                 <span>Evaluated: <strong style={{ color: t.numPos }}>{processedCandidates}</strong></span>
                 <span>•</span>
@@ -229,22 +230,22 @@ export function ExportCampaignModal({ isOpen, onClose, campaign, candidates, the
 
           {/* Quick Dual Download Banner */}
           <div
-            className="p-4 rounded-2xl flex items-center justify-between"
+            className="p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
             style={{
               background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.5),
               border: `1px dashed ${hexToRgba(t.accentPrimary, 0.3)}`,
             }}
           >
             <div className="flex items-center gap-3">
-              <FolderArchive size={20} style={{ color: t.accentBadge }} />
+              <FolderArchive size={20} className="shrink-0" style={{ color: t.accentBadge }} />
               <div>
                 <div className="text-xs font-bold" style={{ color: t.txtPrimary }}>Want both formats?</div>
-                <div className="text-[11px]" style={{ color: t.txtMuted }}>Download both Markdown (.md) report and JSON (.json) dataset simultaneously.</div>
+                <div className="text-[11px]" style={{ color: t.txtMuted }}>Download Markdown report and JSON dataset simultaneously.</div>
               </div>
             </div>
             <button
               onClick={handleDownloadBoth}
-              className="px-4 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105"
+              className="min-h-[44px] w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 hover:scale-105 active:scale-95"
               style={{
                 background: hexToRgba(t.accentBadge, 0.15),
                 color: t.accentBadge,
@@ -258,7 +259,7 @@ export function ExportCampaignModal({ isOpen, onClose, campaign, candidates, the
 
         {/* Footer */}
         <div
-          className="shrink-0 px-6 py-4 border-t flex justify-end"
+          className="shrink-0 px-4 sm:px-6 py-3.5 sm:py-4 border-t flex justify-end"
           style={{
             borderColor: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6),
             background: hexToRgba(t.bgPage, t.isDark ? 0.4 : 0.7),
@@ -266,7 +267,7 @@ export function ExportCampaignModal({ isOpen, onClose, campaign, candidates, the
         >
           <button
             onClick={onClose}
-            className="px-5 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-all"
+            className="min-h-[44px] w-full sm:w-auto px-6 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-all flex items-center justify-center active:scale-95"
             style={{
               background: hexToRgba(t.bgCard, 0.6),
               color: t.txtSecondary,

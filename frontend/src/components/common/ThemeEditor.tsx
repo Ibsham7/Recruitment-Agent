@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { RotateCcw, X, Moon, Sun } from "lucide-react";
 import { Theme } from "../../lib/types";
 import { PRESETS, hexToRgba, hexToRgb } from "../../lib/theme";
@@ -29,6 +29,26 @@ function TokenRow({ label, value, onChange, txtMuted, txtGhost, cardBg, isDark }
 export function ThemeEditor({ theme, onThemeChange, onClose }: { theme: Theme; onThemeChange: (t: Theme) => void; onClose: () => void }) {
   const set = (key: keyof Theme, value: string | boolean) => onThemeChange({ ...theme, [key]: value });
 
+  // Escape key handler for keyboard dismissal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  // Lock background body scroll when editor is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   const groups: { label: string; tokens: { key: keyof Theme; label: string }[] }[] = [
     { label: "Backgrounds", tokens: [
       { key: "bgPage",    label: "Page" },
@@ -57,27 +77,47 @@ export function ThemeEditor({ theme, onThemeChange, onClose }: { theme: Theme; o
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex justify-end" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()}
-        className="h-full w-[360px] flex flex-col overflow-hidden"
-        style={{ background: hexToRgba(theme.bgSurface, theme.isDark ? 0.96 : 0.97), backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: `1px solid ${hexToRgba(theme.bgCard, theme.isDark ? 0.15 : 0.60)}`, boxShadow: theme.isDark ? "-20px 0 60px rgba(0,0,0,0.50)" : "-20px 0 60px rgba(0,0,0,0.12)" }}>
+    <div
+      className="fixed inset-0 z-[100] flex justify-end bg-black/60 backdrop-blur-xs transition-opacity"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Theme Editor"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="h-full w-full max-w-[360px] flex flex-col overflow-hidden shadow-2xl relative animate-in slide-in-from-right duration-200"
+        style={{
+          background: hexToRgba(theme.bgSurface, theme.isDark ? 0.96 : 0.97),
+          backdropFilter: "blur(40px)",
+          WebkitBackdropFilter: "blur(40px)",
+          borderLeft: `1px solid ${hexToRgba(theme.bgCard, theme.isDark ? 0.15 : 0.60)}`,
+          boxShadow: theme.isDark ? "-20px 0 60px rgba(0,0,0,0.50)" : "-20px 0 60px rgba(0,0,0,0.12)"
+        }}
+      >
 
-        {/* Header */}
-        <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: `1px solid ${hexToRgba(theme.bgCard, theme.isDark ? 0.12 : 0.50)}` }}>
+        {/* Sticky Header & Fixed Controls */}
+        <div className="px-5 py-4 flex items-center justify-between flex-shrink-0 shrink-0 z-10" style={{ borderBottom: `1px solid ${hexToRgba(theme.bgCard, theme.isDark ? 0.12 : 0.50)}` }}>
           <div>
             <div className="text-sm font-semibold" style={{ color: theme.txtPrimary }}>Theme Editor</div>
             <div className="text-[11px]" style={{ color: theme.txtMuted }}>Changes apply live</div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => onThemeChange(PRESETS.find(p => p.name === theme.name) ?? PRESETS[0])}
-              className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
+            <button
+              onClick={() => onThemeChange(PRESETS.find(p => p.name === theme.name) ?? PRESETS[0])}
+              className="min-w-[44px] min-h-[44px] sm:min-w-[32px] sm:min-h-[32px] sm:w-8 sm:h-8 flex items-center justify-center rounded-lg transition-all active:scale-95"
               title="Reset to preset defaults"
+              aria-label="Reset to preset defaults"
               style={{ background: hexToRgba(theme.bgCard, theme.isDark ? 0.10 : 0.40), color: theme.txtMuted }}>
-              <RotateCcw size={12} />
+              <RotateCcw size={13} />
             </button>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
+            <button
+              onClick={onClose}
+              className="min-w-[44px] min-h-[44px] sm:min-w-[32px] sm:min-h-[32px] sm:w-8 sm:h-8 flex items-center justify-center rounded-lg transition-all active:scale-95"
+              title="Close theme editor"
+              aria-label="Close theme editor"
               style={{ background: hexToRgba(theme.bgCard, theme.isDark ? 0.10 : 0.40), color: theme.txtMuted }}>
-              <X size={13} />
+              <X size={15} />
             </button>
           </div>
         </div>

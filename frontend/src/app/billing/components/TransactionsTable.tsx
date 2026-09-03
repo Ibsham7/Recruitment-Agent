@@ -402,8 +402,71 @@ export function TransactionsTable({
         </div>
       )}
 
-      {/* Main Table Content */}
-      <div className="w-full overflow-x-auto">
+      {/* Mobile Card List (md:hidden) */}
+      {!loading && paginatedTransactions.length > 0 && (
+        <div className="md:hidden p-4 space-y-3">
+          {paginatedTransactions.map((tx) => {
+            const { datePart, timePart } = formatDate(tx.createdAt);
+            const isPositive = tx.credits > 0;
+            const isNegative = tx.credits < 0;
+            const formattedCredits = isPositive
+              ? `+${tx.credits.toLocaleString()}`
+              : tx.credits.toLocaleString();
+
+            return (
+              <div
+                key={tx.id}
+                className="p-3.5 rounded-xl border space-y-2"
+                style={{
+                  background: hexToRgba(t.bgPage, 0.4),
+                  borderColor: hexToRgba(t.txtMuted, 0.15),
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold" style={{ color: t.txtPrimary }}>
+                    {datePart} <span className="text-[10px] font-normal" style={{ color: t.txtMuted }}>({timePart})</span>
+                  </div>
+                  {renderTypeBadge(tx.type)}
+                </div>
+
+                <div className="text-xs font-medium leading-relaxed" style={{ color: t.txtBody }}>
+                  {tx.description}
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-700/15">
+                  <span
+                    className="font-bold font-mono text-sm"
+                    style={{
+                      color: isPositive ? t.numPos : isNegative ? t.numNeg : t.txtSecondary,
+                    }}
+                  >
+                    {formattedCredits}{" "}
+                    <span className="text-[10px] font-normal opacity-80 font-sans">
+                      {Math.abs(tx.credits) === 1 ? "credit" : "credits"}
+                    </span>
+                  </span>
+
+                  {tx.relatedEntityId && (
+                    <span
+                      className="text-[10px] font-mono px-1.5 py-0.5 rounded border"
+                      style={{
+                        background: hexToRgba(t.bgSurface, 0.6),
+                        borderColor: hexToRgba(t.txtMuted, 0.2),
+                        color: t.txtSecondary,
+                      }}
+                    >
+                      {tx.relatedEntityId.length > 10 ? `${tx.relatedEntityId.slice(0, 8)}...` : tx.relatedEntityId}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Main Table Content (hidden md:block) */}
+      <div className="hidden md:block w-full overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[700px]">
           <thead>
             <tr

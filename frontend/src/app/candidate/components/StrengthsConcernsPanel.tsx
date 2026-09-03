@@ -57,9 +57,9 @@ export function StrengthsConcernsPanel({ strengths, concerns, theme: t }: Streng
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {columns.map((col) => (
-        <div key={col.title} className="rounded-2xl p-5" style={G.card}>
+        <div key={col.title} className="rounded-2xl p-4 sm:p-5" style={G.card}>
           <div className="flex items-center gap-2 mb-3">
             <span style={{ color: col.color }}>{col.icon}</span>
             <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.txtMuted }}>

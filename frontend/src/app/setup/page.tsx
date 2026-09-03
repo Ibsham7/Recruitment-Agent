@@ -11,6 +11,7 @@ import {
   UploadTask, 
   HardFilter, 
   validateFile, 
+  generateUUID,
   DEFAULT_TITLE, 
   DEFAULT_JD 
 } from "./components/types";
@@ -26,7 +27,7 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useAuth();
 
-  const [campaignId] = useState(() => crypto.randomUUID());
+  const [campaignId] = useState(() => generateUUID());
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState(DEFAULT_TITLE);
   const [jd, setJd] = useState(DEFAULT_JD);
@@ -263,9 +264,9 @@ export default function SetupPage({ theme: t }: { theme: Theme }) {
         jd={jd} 
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Step Indicator */}
-        <div className="flex items-center gap-4 border-b pb-4" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
+        {/* Step Indicator - Hidden on mobile (<768px) to eliminate vertical waste, unified in SetupHeader */}
+        <div className="hidden md:flex items-center gap-4 border-b pb-4" style={{ borderColor: hexToRgba(t.txtGhost, 0.15) }}>
           <button 
             onClick={() => setStep(1)} 
             className={`flex items-center gap-2 text-sm font-bold transition-all px-3 py-1.5 rounded-lg ${step === 1 ? 'shadow-sm' : 'opacity-60 hover:opacity-100'}`}

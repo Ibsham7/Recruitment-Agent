@@ -26,10 +26,10 @@ export function BillingToolbar({
       }}
     >
       {/* Tab Switcher */}
-      <div className="flex items-center gap-2 w-full md:w-auto">
+      <div className="flex items-center gap-1.5 sm:gap-2 w-full md:w-auto overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab("requests")}
-          className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all"
+          className="min-h-[44px] flex-1 md:flex-initial px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-95 whitespace-nowrap cursor-pointer"
           style={{
             background: activeTab === "requests" ? hexToRgba(t.accentPrimary, 0.2) : "transparent",
             color: activeTab === "requests" ? t.accentPrimary : t.txtMuted,
@@ -37,12 +37,12 @@ export function BillingToolbar({
           }}
         >
           <Receipt size={14} />
-          <span>Credit Purchase Requests</span>
+          <span>Purchase Requests</span>
         </button>
 
         <button
           onClick={() => setActiveTab("transactions")}
-          className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all"
+          className="min-h-[44px] flex-1 md:flex-initial px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-95 whitespace-nowrap cursor-pointer"
           style={{
             background: activeTab === "transactions" ? hexToRgba(t.accentPrimary, 0.2) : "transparent",
             color: activeTab === "transactions" ? t.accentPrimary : t.txtMuted,
@@ -50,7 +50,7 @@ export function BillingToolbar({
           }}
         >
           <History size={14} />
-          <span>Transaction Audit Ledger</span>
+          <span>Audit Ledger</span>
         </button>
       </div>
 
@@ -62,7 +62,7 @@ export function BillingToolbar({
           placeholder="Search history, description..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-8 py-2 rounded-xl text-xs outline-none transition-all"
+          className="min-h-[44px] w-full pl-9 pr-8 py-2 rounded-xl text-xs outline-none transition-all"
           style={{
             background: hexToRgba(t.bgCard, t.isDark ? 0.15 : 0.6),
             color: t.txtPrimary,

@@ -253,7 +253,7 @@ export function AdminStatsTab({ theme: t, onNavigateTab }: AdminStatsTabProps) {
 
           <button
             onClick={() => onNavigateTab?.("requests")}
-            className="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 self-start sm:self-center transition-all hover:scale-105 active:scale-95 shadow-md"
+            className="min-h-[44px] w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shrink-0 self-start sm:self-center transition-all hover:scale-105 active:scale-95 shadow-md cursor-pointer"
             style={{
               background: t.numMid,
               color: "#000000",
@@ -283,8 +283,8 @@ export function AdminStatsTab({ theme: t, onNavigateTab }: AdminStatsTabProps) {
         </div>
       )}
 
-      {/* Top-Level KPI Metric Cards (4 Bento Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Top-Level KPI Metric Cards (2x2 on mobile, 4-col on desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Platform Revenue */}
         <ParticleCard
           className="magic-bento-card magic-bento-card--border-glow rounded-2xl p-5 border relative overflow-hidden"

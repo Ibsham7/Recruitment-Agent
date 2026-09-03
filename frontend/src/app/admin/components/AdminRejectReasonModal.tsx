@@ -168,11 +168,11 @@ export function AdminRejectReasonModal({
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors disabled:opacity-50"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl transition-all active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
             style={{ color: t.txtMuted, background: hexToRgba(t.bgPage, 0.5) }}
             aria-label="Close rejection modal"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
@@ -331,7 +331,7 @@ export function AdminRejectReasonModal({
 
           {/* Sticky Modal Action Footer */}
           <div
-            className="shrink-0 z-10 px-6 py-4 border-t flex items-center justify-end gap-3"
+            className="shrink-0 z-10 px-4 sm:px-6 py-3 sm:py-4 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3"
             style={{
               background: t.bgCard,
               borderColor: hexToRgba(t.txtMuted, 0.15),
@@ -341,7 +341,7 @@ export function AdminRejectReasonModal({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl text-xs font-medium border transition-colors disabled:opacity-50"
+              className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-medium border transition-colors disabled:opacity-50 flex items-center justify-center cursor-pointer"
               style={{
                 borderColor: hexToRgba(t.txtMuted, 0.25),
                 color: t.txtSecondary,
@@ -353,7 +353,7 @@ export function AdminRejectReasonModal({
             <button
               type="submit"
               disabled={isSubmitting || !reason.trim()}
-              className="px-5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] px-5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               style={{
                 background: `linear-gradient(135deg, ${t.numNeg}, ${hexToRgba(t.numNeg, 0.85)})`,
                 color: "#FFFFFF",

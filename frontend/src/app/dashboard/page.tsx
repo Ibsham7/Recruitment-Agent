@@ -100,7 +100,7 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
           return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
         }
         if (sortBy === "oldest") {
-          return new Date(a.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
         }
         if (sortBy === "candidates") {
           return (b.total || 0) - (a.total || 0);
@@ -120,7 +120,7 @@ export default function DashboardPage({ theme: t }: { theme: Theme }) {
   return (
     <div 
       ref={gridRef} 
-      className="bento-section p-6 lg:p-8 w-full min-h-full max-w-[1600px] mx-auto space-y-6"
+      className="bento-section p-4 sm:p-6 lg:p-8 w-full min-h-full max-w-[1600px] mx-auto space-y-4 sm:space-y-6"
       style={{ background: t.bgPage }}
     >
       <GlobalSpotlight gridRef={gridRef} glowColor={glow} spotlightRadius={300} isDark={t.isDark} />

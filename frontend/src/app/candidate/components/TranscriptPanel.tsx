@@ -12,7 +12,7 @@ export function TranscriptPanel({ transcript, candidateName, theme: t }: Transcr
   const G = getGlass(t);
 
   return (
-    <div className="w-80 flex flex-col flex-shrink-0">
+    <div className="w-full h-full flex flex-col flex-shrink-0">
       <div
         className="px-5 py-4 flex-shrink-0"
         style={{ ...G.bar, borderBottom: `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.50)}` }}

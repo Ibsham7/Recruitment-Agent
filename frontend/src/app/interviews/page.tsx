@@ -198,16 +198,16 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
   const countCompleted = candidates.filter((c) => ["interview_completed", "review", "complete", "finalized"].includes(c.status)).length;
 
   return (
-    <div ref={gridRef} className="bento-section p-8 min-h-screen">
+    <div ref={gridRef} className="bento-section p-4 sm:p-6 lg:p-8 min-h-screen">
       <GlobalSpotlight gridRef={gridRef} glowColor={glow} spotlightRadius={300} isDark={t.isDark} />
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: t.accentPrimary }}>
             Technical Candidate Evaluation Engine
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
+          <h1 className="text-xl sm:text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
             Candidate Interview Portal
           </h1>
           <p className="text-xs" style={{ color: t.txtMuted }}>
@@ -216,7 +216,7 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           <button
             onClick={() => {
               if (campaigns.length > 0 && !configCampaignId) {
@@ -225,7 +225,7 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
               }
               setIsConfigModalOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer hover:opacity-90 active:scale-95"
+            className="min-h-[44px] flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer hover:opacity-90 active:scale-95"
             style={{
               background: hexToRgba(t.accentPrimary, 0.12),
               border: `1px solid ${hexToRgba(t.accentPrimary, 0.35)}`,
@@ -233,14 +233,14 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
             }}
           >
             <Sliders size={15} />
-            Interview Configuration
+            <span>Interview Configuration</span>
           </button>
 
           {selectedIds.length > 0 && (
             <button
               onClick={() => handleSendInvitations()}
               disabled={sending}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-semibold transition-all shadow-lg cursor-pointer"
+              className="min-h-[44px] flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-lg cursor-pointer active:scale-95"
               style={{
                 background: `linear-gradient(135deg, ${t.accentPrimary}, ${hexToRgba(t.accentPrimary, 0.8)})`,
                 color: t.accentText,
@@ -248,7 +248,7 @@ export default function InterviewsPage({ theme: t }: { theme: Theme }) {
               }}
             >
               {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-              Send Invitations ({selectedIds.length} Selected)
+              <span>Send Invitations ({selectedIds.length})</span>
             </button>
           )}
         </div>

@@ -63,22 +63,22 @@ export function ScheduleConfigModal({
       >
         {/* Sticky Header Bar */}
         <div
-          className="shrink-0 flex items-center justify-between p-6 border-b z-10"
+          className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-b z-10"
           style={{
             borderColor: hexToRgba(t.txtPrimary, 0.1),
             background: hexToRgba(t.isDark ? t.bgSurface : t.bgCard, 0.95),
             backdropFilter: "blur(8px)"
           }}
         >
-          <div>
+          <div className="min-w-0 pr-2">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-1" style={{ color: t.accentPrimary }}>
               <Sliders size={14} /> Campaign Settings
             </div>
-            <h2 id="config-modal-title" className="text-xl md:text-2xl font-bold" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
-              Interview Focus & Custom Questions
+            <h2 id="config-modal-title" className="text-lg sm:text-2xl font-bold truncate" style={{ color: t.txtPrimary, fontFamily: "'Fraunces', serif" }}>
+              Interview Focus
             </h2>
-            <p className="text-xs font-medium mt-0.5" style={{ color: t.txtSecondary }}>
-              Specify topics or specific questions for candidate technical interviews on the /interviews portal
+            <p className="text-xs font-medium mt-0.5 truncate" style={{ color: t.txtSecondary }}>
+              Custom questions & topics for candidate interviews
             </p>
           </div>
 
@@ -86,7 +86,7 @@ export function ScheduleConfigModal({
           <button
             onClick={onClose}
             aria-label="Close configuration modal"
-            className="p-2.5 rounded-full transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0"
+            className="min-w-[44px] min-h-[44px] p-2.5 rounded-full transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0 flex items-center justify-center"
             style={{ color: t.txtSecondary, background: hexToRgba(t.txtPrimary, 0.08), border: `1px solid ${hexToRgba(t.txtPrimary, 0.12)}` }}
           >
             <X size={20} />
@@ -184,7 +184,7 @@ export function ScheduleConfigModal({
 
         {/* Sticky Recruiter Action Footer */}
         <div
-          className="shrink-0 flex items-center justify-between p-5 border-t z-10"
+          className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 sm:p-5 border-t z-10"
           style={{
             borderColor: hexToRgba(t.txtPrimary, 0.1),
             background: hexToRgba(t.isDark ? t.bgSurface : t.bgCard, 0.95),
@@ -194,17 +194,17 @@ export function ScheduleConfigModal({
           <button
             onClick={() => setConfigText("")}
             type="button"
-            className="text-xs font-semibold px-3 py-2 rounded-lg transition-colors cursor-pointer hover:opacity-80"
+            className="min-h-[44px] sm:min-h-0 text-xs font-semibold px-3 py-2 rounded-lg transition-colors cursor-pointer hover:opacity-80 flex items-center justify-center"
             style={{ color: t.txtMuted }}
           >
             Clear Rules
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <button
               onClick={onClose}
               disabled={savingConfig}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer hover:opacity-90"
+              className="min-h-[44px] flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer hover:opacity-90 active:scale-95 flex items-center justify-center"
               style={{ background: hexToRgba(t.txtPrimary, 0.08), color: t.txtPrimary, border: `1px solid ${hexToRgba(t.txtPrimary, 0.18)}` }}
             >
               Cancel
@@ -212,7 +212,7 @@ export function ScheduleConfigModal({
             <button
               onClick={handleSaveInterviewConfig}
               disabled={savingConfig || !configCampaignId}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] flex-[1.5] sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
               style={{ background: t.accentPrimary, color: t.accentText, boxShadow: `0 4px 16px ${hexToRgba(t.accentPrimary, 0.35)}` }}
             >
               {savingConfig ? <Loader2 size={14} className="animate-spin" /> : <Sliders size={14} />}

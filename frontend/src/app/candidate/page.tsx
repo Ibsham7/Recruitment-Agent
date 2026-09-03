@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams } from "react-router";
 import { Theme, Candidate } from "../../lib/types";
 import { hexToRgba } from "../../lib/theme";
@@ -21,6 +22,7 @@ import {
 
 export default function CandidatePage({ theme: t }: { theme: Theme }) {
   const { id } = useParams<{ id: string }>();
+  const [mobileTab, setMobileTab] = useState<"evaluation" | "transcript">("evaluation");
 
   const { candidate, campaign, isLoading } = useCandidateDetail(id);
 
@@ -57,9 +59,43 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
     <div className="flex flex-col h-full overflow-hidden">
       <CandidateHeader candidate={candidate} theme={t} />
 
+      {/* Mobile Tab Switcher when interview data exists */}
+      {hasInterviewData && (
+        <div
+          className="lg:hidden flex items-center px-4 py-2 border-b gap-2 flex-shrink-0"
+          style={{
+            borderColor: hexToRgba(t.txtGhost, 0.15),
+            background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.4),
+          }}
+        >
+          <button
+            onClick={() => setMobileTab("evaluation")}
+            className="min-h-[40px] flex-1 py-1.5 px-3 text-xs font-semibold rounded-xl transition-all active:scale-95"
+            style={{
+              background: mobileTab === "evaluation" ? hexToRgba(t.accentPrimary, 0.22) : "transparent",
+              color: mobileTab === "evaluation" ? t.accentPrimary : t.txtMuted,
+              border: `1px solid ${mobileTab === "evaluation" ? hexToRgba(t.accentPrimary, 0.35) : "transparent"}`,
+            }}
+          >
+            Candidate Evaluation
+          </button>
+          <button
+            onClick={() => setMobileTab("transcript")}
+            className="min-h-[40px] flex-1 py-1.5 px-3 text-xs font-semibold rounded-xl transition-all active:scale-95"
+            style={{
+              background: mobileTab === "transcript" ? hexToRgba(t.accentPrimary, 0.22) : "transparent",
+              color: mobileTab === "transcript" ? t.accentPrimary : t.txtMuted,
+              border: `1px solid ${mobileTab === "transcript" ? hexToRgba(t.accentPrimary, 0.35) : "transparent"}`,
+            }}
+          >
+            Transcript ({candidate.transcript?.length || 0})
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 flex overflow-hidden">
         <div
-          className="flex-1 overflow-y-auto p-8 space-y-5"
+          className={`${hasInterviewData && mobileTab === "transcript" ? "hidden lg:block" : "block"} flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-5`}
           style={{ borderRight: hasInterviewData ? `1px solid ${hexToRgba(t.bgCard, t.isDark ? 0.10 : 0.45)}` : undefined }}
         >
           {hasInterviewData && <ScorePanel candidate={candidate} theme={t} />}
@@ -72,9 +108,10 @@ export default function CandidatePage({ theme: t }: { theme: Theme }) {
           {!isStage3Exit && <StrengthsConcernsPanel strengths={candidate.strengths || []} concerns={candidate.concerns || []} theme={t} />}
         </div>
 
-
         {hasInterviewData && (
-          <TranscriptPanel transcript={candidate.transcript || []} candidateName={candidate.name} theme={t} />
+          <div className={`${mobileTab === "transcript" ? "flex" : "hidden lg:flex"} w-full lg:w-80 flex-shrink-0 flex-col overflow-hidden`}>
+            <TranscriptPanel transcript={candidate.transcript || []} candidateName={candidate.name} theme={t} />
+          </div>
         )}
       </div>
 

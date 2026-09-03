@@ -297,26 +297,118 @@ export function CreditRequestsTable({
           )}
         </div>
       ) : (
-        /* Data Table */
-        <div className="rounded-2xl overflow-hidden shadow-xl border" style={G.card}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px]">
-              <thead>
-                <tr
+        <div>
+          {/* Mobile Card List (md:hidden) */}
+          <div className="md:hidden space-y-3">
+            {filteredRequests.map((req) => {
+              const creditsEarned = req.creditsAllocated || Math.floor(req.amount * 100);
+
+              return (
+                <div
+                  key={req.id}
+                  className="p-4 rounded-2xl border space-y-3 shadow-md"
                   style={{
                     background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6),
-                    borderBottom: `1px solid ${hexToRgba(t.bgCard, 0.3)}`,
+                    borderColor: hexToRgba(t.bgCard, 0.3),
                   }}
                 >
-                  <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Date & ID</th>
-                  <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Amount</th>
-                  <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Credits</th>
-                  <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Receipt Proof</th>
-                  <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Status</th>
-                  <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Reviewed Date</th>
-                  <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Notes / Reason</th>
-                </tr>
-              </thead>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-semibold" style={{ color: t.txtPrimary }}>
+                        {formatDate(req.createdAt)}
+                      </div>
+                      <div className="text-[10px] font-mono" style={{ color: t.txtMuted }}>
+                        #{req.id.slice(0, 8)}
+                      </div>
+                    </div>
+                    {renderStatusBadge(req.status)}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-700/15">
+                    <div>
+                      <span className="text-[10px] uppercase block" style={{ color: t.txtGhost }}>Amount</span>
+                      <span className="font-bold font-mono text-sm" style={{ color: t.txtPrimary }}>
+                        ${req.amount.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase block" style={{ color: t.txtGhost }}>Credits</span>
+                      <span
+                        className="font-bold font-mono text-sm"
+                        style={{
+                          color: req.status === "rejected" ? t.txtMuted : t.numPos,
+                        }}
+                      >
+                        +{creditsEarned.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {req.status === "rejected" && req.rejectionReason && (
+                    <div
+                      className="p-2.5 rounded-xl text-xs leading-snug border"
+                      style={{
+                        background: hexToRgba(t.numNeg, 0.1),
+                        borderColor: hexToRgba(t.numNeg, 0.25),
+                        color: t.numNeg,
+                      }}
+                    >
+                      <span className="font-semibold block text-[10px] uppercase">Rejection Reason:</span>
+                      {req.rejectionReason}
+                    </div>
+                  )}
+
+                  {req.screenshotUrl && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewData({
+                          url: req.screenshotUrl,
+                          title: `Payment Receipt — $${req.amount.toFixed(2)}`,
+                          metadata: {
+                            amount: req.amount,
+                            date: formatDate(req.createdAt),
+                            status: req.status,
+                            requestId: req.id,
+                          },
+                        })
+                      }
+                      className="min-h-[44px] w-full px-3 py-2 rounded-xl text-xs font-semibold border transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                      style={{
+                        borderColor: hexToRgba(t.accentBadge, 0.35),
+                        background: hexToRgba(t.accentBadge, 0.1),
+                        color: t.accentBadge,
+                      }}
+                    >
+                      <Eye size={14} />
+                      <span>View Receipt Proof</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View (hidden md:block) */}
+          <div className="hidden md:block rounded-2xl overflow-hidden shadow-xl border" style={G.card}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr
+                    style={{
+                      background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6),
+                      borderBottom: `1px solid ${hexToRgba(t.bgCard, 0.3)}`,
+                    }}
+                  >
+                    <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Date & ID</th>
+                    <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Amount</th>
+                    <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Credits</th>
+                    <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Receipt Proof</th>
+                    <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Status</th>
+                    <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Reviewed Date</th>
+                    <th className="p-4 text-xs font-semibold" style={{ color: t.txtMuted }}>Notes / Reason</th>
+                  </tr>
+                </thead>
               <tbody>
                 {filteredRequests.map((req) => {
                   const creditsEarned = req.creditsAllocated || Math.floor(req.amount * 100);
@@ -444,7 +536,8 @@ export function CreditRequestsTable({
             </table>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* Image Preview Modal Instance */}
       {previewData && (

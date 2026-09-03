@@ -14,6 +14,7 @@ backend/log.txt
 frontend/dist
 .agents/
 teamwork_projects/
+leads_50.csv
 
 # Testing & Test Scripts
 .pytest_cache/

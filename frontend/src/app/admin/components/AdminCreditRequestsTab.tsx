@@ -594,17 +594,145 @@ export function AdminCreditRequestsTab({
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr
-                  className="border-b text-[11px] font-bold uppercase tracking-wider"
-                  style={{
-                    background: hexToRgba(t.bgSurface, 0.7),
-                    borderColor: hexToRgba(t.txtMuted, 0.15),
-                    color: t.txtSecondary,
-                  }}
-                >
+          <div>
+            {/* Mobile Request Cards (md:hidden) */}
+            <div className="md:hidden p-3 sm:p-4 space-y-3">
+              {filteredRequests.map((req) => {
+                const creditsExpected = Math.round(req.amount * 100);
+                const isApproving = isApprovingId === req.id;
+                const isPdf = req.screenshotUrl?.toLowerCase().includes(".pdf");
+
+                return (
+                  <div
+                    key={req.id}
+                    className="p-4 rounded-2xl border space-y-3 shadow-md"
+                    style={{
+                      background: hexToRgba(t.bgCard, t.isDark ? 0.2 : 0.6),
+                      borderColor: hexToRgba(t.bgCard, 0.3),
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-xs truncate" style={{ color: t.txtPrimary }}>
+                          {req.user?.email || "Unknown Email"}
+                        </div>
+                        <div className="text-[10px] font-mono mt-0.5" style={{ color: t.txtMuted }}>
+                          #{req.id.slice(0, 8)} · {formatDate(req.createdAt)}
+                        </div>
+                      </div>
+                      <span
+                        className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0"
+                        style={{
+                          background:
+                            req.user?.plan === "paid"
+                              ? hexToRgba(t.accentPrimary, 0.15)
+                              : hexToRgba(t.txtMuted, 0.15),
+                          color: req.user?.plan === "paid" ? t.accentPrimary : t.txtMuted,
+                        }}
+                      >
+                        {req.user?.plan || "free"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-700/15">
+                      <div>
+                        <span className="text-[10px] uppercase block" style={{ color: t.txtGhost }}>Amount</span>
+                        <span className="font-bold font-mono text-sm" style={{ color: t.numPos }}>
+                          ${req.amount.toFixed(2)} USD
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase block" style={{ color: t.txtGhost }}>Credits</span>
+                        <span className="font-bold font-mono text-sm" style={{ color: t.txtPrimary }}>
+                          +{creditsExpected.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {req.screenshotUrl && (
+                      <button
+                        onClick={() => openPreview(req)}
+                        className="min-h-[44px] w-full px-3 py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
+                        style={{
+                          background: hexToRgba(t.bgSurface, 0.6),
+                          borderColor: hexToRgba(t.accentPrimary, 0.35),
+                          color: t.accentPrimary,
+                        }}
+                      >
+                        {isPdf ? <FileText size={14} /> : <ImageIcon size={14} />}
+                        <span>View Payment Receipt</span>
+                        <Eye size={12} className="opacity-75" />
+                      </button>
+                    )}
+
+                    {req.status === "pending" ? (
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => handleApproveRequest(req)}
+                          disabled={isApproving}
+                          className="min-h-[44px] flex-1 px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+                          style={{
+                            background: `linear-gradient(135deg, ${t.numPos}, ${hexToRgba(t.numPos, 0.85)})`,
+                            color: "#FFFFFF",
+                          }}
+                        >
+                          {isApproving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                          <span>Approve</span>
+                        </button>
+
+                        <button
+                          onClick={() => setRejectingRequest(req)}
+                          disabled={isApproving}
+                          className="min-h-[44px] flex-1 px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border active:scale-95 disabled:opacity-50 cursor-pointer"
+                          style={{
+                            borderColor: hexToRgba(t.numNeg, 0.4),
+                            color: t.numNeg,
+                            background: hexToRgba(t.numNeg, 0.08),
+                          }}
+                        >
+                          <Ban size={14} />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="pt-1 text-center">
+                        <span
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold"
+                          style={{
+                            background:
+                              req.status === "approved"
+                                ? hexToRgba(t.numPos, 0.15)
+                                : hexToRgba(t.numNeg, 0.15),
+                            color: req.status === "approved" ? t.numPos : t.numNeg,
+                            border: `1px solid ${
+                              req.status === "approved"
+                                ? hexToRgba(t.numPos, 0.3)
+                                : hexToRgba(t.numNeg, 0.3)
+                            }`,
+                          }}
+                        >
+                          {req.status === "approved" ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                          <span className="capitalize">{req.status}</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View (hidden md:block) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr
+                    className="border-b text-[11px] font-bold uppercase tracking-wider"
+                    style={{
+                      background: hexToRgba(t.bgSurface, 0.7),
+                      borderColor: hexToRgba(t.txtMuted, 0.15),
+                      color: t.txtSecondary,
+                    }}
+                  >
                   <th className="py-3.5 px-4">User / Account</th>
                   <th className="py-3.5 px-4">Amount & Credits</th>
                   <th className="py-3.5 px-4">Payment Proof</th>
@@ -833,8 +961,9 @@ export function AdminCreditRequestsTab({
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
 
       {/* 5. Image Preview Modal for Receipts */}
       <ImagePreviewModal
