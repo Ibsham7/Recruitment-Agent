@@ -119,8 +119,8 @@ from app.routers import user as user_router, admin as admin_router
 app.include_router(user_router.router)
 app.include_router(admin_router.router)
 
-@app.get("/health", tags=["System"])
-@app.get("/api/health", tags=["System"])
+@app.api_route("/health", methods=["GET", "HEAD"], tags=["System"])
+@app.api_route("/api/health", methods=["GET", "HEAD"], tags=["System"])
 async def health_check():
     """Health check probe endpoint for container orchestration and uptime monitoring."""
     return {"status": "ok", "service": "recruitment-agent-backend"}
@@ -394,11 +394,11 @@ async def update_campaign_interview_config(id: str, config_data: CampaignIntervi
     return {"status": "success", "campaignId": updated.id, "interviewConfig": updated.interviewConfig}
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"], tags=["System"])
 async def root():
     return {"status": "ok", "message": "Recruitment Agent API is running"}
 
-@app.get("/api/health/db")
+@app.api_route("/api/health/db", methods=["GET", "HEAD"], tags=["System"])
 async def health_db():
     try:
         # Simple query to check if DB is awake
