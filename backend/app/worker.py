@@ -53,14 +53,6 @@ async def process_cv_task(ctx, candidate_id: str, cv_url: str, jd_text: str):
     candidate_id_ctx.set(candidate_id)
     try:
         log_event(candidate_id, "WORKER", f"Starting background CV processing task for candidate {candidate_id}")
-        if prisma.is_connected():
-            try:
-                await prisma.candidate.update(
-                    where={"id": candidate_id},
-                    data={"status": "screening"}
-                )
-            except Exception as pe:
-                logger.warning(f"[WORKER] Could not set candidate {candidate_id} status to 'screening': {pe}")
         await start_candidate_pipeline(candidate_id, cv_url, jd_text, checkpointer=ctx.get('checkpointer'))
         log_event(candidate_id, "WORKER", f"Completed background CV processing for candidate {candidate_id}")
     except Exception as e:

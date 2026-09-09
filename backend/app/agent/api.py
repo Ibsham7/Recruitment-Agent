@@ -178,10 +178,20 @@ async def start_candidate_pipeline(candidate_id: str, cv_url: str, jd_text: str,
     # Load existing profile if it's cached
     candidate = await prisma.candidate.find_unique(where={"id": candidate_id}, include={"campaign": True, "resume": True})
     
-    # In-Flight Concurrency Guard: prevent duplicate concurrent invocations for the same candidate
-    if candidate and candidate.status == "screening":
-        log_event(candidate_id, "GRAPH", f"Candidate {candidate_id} screening already in progress; skipping duplicate run.")
+    # Only skip if candidate has already been evaluated to a terminal or completed state
+    if candidate and candidate.status in ["shortlisted", "screening_hold", "invited", "interviewing", "interview_completed", "finalized", "complete"]:
+        log_event(candidate_id, "GRAPH", f"Candidate {candidate_id} already reached status '{candidate.status}'; skipping redundant run.")
         return
+
+    # Update candidate status to 'screening' so UI indicates active progress
+    if candidate and candidate.status != "screening":
+        try:
+            await prisma.candidate.update(
+                where={"id": candidate_id},
+                data={"status": "screening"}
+            )
+        except Exception as pe:
+            logger.warning(f"[GRAPH] Could not update candidate {candidate_id} status to 'screening': {pe}")
 
     candidate_profile = None
     canonical_jd_spec = None
