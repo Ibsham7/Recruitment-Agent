@@ -54,10 +54,12 @@ def clean_db_url(raw_url: str) -> str:
 def get_redis_settings() -> RedisSettings:
     url = os.getenv("REDIS_URL", "redis://localhost:6379")
     settings = RedisSettings.from_dsn(url)
-    settings.conn_timeout = 10
-    settings.conn_retries = 5
+    settings.conn_timeout = 15
+    settings.conn_retries = 10
+    settings.conn_retry_delay = 2
     if url.startswith("rediss://"):
         settings.ssl_cert_reqs = "none"
+        settings.ssl_check_hostname = False
     return settings
 
 async def get_redis_pool():

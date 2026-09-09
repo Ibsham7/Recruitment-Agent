@@ -41,10 +41,12 @@ from arq.connections import RedisSettings
 def _get_redis_settings() -> RedisSettings:
     url = os.getenv("REDIS_URL", "redis://localhost:6379")
     settings = RedisSettings.from_dsn(url)
-    settings.conn_timeout = 10
-    settings.conn_retries = 5
+    settings.conn_timeout = 15
+    settings.conn_retries = 10
+    settings.conn_retry_delay = 2
     if url.startswith("rediss://"):
         settings.ssl_cert_reqs = "none"
+        settings.ssl_check_hostname = False
     return settings
 
 async def lifespan(app: FastAPI):
@@ -53,6 +55,20 @@ async def lifespan(app: FastAPI):
     await init_db_pool()
     app.state.redis = await create_pool(_get_redis_settings())
     
+    # Embedded ARQ Worker (Guarantees background execution on single container & Render deployments)
+    app.state.worker = None
+    app.state.worker_task = None
+    if os.getenv("ENABLE_EMBEDDED_WORKER", "true").lower() == "true":
+        try:
+            from arq.worker import create_worker
+            from app.worker import WorkerSettings
+            worker = create_worker(WorkerSettings)
+            app.state.worker = worker
+            app.state.worker_task = asyncio.create_task(worker.main())
+            logger.info("[Lifespan] Embedded ARQ worker started successfully on main event loop.")
+        except Exception as we:
+            logger.error(f"[Lifespan] Failed to start embedded ARQ worker: {we}")
+
     # Verify and configure Cloudflare R2 bucket CORS rules for browser uploads
     try:
         from app.services.r2_service import ensure_r2_bucket_cors
@@ -61,7 +77,19 @@ async def lifespan(app: FastAPI):
         logger.warning(f"R2 CORS startup verification warning: {e}")
 
     yield
-    # Shutdown: Disconnect database pool and Redis Queue
+    # Shutdown: Disconnect embedded worker, database pool and Redis Queue
+    if getattr(app.state, "worker", None):
+        try:
+            await app.state.worker.close()
+        except Exception:
+            pass
+    if getattr(app.state, "worker_task", None) and not app.state.worker_task.done():
+        app.state.worker_task.cancel()
+        try:
+            await app.state.worker_task
+        except (asyncio.CancelledError, Exception):
+            pass
+
     await prisma.disconnect()
     await close_db_pool()
     try:
@@ -122,8 +150,30 @@ app.include_router(admin_router.router)
 @app.api_route("/health", methods=["GET", "HEAD"], tags=["System"])
 @app.api_route("/api/health", methods=["GET", "HEAD"], tags=["System"])
 async def health_check():
-    """Health check probe endpoint for container orchestration and uptime monitoring."""
-    return {"status": "ok", "service": "recruitment-agent-backend"}
+    """Health check probe endpoint with queue depth and worker telemetry."""
+    redis_ok = False
+    pending_jobs = 0
+    worker_running = bool(
+        hasattr(app.state, "worker_task") 
+        and app.state.worker_task 
+        and not app.state.worker_task.done()
+    )
+
+    try:
+        if hasattr(app.state, "redis") and app.state.redis:
+            await app.state.redis.ping()
+            redis_ok = True
+            pending_jobs = await app.state.redis.zcard("arq:queue")
+    except Exception as re:
+        logger.warning(f"[Health] Redis probe check failed: {re}")
+
+    return {
+        "status": "ok",
+        "service": "recruitment-agent-backend",
+        "redis_connected": redis_ok,
+        "embedded_worker_active": worker_running,
+        "pending_queue_jobs": pending_jobs
+    }
 
 class CampaignCreate(BaseModel):
     id: Optional[str] = None

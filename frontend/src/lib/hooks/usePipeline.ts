@@ -113,6 +113,16 @@ export function usePipeline(id: string | undefined) {
       }
       return 1000 * 60 * 5;
     },
+    // Resilient Polling Fallback:
+    // Automatically poll every 3 seconds while candidates are in "pending" or "screening" status
+    // so the UI updates in real time even if Supabase Realtime WebSockets disconnect or drop
+    refetchInterval: (query) => {
+      const candidates = query.state.data?.candidates || [];
+      const hasInFlight = candidates.some((c: any) =>
+        ["pending", "screening"].includes(c.stage || c.status)
+      );
+      return hasInFlight ? 3000 : false;
+    },
   });
 
   const invalidatePipeline = useCallback(() => {
