@@ -35,72 +35,71 @@ from app.interview_security import generate_interview_token, verify_interview_to
 from app.services.email_service import send_interview_invitation_email
 import datetime
 from fastapi import Depends
-from arq import create_pool
-from arq.connections import RedisSettings
+from app.database import get_redis_pool, close_redis_pool
+from app.queue_notifications import enqueue_job
+from app.redis_health import RedisHealth
+from app.adaptive_worker import create_adaptive_worker
 
-def _get_redis_settings() -> RedisSettings:
-    url = os.getenv("REDIS_URL", "redis://localhost:6379")
-    settings = RedisSettings.from_dsn(url)
-    settings.conn_timeout = 15
-    settings.conn_retries = 10
-    settings.conn_retry_delay = 2
-    if url.startswith("rediss://"):
-        settings.ssl_cert_reqs = "none"
-        settings.ssl_check_hostname = False
-    return settings
 
+def _worker_finished(task):
+    if not task.cancelled() and task.exception() is not None:
+        logger.error("Embedded ARQ worker failed; inspect worker logs and restart service")
+
+@asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Connect to database, initialize psycopg connection pool and Redis Queue
-    await prisma.connect()
-    await init_db_pool()
-    app.state.redis = await create_pool(_get_redis_settings())
-    
-    # Embedded ARQ Worker (Guarantees background execution on single container & Render deployments)
+    app.state.redis_health = RedisHealth()
+    app.state.redis_health_task = None
     app.state.worker = None
     app.state.worker_task = None
-    if os.getenv("ENABLE_EMBEDDED_WORKER", "true").lower() == "true":
-        try:
-            from arq.worker import create_worker
+    try:
+        await prisma.connect()
+        await init_db_pool()
+        app.state.redis = await get_redis_pool()
+        if app.state.redis is None:
+            raise RuntimeError("Redis connection failed during API startup")
+        app.state.redis_health_task = asyncio.create_task(app.state.redis_health.run(app.state.redis))
+        if os.getenv("ENABLE_EMBEDDED_WORKER", "true").lower() == "true":
             from app.worker import WorkerSettings
-            worker = create_worker(WorkerSettings)
+            worker = create_adaptive_worker(WorkerSettings, embedded=True)
             app.state.worker = worker
-            app.state.worker_task = asyncio.create_task(worker.main())
+            app.state.worker_task = asyncio.create_task(worker.async_run())
+            app.state.worker_task.add_done_callback(_worker_finished)
             logger.info("[Lifespan] Embedded ARQ worker started successfully on main event loop.")
-        except Exception as we:
-            logger.error(f"[Lifespan] Failed to start embedded ARQ worker: {we}")
-
-    # Verify and configure Cloudflare R2 bucket CORS rules for browser uploads
-    try:
-        from app.services.r2_service import ensure_r2_bucket_cors
-        await asyncio.to_thread(ensure_r2_bucket_cors)
-    except Exception as e:
-        logger.warning(f"R2 CORS startup verification warning: {e}")
-
-    yield
-    # Shutdown: Disconnect embedded worker, database pool and Redis Queue
-    if getattr(app.state, "worker", None):
+        else:
+            logger.info("[Lifespan] Embedded worker disabled; standalone runner owns execution")
         try:
-            await app.state.worker.close()
-        except Exception:
-            pass
-    if getattr(app.state, "worker_task", None) and not app.state.worker_task.done():
-        app.state.worker_task.cancel()
+            from app.services.r2_service import ensure_r2_bucket_cors
+            await asyncio.to_thread(ensure_r2_bucket_cors)
+        except Exception as e:
+            logger.warning(f"R2 CORS startup verification warning: {e}")
+        yield
+    finally:
+        if app.state.redis_health_task is not None:
+            app.state.redis_health_task.cancel()
+            try:
+                await app.state.redis_health_task
+            except asyncio.CancelledError:
+                pass
+        if app.state.worker is not None:
+            try:
+                await app.state.worker.close()
+            except Exception:
+                logger.error("Embedded worker cleanup failed")
+        if app.state.worker_task is not None:
+            if not app.state.worker_task.done():
+                app.state.worker_task.cancel()
+            try:
+                await app.state.worker_task
+            except (asyncio.CancelledError, Exception):
+                pass
         try:
-            await app.state.worker_task
-        except (asyncio.CancelledError, Exception):
-            pass
-
-    await prisma.disconnect()
-    await close_db_pool()
-    try:
-        if hasattr(app.state.redis, "aclose"):
-            await app.state.redis.aclose()
-        elif hasattr(app.state.redis, "close"):
-            res = app.state.redis.close()
-            if asyncio.iscoroutine(res):
-                await res
-    except Exception:
-        pass
+            await close_redis_pool()
+        finally:
+            try:
+                await close_db_pool()
+            finally:
+                if prisma.is_connected():
+                    await prisma.disconnect()
 
 from app.core.logging import setup_logging, logger
 from app.middleware.correlation import CorrelationIdMiddleware
@@ -150,29 +149,19 @@ app.include_router(admin_router.router)
 @app.api_route("/health", methods=["GET", "HEAD"], tags=["System"])
 @app.api_route("/api/health", methods=["GET", "HEAD"], tags=["System"])
 async def health_check():
-    """Health check probe endpoint with queue depth and worker telemetry."""
-    redis_ok = False
-    pending_jobs = 0
+    """Liveness probe: dependency telemetry is sampled hourly, never per request."""
     worker_running = bool(
         hasattr(app.state, "worker_task") 
         and app.state.worker_task 
         and not app.state.worker_task.done()
     )
 
-    try:
-        if hasattr(app.state, "redis") and app.state.redis:
-            await app.state.redis.ping()
-            redis_ok = True
-            pending_jobs = await app.state.redis.zcard("arq:queue")
-    except Exception as re:
-        logger.warning(f"[Health] Redis probe check failed: {re}")
-
+    telemetry = getattr(app.state, "redis_health", None)
     return {
         "status": "ok",
         "service": "recruitment-agent-backend",
-        "redis_connected": redis_ok,
         "embedded_worker_active": worker_running,
-        "pending_queue_jobs": pending_jobs
+        **(telemetry.snapshot if telemetry else RedisHealth().snapshot),
     }
 
 class CampaignCreate(BaseModel):
@@ -377,7 +366,7 @@ async def create_campaign(campaign: CampaignCreate, request: Request, background
     if candidate_records:
         await prisma.candidate.create_many(data=candidate_records)
         for cand_id, resume_url, job_desc in jobs_to_enqueue:
-            await request.app.state.redis.enqueue_job(
+            await enqueue_job(request.app.state.redis,
                 'process_cv_task',
                 cand_id,
                 resume_url,
@@ -407,7 +396,7 @@ async def retry_failed_candidates(id: str, request: Request, user: dict = Depend
             # Don't retry candidates rejected for actual reasons like low score
             continue
             
-        await request.app.state.redis.enqueue_job(
+        await enqueue_job(request.app.state.redis,
             'process_cv_task',
             cand.id,
             cand.cvUrl,

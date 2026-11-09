@@ -8,7 +8,7 @@ from psycopg.rows import dict_row
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from arq import create_pool
-from arq.connections import RedisSettings
+from app.redis_config import get_redis_settings
 
 if sys.platform == "win32":
     try:
@@ -21,6 +21,7 @@ prisma = Prisma()
 _pool: AsyncConnectionPool | None = None
 _checkpointer: AsyncPostgresSaver | None = None
 _redis_pool = None
+_redis_lock = asyncio.Lock()
 
 try:
     import psycopg.pq
@@ -51,25 +52,22 @@ def clean_db_url(raw_url: str) -> str:
     new_query = urlencode(filtered_params)
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
 
-def get_redis_settings() -> RedisSettings:
-    url = os.getenv("REDIS_URL", "redis://localhost:6379")
-    settings = RedisSettings.from_dsn(url)
-    settings.conn_timeout = 15
-    settings.conn_retries = 10
-    settings.conn_retry_delay = 2
-    if url.startswith("rediss://"):
-        settings.ssl_cert_reqs = "none"
-        settings.ssl_check_hostname = False
-    return settings
-
 async def get_redis_pool():
     global _redis_pool
-    if _redis_pool is None:
-        try:
-            _redis_pool = await create_pool(get_redis_settings())
-        except Exception:
-            return None
+    async with _redis_lock:
+        if _redis_pool is None:
+            try:
+                _redis_pool = await create_pool(get_redis_settings())
+            except Exception:
+                return None
     return _redis_pool
+
+async def close_redis_pool():
+    global _redis_pool
+    async with _redis_lock:
+        if _redis_pool is not None:
+            pool, _redis_pool = _redis_pool, None
+            await pool.aclose(close_connection_pool=True)
 
 def get_db_url() -> str:
     raw = os.environ.get("DATABASE_URL") or os.environ.get("DIRECT_URL") or ""

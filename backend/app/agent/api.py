@@ -836,7 +836,8 @@ async def process_interview_answer(candidate_id: str, answer_text: str, telemetr
         redis_pool = await get_redis_pool()
         if redis_pool:
             try:
-                await redis_pool.enqueue_job("process_evaluator_task", candidate_id)
+                from app.queue_notifications import enqueue_job
+                await enqueue_job(redis_pool, "process_evaluator_task", candidate_id)
                 print(f"[Interview] Enqueued process_evaluator_task for candidate {candidate_id} in ARQ Redis Queue")
             except Exception as eq_err:
                 print(f"[Interview] Failed to enqueue ARQ evaluation task, falling back to local task: {eq_err}")

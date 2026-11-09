@@ -10,8 +10,8 @@ numpy
 langgraph-checkpoint-postgres
 psycopg[binary]
 psycopg-pool
-arq
-redis
+arq==0.28.0
+redis==5.3.1
 pymupdf
 python-docx
 boto3

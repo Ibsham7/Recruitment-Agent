@@ -11,6 +11,16 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
+      - key: APP_ENV
+        value: "production"
+      - key: ARQ_ACTIVE_POLL_SECONDS
+        value: "0.5"
+      - key: ARQ_IDLE_POLL_SECONDS
+        value: "30"
+      - key: ARQ_ACTIVE_GRACE_SECONDS
+        value: "5"
+      - key: ARQ_ADAPTIVE_POLLING
+        value: "true"
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL

@@ -1,8 +1,6 @@
 import os
 import sys
 import asyncio
-import ssl
-from urllib.parse import urlparse, urlunparse
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -23,6 +21,7 @@ from app.database import prisma, init_db_pool, close_db_pool, get_global_checkpo
 from app.agent.state import RecruitmentState
 from arq.cron import cron
 from app.sweeper import run_all_sweepers
+from app.redis_config import get_redis_settings
 
 async def startup(ctx):
     """
@@ -39,7 +38,7 @@ async def shutdown(ctx):
     """
     Clean up resources when the worker process stops.
     """
-    if os.getenv("ENABLE_EMBEDDED_WORKER", "true").lower() == "false":
+    if not ctx.get("embedded", False):
         if prisma.is_connected():
             await prisma.disconnect()
         await close_db_pool()
@@ -107,22 +106,13 @@ async def process_evaluator_task(ctx, candidate_id: str):
         candidate_id_ctx.set("")
 
 def _get_redis_settings() -> RedisSettings:
-    url = os.getenv("REDIS_URL", "redis://localhost:6379")
-    settings = RedisSettings.from_dsn(url)
-    settings.conn_timeout = 15
-    settings.conn_retries = 10
-    settings.conn_retry_delay = 2
-    if url.startswith("rediss://"):
-        settings.ssl_cert_reqs = "none"
-        settings.ssl_check_hostname = False
-    return settings
+    return get_redis_settings()
 
 MAX_CONCURRENT_PIPELINES = int(os.getenv("MAX_CONCURRENT_PIPELINES", "3"))
 
 class WorkerSettings:
     """
-    ARQ Worker Settings.
-    This class is read by the `arq app.worker.WorkerSettings` command.
+    Settings shared by the embedded worker and `python -m app.run_worker`.
     """
     functions = [process_cv_task, resume_pipeline_task, process_evaluator_task]
     cron_jobs = [

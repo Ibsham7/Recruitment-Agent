@@ -119,7 +119,7 @@ export function usePipeline(id: string | undefined) {
     refetchInterval: (query) => {
       const candidates = query.state.data?.candidates || [];
       const hasInFlight = candidates.some((c: any) =>
-        ["pending", "screening"].includes(c.stage || c.status)
+        ["pending", "screening"].includes(c.status)
       );
       return hasInFlight ? 3000 : false;
     },

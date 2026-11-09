@@ -444,17 +444,61 @@ prisma db push
 
 Open two terminal sessions:
 
-#### Terminal 1: ARQ Redis Background Task Worker
-```bash
-cd backend
-arq app.worker.WorkerSettings
-```
-
-#### Terminal 2: FastAPI Web Server
+#### FastAPI Web Server (includes one adaptive ARQ worker)
 ```bash
 cd backend
 uvicorn app.main:app --reload --port 8000
 ```
+
+Alternatively, run `npm run dev` from the repository root to start the API
+and frontend together. Do not start another worker alongside the embedded worker.
+
+Development uses `REDIS_DEV_URL` (default `redis://localhost:6379`), even when
+`backend/.env` contains an Upstash `REDIS_URL`. Start a local Redis server first.
+To deliberately use the configured remote Redis during development, set
+`ALLOW_REMOTE_REDIS_IN_DEV=true`. Docker and Render use `APP_ENV=production`
+and the configured `REDIS_URL`.
+
+For explicit standalone execution, disable the embedded worker with
+`ENABLE_EMBEDDED_WORKER=false` and run `python -m app.run_worker` in a separate
+backend terminal. The Docker entrypoint does this automatically when the flag is
+false. Use this runner rather than `arq app.worker.WorkerSettings`, which bypasses
+the adaptive worker. Notifications are process-local; standalone workers discover
+API submissions through the fallback poll.
+
+### Redis usage and rollout
+
+`ARQ_ACTIVE_POLL_SECONDS=0.5`, `ARQ_IDLE_POLL_SECONDS=30`, and
+`ARQ_ACTIVE_GRACE_SECONDS=5` keep fast polling during work and for five seconds
+afterwards. Successful API enqueues notify the embedded worker without extra
+Redis commands. Idle ticks still service ARQ cron and hourly worker heartbeats.
+For rollback, set `ARQ_ADAPTIVE_POLLING=false`: the runner uses standard
+30-second polling (or the configured idle interval).
+
+`/health` and `/api/health` read cached Redis telemetry only. Samples run at
+startup and hourly; `redis_checked_at` is the sample timestamp. Connectivity and
+queue depth are null before sampling; a failed sample reports false connectivity
+and null depth. The endpoint remains a liveness check, not a guarantee of current
+Redis readiness.
+
+Before deployment, inspect Upstash's command history and identify every worker
+using the database. Deploy one worker without flushing Redis, then verify roughly
+two idle queue reads per minute and no reads caused by HTTP health probes. A
+31-day idle month should remain below 100K commands, including hourly telemetry,
+normal cron jobs, and limited restarts. Actual jobs consume additional commands.
+
+The credential formerly embedded in `backend/test_redis.py` must be rotated in
+Upstash. Update Render and every opted-in development client together; restart
+clients after rotation. Removing it from current source does not revoke it or
+remove it from Git history. Do not include credentials in logs or diagnostic output.
+
+For isolated verification, start disposable Redis on localhost port 16379 and run
+`RUN_LOCAL_REDIS_TESTS=true python -m pytest tests/test_redis_integration.py -q -s`
+from the backend directory (PowerShell: `$env:RUN_LOCAL_REDIS_TESTS='true'` first).
+The integration test ignores `REDIS_URL`, uses unique keys, and never flushes the
+database. Runtime tests are in `tests/test_redis_runtime.py`. Existing billing
+integration tests require a disposable PostgreSQL database; explicitly override
+both `DATABASE_URL` and `DIRECT_URL` before running them because they load `.env`.
 
 ---
 

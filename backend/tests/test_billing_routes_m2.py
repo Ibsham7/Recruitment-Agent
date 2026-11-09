@@ -144,6 +144,10 @@ class TestBillingRoutesMilestone2(unittest.IsolatedAsyncioTestCase):
         os.environ["ADMIN_EMAILS"] = admin_email
         self.override_auth(admin_uid, admin_email, is_admin=True)
 
+        # Auth is overridden, so no profile provisioning runs for the admin.
+        # Seed both users explicitly for the totalUsers assertion on a fresh DB.
+        await prisma.userprofile.create(data={"userId": admin_uid, "email": admin_email, "plan": "free"})
+
         # Target user submits $20 request
         target_uid = self.make_user_id("target_user")
         target_email = f"{target_uid}@example.com"

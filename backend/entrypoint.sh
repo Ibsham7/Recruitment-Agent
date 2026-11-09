@@ -31,7 +31,7 @@ trap shutdown TERM INT QUIT
 # immunity to Render Start Command overrides.
 if [ "${ENABLE_EMBEDDED_WORKER:-true}" = "false" ]; then
     echo "[Entrypoint] Starting Standalone ARQ Background Worker..."
-    python -u -m arq app.worker.WorkerSettings &
+    python -u -m app.run_worker &
     WORKER_PID=$!
     echo "[Entrypoint] Standalone ARQ Worker running with PID $WORKER_PID."
 fi

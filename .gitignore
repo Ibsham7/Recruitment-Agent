@@ -6,7 +6,10 @@
 node_modules/
 *.md
 !/README.md
+# Local implementation record (also covered by the general Markdown rule).
+/REDIS_USAGE_FIX_CHANGELOG_2026-11-09.md
 .env*
+!/backend/.env.example
 __pycache__/
 *.pyc
 .turbo/
